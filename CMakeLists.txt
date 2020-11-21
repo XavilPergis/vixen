@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.15.2)
-project(Xen)
+project(vixen VERSION 0.1.0)
 
 add_subdirectory(lib/spdlog)
-
-add_subdirectory(xen_core)
-add_subdirectory(xen_data)
+add_subdirectory(vixen)

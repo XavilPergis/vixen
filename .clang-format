@@ -73,7 +73,7 @@ FixNamespaceComments: true
 # ForEachMacros: []
 IncludeBlocks: Regroup
 IncludeCategories:
-  - Regex:           '^"xen/.*"'
+  - Regex:           '^"vixen/.*"'
     Priority:        1
     SortPriority:    0
   - Regex:           '^"(\.|\.\.)/.*"'
