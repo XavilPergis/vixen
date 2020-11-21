@@ -1,0 +1,11 @@
+cmake_minimum_required(VERSION 3.15.2)
+
+file(GLOB_RECURSE XEN_TEST_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE XEN_TEST_HEADER_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp")
+
+add_library(XenEngineData ${XEN_TEST_HEADER_FILES} ${XEN_TEST_SOURCE_FILES})
+target_include_directories(XenEngineData PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+target_compile_features(XenEngineData PUBLIC cxx_std_17)
+
+target_link_libraries(XenEngineData PUBLIC XenEngineCore)
