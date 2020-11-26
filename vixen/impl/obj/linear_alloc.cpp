@@ -40,7 +40,7 @@ void *linear_allocator::internal_realloc(
         return old_ptr;
     }
 
-    VIXEN_ENGINE_UNREACHABLE("linear_allocator::internal_realloc got to end of function.")
+    VIXEN_UNREACHABLE("linear_allocator::internal_realloc got to end of function.");
     return nullptr;
 }
 

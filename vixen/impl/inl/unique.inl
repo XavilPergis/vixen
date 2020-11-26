@@ -17,7 +17,7 @@ unique<T>::unique(unique<T> &&other)
 
 template <typename T>
 unique<T> &unique<T>::operator=(unique<T> &&other) {
-    XEN_ENGINE_WARN("unique::operator=(unique<T>&&)")
+    VIXEN_WARN("unique::operator=(unique<T>&&)");
     if (std::addressof(other) == this)
         return *this;
 
@@ -34,30 +34,33 @@ unique<T>::~unique() {
     clear();
 }
 
-#define XEN_ASSERT_NONNULL(ptr) \
-    XEN_ENGINE_ASSERT(ptr != nullptr, "Tried to deference a null pointer.")
+#ifdef VIXEN_IS_DEBUG
+#define VIXEN_ASSERT_NONNULL(ptr) VIXEN_ASSERT(ptr != nullptr, "Tried to deference a null pointer.")
+#else
+#define VIXEN_ASSERT_NONNULL(...)
+#endif
 
 template <typename T>
 const T &unique<T>::operator*() const {
-    XEN_ASSERT_NONNULL(data)
+    VIXEN_ASSERT_NONNULL(data);
     return *data;
 }
 
 template <typename T>
 const T *unique<T>::operator->() const {
-    XEN_ASSERT_NONNULL(data)
+    VIXEN_ASSERT_NONNULL(data);
     return data;
 }
 
 template <typename T>
 T &unique<T>::operator*() {
-    XEN_ASSERT_NONNULL(data)
+    VIXEN_ASSERT_NONNULL(data);
     return *data;
 }
 
 template <typename T>
 T *unique<T>::operator->() {
-    XEN_ASSERT_NONNULL(data)
+    VIXEN_ASSERT_NONNULL(data);
     return data;
 }
 

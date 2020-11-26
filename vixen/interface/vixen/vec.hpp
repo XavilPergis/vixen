@@ -80,6 +80,9 @@ struct vector {
     operator slice<const T>() const;
     operator slice<T>();
 
+    template <typename S>
+    S &operator<<(S &s);
+
 private:
     usize next_capacity();
     void try_grow(usize elements_needed);

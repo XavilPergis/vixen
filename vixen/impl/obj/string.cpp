@@ -28,7 +28,7 @@ void encode(u32 codepoint, char *buf) {
     default:
         VIXEN_UNREACHABLE("UTF-8 encoded length of {} for codepoint U+{:X} is wrong.",
             len,
-            codepoint)
+            codepoint);
     }
 }
 

@@ -112,7 +112,7 @@ static const char *bytes_scale(usize bytes) {
     else if (bytes < ONE_PB) { return "TiB"; }
     // clang-format on
 
-    VIXEN_ENGINE_UNREACHABLE("too many bytes!")
+    VIXEN_UNREACHABLE("too many bytes!");
 }
 
 static usize bytes_units(usize bytes) {
@@ -124,36 +124,36 @@ static usize bytes_units(usize bytes) {
     else if (bytes < ONE_PB) { return bytes / ONE_TB; }
     // clang-format on
 
-    VIXEN_ENGINE_UNREACHABLE("too many bytes!")
+    VIXEN_UNREACHABLE("too many bytes!");
 }
 
 void unregister_allocator(allocator *alloc) {
     allocator_info &info = allocator_infos[alloc->id.id];
 
-    VIXEN_ENGINE_INFO("allocator stats for `{}`:", info.name ? *info.name : "<unknown>"_s)
+    VIXEN_INFO("allocator stats for `{}`:", info.name ? *info.name : "<unknown>"_s);
 
-    VIXEN_ENGINE_INFO("\tMaximum tracked bytes used: {} {} ({} bytes)",
+    VIXEN_INFO("\tMaximum tracked bytes used: {} {} ({} bytes)",
         bytes_units(info.maximum_bytes_in_use),
         bytes_scale(info.maximum_bytes_in_use),
-        info.maximum_bytes_in_use)
+        info.maximum_bytes_in_use);
 
-    VIXEN_ENGINE_INFO("\tCurrent tracked bytes used: {} {} ({} bytes)",
+    VIXEN_INFO("\tCurrent tracked bytes used: {} {} ({} bytes)",
         bytes_units(info.num_bytes_in_use),
         bytes_scale(info.num_bytes_in_use),
-        info.num_bytes_in_use)
+        info.num_bytes_in_use);
 
-    VIXEN_ENGINE_INFO("\tMaximum tracked active allocations: {}", info.maximum_active_allocations)
-    VIXEN_ENGINE_INFO("\tCurrent tracked active allocations: {}", info.num_active_allocations)
+    VIXEN_INFO("\tMaximum tracked active allocations: {}", info.maximum_active_allocations);
+    VIXEN_INFO("\tCurrent tracked active allocations: {}", info.num_active_allocations);
 
     translation_cache cache(debug_allocator());
 
     if (info.active_allocations.len() > 0) {
-        VIXEN_ENGINE_INFO("\tActive Allocations:")
+        VIXEN_INFO("\tActive Allocations:");
     }
     info.active_allocations.iter([&](auto &ptr, auto &info) {
-        VIXEN_ENGINE_WARN("\t\t- Pointer: {}", ptr)
-        VIXEN_ENGINE_WARN("\t\t\t- layout: {}", info.allocated_with)
-        VIXEN_ENGINE_WARN("\t\t\t- Realloc Count: {}", info.realloc_count)
+        VIXEN_WARN("\t\t- Pointer: {}", ptr)
+        VIXEN_WARN("\t\t\t- layout: {}", info.allocated_with)
+        VIXEN_WARN("\t\t\t- Realloc Count: {}", info.realloc_count)
 
         if (info.stack_trace) {
             vector<address_info> addr_infos = translate_stack_trace(&cache, *info.stack_trace);
@@ -244,9 +244,7 @@ static void commit_alloc(allocator_info *alloc_info, layout layout, void *ptr) {
     // TODO: check for overlapping allocations, not just the subset where the allocation starts at
     // an old start.
     option<allocation_info> prev = alloc_info->active_allocations.insert(ptr, MOVE(info));
-    VIXEN_ENGINE_ASSERT(prev.is_none(),
-        "Tried to allocate over a previous active allocation at {}",
-        ptr)
+    VIXEN_ASSERT(prev.is_none(), "Tried to allocate over a previous active allocation at {}", ptr);
 }
 
 static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr) {
@@ -263,17 +261,17 @@ static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr)
     }
 
     option<allocation_info> prev = alloc_info->active_allocations.remove(ptr);
-    VIXEN_ENGINE_ASSERT(prev.is_some(),
+    VIXEN_ASSERT(prev.is_some(),
         "Tried to deallocate pointer at {} using layout {}, but the pointer was not an active allocation.",
         ptr,
-        layout)
+        layout);
 
-    VIXEN_ENGINE_ASSERT(
+    VIXEN_ASSERT(
         prev->allocated_with.size == layout.size && prev->allocated_with.align == layout.align,
         "Tried to deallocate pointer at {} using {}, but the pointer was allocated using {}.",
         ptr,
         layout,
-        prev->allocated_with)
+        prev->allocated_with);
 
     destroy(prev);
 }
@@ -290,7 +288,7 @@ void record_alloc(allocator_id id, layout layout, void *ptr) {
         return;
     }
 
-    VIXEN_ENGINE_TRACE("[A] {} ({})", layout, ptr)
+    VIXEN_TRACE("[A] {} ({})", layout, ptr)
     commit_alloc(alloc_info, layout, ptr);
 }
 
@@ -304,7 +302,7 @@ void record_dealloc(allocator_id id, layout layout, void *ptr) {
         return;
     }
 
-    VIXEN_ENGINE_TRACE("[D] {} ({})", layout, ptr)
+    VIXEN_TRACE("[D] {} ({})", layout, ptr)
     commit_dealloc(alloc_info, layout, ptr);
 }
 
@@ -320,15 +318,15 @@ void record_realloc(
 
     if (old_ptr == nullptr && new_ptr != nullptr) {
         // Realloc zero -> something, which is an allocation.
-        VIXEN_ENGINE_TRACE("[R:A] {} ({})", new_layout, new_ptr)
+        VIXEN_TRACE("[R:A] {} ({})", new_layout, new_ptr)
         commit_alloc(alloc_info, new_layout, new_ptr);
     } else if (old_ptr != nullptr && new_ptr == nullptr) {
         // Realloc something -> zero, which is a deallocation.
-        VIXEN_ENGINE_TRACE("[R:D] {} ({})", old_layout, old_ptr)
+        VIXEN_TRACE("[R:D] {} ({})", old_layout, old_ptr)
         commit_dealloc(alloc_info, old_layout, old_ptr);
     } else if (old_ptr != nullptr, new_ptr != nullptr) {
         // Bona fide reallocation!
-        VIXEN_ENGINE_TRACE("[R] {} ({}) -> {} ({})", old_layout, old_ptr, new_layout, old_layout)
+        VIXEN_TRACE("[R] {} ({}) -> {} ({})", old_layout, old_ptr, new_layout, old_layout)
         alloc_info->num_bytes_in_use -= old_layout.size;
         alloc_info->num_bytes_in_use += new_layout.size;
         alloc_info->maximum_bytes_in_use
@@ -348,9 +346,9 @@ void record_realloc(
         }
 
         option<allocation_info> prev = alloc_info->active_allocations.remove(old_ptr);
-        VIXEN_ENGINE_ASSERT(prev.is_some(),
+        VIXEN_ASSERT(prev.is_some(),
             "Tried to reallocate pointer {}, but it was not an active allocation.",
-            old_ptr)
+            old_ptr);
 
         destroy(prev->stack_trace);
         allocation_info info{new_layout, prev->realloc_count + 1};
@@ -360,13 +358,13 @@ void record_realloc(
 
         option<allocation_info> overlapping
             = alloc_info->active_allocations.insert(new_ptr, MOVE(info));
-        VIXEN_ENGINE_ASSERT(overlapping.is_none(),
+        VIXEN_ASSERT(overlapping.is_none(),
             "Tried to reallocate pointer {} ({}) to {} ({}), but it overlaps with an active allocation with layout ({}).",
             old_ptr,
             old_layout,
             new_ptr,
             new_layout,
-            overlapping->allocated_with)
+            overlapping->allocated_with);
     }
 }
 

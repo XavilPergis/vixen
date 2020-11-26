@@ -31,6 +31,12 @@ struct unique {
 
     void clear();
 
+    template <typename S>
+    S &operator<<(S &s) const {
+        s << **this;
+        return s;
+    }
+
 private:
     allocator *alloc;
     T *data;

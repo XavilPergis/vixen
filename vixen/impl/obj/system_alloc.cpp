@@ -5,7 +5,7 @@
 
 namespace vixen::heap {
 void *system_allocator::internal_alloc(const layout &layout) {
-    _VIXEN_ALLOC_PROLOGUE(layout)
+    _VIXEN_ALLOC_PROLOGUE(layout);
 
     void *ptr = std::aligned_alloc(layout.align, layout.size);
     if (ptr == nullptr) {
@@ -15,7 +15,7 @@ void *system_allocator::internal_alloc(const layout &layout) {
 }
 
 void system_allocator::internal_dealloc(const layout &layout, void *ptr) {
-    _VIXEN_DEALLOC_PROLOGUE(layout, ptr)
+    _VIXEN_DEALLOC_PROLOGUE(layout, ptr);
 
     std::free(ptr);
 }

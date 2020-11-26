@@ -1,16 +1,10 @@
 #include "vixen/allocator/stacktrace.hpp"
 
+#include "vixen/assert.hpp"
 #include "vixen/defer.hpp"
-#include "vixen/log.hpp"
 #include "vixen/util.hpp"
 
 #include <execinfo.h>
-
-#define FAIL(...)                           \
-    {                                       \
-        VIXEN_ENGINE_CRITICAL(__VA_ARGS__); \
-        ::std::abort();                     \
-    }
 
 namespace vixen {
 
@@ -24,7 +18,7 @@ string get_command_output(allocator *alloc, string cmd) {
 
     FILE *pipe = popen(cmdbuf.begin(), "r");
     if (pipe == nullptr) {
-        FAIL("`popen` failed.")
+        VIXEN_ASSERT(false, "`popen({})` failed.", cmd);
     }
     defer(pclose(pipe));
 
@@ -52,7 +46,7 @@ address_info translate_symbol(allocator *alloc, string_slice sym) {
     string output = get_command_output(alloc, MOVE(cmd));
     vector<string> lines = output.as_slice().split(alloc, "\n"_s);
     if (lines.len() < 2) {
-        FAIL("addr2line failed with output: `{}`", output)
+        VIXEN_ASSERT(false, "addr2line failed with output: `{}`", output);
     }
 
     address_info info;
@@ -65,7 +59,7 @@ address_info translate_symbol(allocator *alloc, string_slice sym) {
 vector<string> translate_addrs(allocator *alloc, slice<void *> addrs) {
     char **syms = backtrace_symbols(addrs.ptr, addrs.len);
     if (syms == nullptr) {
-        FAIL("`backtrace_symbols` name buffer allocation failed.")
+        VIXEN_ASSERT(false, "`backtrace_symbols` name buffer allocation failed.");
     }
     defer(free((void *)syms));
 
@@ -121,7 +115,7 @@ void translation_cache::translate() {
 }
 
 address_info const &translation_cache::get_info(void *addr) const {
-    VIXEN_ENGINE_ASSERT(translated.key_exists(addr), "Address {} was not translated yet.", addr)
+    VIXEN_ASSERT(translated.key_exists(addr), "Address {} was not translated yet.", addr);
     return translated[addr];
 }
 
@@ -161,14 +155,12 @@ vector<address_info> translate_stack_trace(translation_cache *cache, slice<void 
 }
 
 void print_stack_trace_capture(slice<const address_info> info) {
-    VIXEN_ENGINE_INFO("Stack was {} calls deep:", info.len)
+    VIXEN_INFO("Stack was {} calls deep:", info.len);
     for (usize i = 0; i < info.len; ++i) {
-        VIXEN_ENGINE_INFO("\t\x1b[36m{: >2}\x1b[0m :: \x1b[1m\x1b[32m{}\x1b[0m",
-            i + 1,
-            info[i].name)
-        VIXEN_ENGINE_INFO("\t   :: in {}", info[i].location)
-        VIXEN_ENGINE_INFO("\t   :: symbol {}", info[i].raw_symbol)
-        VIXEN_ENGINE_INFO("\t   ==")
+        VIXEN_INFO("\x1b[36m{: >2}\x1b[0m :: \x1b[1m\x1b[32m{}\x1b[0m", i + 1, info[i].name);
+        VIXEN_INFO("   :: in {}", info[i].location);
+        VIXEN_INFO("   :: symbol {}", info[i].raw_symbol);
+        VIXEN_INFO("   ==");
     }
 }
 

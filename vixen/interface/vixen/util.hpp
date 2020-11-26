@@ -10,6 +10,25 @@
 #define loop while (true)
 #define MOVE(x) ::vixen::util::move(x)
 
+#define likely(x) __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
+#define _STATIC_INIT_ID() __static_runner_##__COUNTER__
+
+#define RUN_AT_STATIC_INIT(...)                                            \
+    static auto _STATIC_INIT_ID() = ::vixen::impl::run_at_static_init([] { \
+        __VA_ARGS__                                                        \
+    })
+
+namespace vixen::impl {
+template <typename F>
+struct run_at_static_init {
+    run_at_static_init(F func) {
+        func();
+    }
+};
+} // namespace vixen::impl
+
 namespace vixen::util {
 template <typename T>
 inline void copy(T const *src, T *dst, usize elements) {

@@ -23,13 +23,13 @@ const slice<T> &slice<T>::as_const() const {
 
 template <typename T>
 T &slice<T>::operator[](usize i) {
-    _VIXEN_BOUNDS_CHECK(i, len)
+    _VIXEN_BOUNDS_CHECK(i, len);
     return ptr[i];
 }
 
 template <typename T>
 const T &slice<T>::operator[](usize i) const {
-    _VIXEN_BOUNDS_CHECK(i, len)
+    _VIXEN_BOUNDS_CHECK(i, len);
     return ptr[i];
 }
 

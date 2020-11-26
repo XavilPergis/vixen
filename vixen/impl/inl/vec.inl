@@ -105,10 +105,10 @@ inline T *vector<T>::reserve(usize elements) {
 
 template <typename T>
 inline void vector<T>::truncate(usize len) {
-    VIXEN_ENGINE_DEBUG_ASSERT(len <= length,
+    VIXEN_DEBUG_ASSERT(len <= length,
         "Tried to truncate vector to {} items, but the current length was {}.",
         len,
-        length)
+        length);
     for (usize i = len; i < length; ++i) {
         data[i].~T();
     }
@@ -122,10 +122,10 @@ inline option<T> vector<T>::pop() {
 
 template <typename T>
 inline T vector<T>::remove(usize idx) {
-    VIXEN_ENGINE_DEBUG_ASSERT(length > idx,
+    VIXEN_DEBUG_ASSERT(length > idx,
         "Tried to remove element {} from a {}-element vector.",
         idx,
-        length)
+        length);
 
     swap(length - 1, idx);
     return data[--length];
@@ -133,10 +133,10 @@ inline T vector<T>::remove(usize idx) {
 
 template <typename T>
 inline T vector<T>::shift_remove(usize idx) {
-    VIXEN_ENGINE_DEBUG_ASSERT(length > idx,
+    VIXEN_DEBUG_ASSERT(length > idx,
         "Tried to remove element {} from a {}-element vector.",
         idx,
-        length)
+        length);
 
     T old_value = MOVE(data[idx]);
     util::copy(&data[idx + 1], &data[idx], length - idx + 1);
@@ -189,11 +189,11 @@ inline option<usize> vector<T>::index_of(const T &value) {
 
 template <typename T>
 inline void vector<T>::swap(usize a, usize b) {
-    VIXEN_ENGINE_DEBUG_ASSERT((length > a) && (length > b),
+    VIXEN_DEBUG_ASSERT((length > a) && (length > b),
         "Tried swapping elements {} and {} in a(n) {}-element vector.",
         a,
         b,
-        length)
+        length);
 
     std::swap(data[a], data[b]);
 }
@@ -246,13 +246,13 @@ inline const T *vector<T>::end() const {
 
 template <typename T>
 inline const T &vector<T>::operator[](usize i) const {
-    _VIXEN_BOUNDS_CHECK(i, length)
+    _VIXEN_BOUNDS_CHECK(i, length);
     return data[i];
 }
 
 template <typename T>
 inline T &vector<T>::operator[](usize i) {
-    _VIXEN_BOUNDS_CHECK(i, length)
+    _VIXEN_BOUNDS_CHECK(i, length);
     return data[i];
 }
 
@@ -281,6 +281,20 @@ inline vector<T>::operator slice<T>() {
     return {data, length};
 }
 
+template <typename T>
+template <typename S>
+S &vector<T>::operator<<(S &s) {
+    s << "[";
+    if (length > 0) {
+        s << data[0];
+        for (usize i = 0; i < length; ++i) {
+            s << ", " << data[i];
+        }
+    }
+    s << "]";
+    return s;
+}
+
 #pragma endregion
 #pragma region "Internal"
 // +------------------------------------------------------------------------------+
@@ -302,7 +316,7 @@ inline void vector<T>::try_grow(usize elements_needed) {
 
 template <typename T>
 inline void vector<T>::set_capacity(usize cap) {
-    VIXEN_ENGINE_ASSERT(alloc != nullptr, "Tried to grow a defaulted Vec.");
+    VIXEN_ASSERT(alloc != nullptr, "Tried to grow a vector with no allocator.");
 
     data = (T *)alloc->realloc(heap::layout::array_of<T>(capacity),
         heap::layout::array_of<T>(cap),

@@ -11,35 +11,35 @@
 // These prologs normalize the behavior of allocation and deallocation funtions
 // and can provide extra correctness checks, so that this code is not duplicated
 // in each allocatior implementation
-#define _VIXEN_ALLOC_PROLOGUE(layout)                                 \
-    if ((layout).size == 0) {                                         \
-        return nullptr;                                               \
-    }                                                                 \
-    VIXEN_ENGINE_ASSERT(vixen::util::is_power_of_two((layout).align), \
-        "Alignment {} is not a power of 2.",                          \
-        (layout).align)
+#define _VIXEN_ALLOC_PROLOGUE(layout)                          \
+    if ((layout).size == 0) {                                  \
+        return nullptr;                                        \
+    }                                                          \
+    VIXEN_ASSERT(vixen::util::is_power_of_two((layout).align), \
+        "Alignment {} is not a power of 2.",                   \
+        (layout).align);
 
-#define _VIXEN_DEALLOC_PROLOGUE(layout, ptr)                          \
-    if (ptr == nullptr) {                                             \
-        return;                                                       \
-    }                                                                 \
-    VIXEN_ENGINE_ASSERT(vixen::util::is_power_of_two((layout).align), \
-        "Alignment {} is not a power of 2.",                          \
-        (layout).align)
+#define _VIXEN_DEALLOC_PROLOGUE(layout, ptr)                   \
+    if (ptr == nullptr) {                                      \
+        return;                                                \
+    }                                                          \
+    VIXEN_ASSERT(vixen::util::is_power_of_two((layout).align), \
+        "Alignment {} is not a power of 2.",                   \
+        (layout).align);
 
-#define _VIXEN_REALLOC_PROLOGUE(old_layout, new_layout, ptr)              \
-    if (ptr == nullptr) {                                                 \
-        return internal_alloc(new_layout);                                \
-    }                                                                     \
-    if (old_layout == new_layout) {                                       \
-        return ptr;                                                       \
-    }                                                                     \
-    VIXEN_ENGINE_ASSERT(vixen::util::is_power_of_two((old_layout).align), \
-        "Alignment {} is not a power of 2.",                              \
-        (old_layout).align)                                               \
-    VIXEN_ENGINE_ASSERT(vixen::util::is_power_of_two((new_layout).align), \
-        "Alignment {} is not a power of 2.",                              \
-        (new_layout).align)
+#define _VIXEN_REALLOC_PROLOGUE(old_layout, new_layout, ptr)       \
+    if (ptr == nullptr) {                                          \
+        return internal_alloc(new_layout);                         \
+    }                                                              \
+    if (old_layout == new_layout) {                                \
+        return ptr;                                                \
+    }                                                              \
+    VIXEN_ASSERT(vixen::util::is_power_of_two((old_layout).align), \
+        "Alignment {} is not a power of 2.",                       \
+        (old_layout).align);                                       \
+    VIXEN_ASSERT(vixen::util::is_power_of_two((new_layout).align), \
+        "Alignment {} is not a power of 2.",                       \
+        (new_layout).align);
 
 namespace vixen::heap {
 template <typename P, typename A>

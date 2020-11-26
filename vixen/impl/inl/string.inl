@@ -6,9 +6,9 @@
 
 #include <cstring>
 
-#define _VIXEN_UTF8_CODEPOINT_VALID(codepoint)                                 \
-    VIXEN_ENGINE_DEBUG_ASSERT(::vixen::utf8::is_valid_for_encoding(codepoint), \
-        "Codepoint U+{:X} is a not valid for UTF-8 encoding.",                 \
+#define _VIXEN_UTF8_CODEPOINT_VALID(codepoint)                          \
+    VIXEN_DEBUG_ASSERT(::vixen::utf8::is_valid_for_encoding(codepoint), \
+        "Codepoint U+{:X} is a not valid for UTF-8 encoding.",          \
         codepoint)
 
 namespace vixen {
@@ -36,7 +36,7 @@ inline string::string(allocator *alloc, usize default_capacity)
     : data(vector<char>(alloc, default_capacity)) {}
 
 inline string::string(vector<char> &&data) : data(MOVE(data)) {
-    // VIXEN_ENGINE_ASSERT(utf8::is_valid(data), "String data was not valid UTF-8.")
+    // VIXEN_ASSERT(utf8::is_valid(data), "String data was not valid UTF-8.")
 }
 
 #pragma endregion
@@ -44,7 +44,7 @@ inline string::string(vector<char> &&data) : data(MOVE(data)) {
 // + ----- String Mutation ------------------------------------------------------ +
 
 inline void string::push(u32 codepoint) {
-    _VIXEN_UTF8_CODEPOINT_VALID(codepoint)
+    _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
     utf8::encode(codepoint, data.reserve(utf8::encoded_len(codepoint)));
 }
 
@@ -178,9 +178,9 @@ inline usize count_invalid_nuls(slice<char> data) {
 
 inline void null_terminate(vector<char> *data) {
     usize invalid_nuls = detail::count_invalid_nuls(*data);
-    VIXEN_ENGINE_ASSERT(invalid_nuls == 0,
+    VIXEN_ASSERT(invalid_nuls == 0,
         "Tried to create a nul-terminated string out of a buffer with {} internal nuls.",
-        invalid_nuls)
+        invalid_nuls);
 
     if (data->as_const().last() != 0) {
         data->push(0);
@@ -216,14 +216,14 @@ inline string_slice::string_slice(string const &str) : raw({str.begin(), str.len
 // + ----- string_slice Algorithms ----------------------------------------------- +
 
 inline option<usize> string_slice::index_of(u32 codepoint) const {
-    _VIXEN_UTF8_CODEPOINT_VALID(codepoint)
+    _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     char buf[4];
     return index_of(utf8::encode_slice(codepoint, buf));
 }
 
 inline option<usize> string_slice::last_index_of(u32 codepoint) const {
-    _VIXEN_UTF8_CODEPOINT_VALID(codepoint)
+    _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     char buf[4];
     return last_index_of(utf8::encode_slice(codepoint, buf));
@@ -320,16 +320,16 @@ inline void string_slice::split_to(
 // + ----- string_slice Accessors ------------------------------------------------ +
 
 inline string_slice string_slice::operator[](range r) const {
-    VIXEN_ENGINE_DEBUG_ASSERT(utf8::is_char_boundary(raw[r.start]),
+    VIXEN_DEBUG_ASSERT(utf8::is_char_boundary(raw[r.start]),
         "Tried to slice string, but start index {} was not on a char boundary.",
-        r.start)
+        r.start);
     return string_slice(raw[r]);
 }
 
 inline string_slice string_slice::operator[](range_from range) const {
-    VIXEN_ENGINE_DEBUG_ASSERT(utf8::is_char_boundary(raw[range.start]),
+    VIXEN_DEBUG_ASSERT(utf8::is_char_boundary(raw[range.start]),
         "Tried to slice string, but start index {} was not on a char boundary.",
-        range.start)
+        range.start);
     return string_slice(raw[range]);
 }
 
@@ -357,7 +357,7 @@ inline bool string_slice::operator==(string_slice rhs) const {
 #pragma region "string_slice Misc"
 
 template <typename S>
-S &operator<<(S &stream, const string_slice &str) {
+inline S &operator<<(S &stream, const string_slice &str) {
     for (char ch : str.raw) {
         stream << ch;
     }
@@ -392,14 +392,14 @@ inline bool is_char_boundary(char utf8_char) {
 }
 
 inline string_slice encode_slice(u32 codepoint, char *buf) {
-    _VIXEN_UTF8_CODEPOINT_VALID(codepoint)
+    _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     encode(codepoint, buf);
     return {{buf, encoded_len(codepoint)}};
 }
 
 inline usize encoded_len(u32 codepoint) {
-    _VIXEN_UTF8_CODEPOINT_VALID(codepoint)
+    _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     // clang-format off
     if      (codepoint <= 0x7f)     { return 1; }
@@ -408,7 +408,7 @@ inline usize encoded_len(u32 codepoint) {
     else if (codepoint <= 0x10ffff) { return 4; }
     // clang-format on
 
-    VIXEN_ENGINE_UNREACHABLE()
+    VIXEN_UNREACHABLE();
 }
 
 inline bool is_valid_for_encoding(u32 codepoint) {

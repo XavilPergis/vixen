@@ -8,29 +8,29 @@
 #pragma region "slice Operator Macro"
 #define _VIXEN_IMPL_SLICE_OPERATORS(Ty, ptr, len)                           \
     slice<const Ty> operator[](range range) const {                         \
-        _VIXEN_BOUNDS_CHECK(range.start, len)                               \
-        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len)                       \
+        _VIXEN_BOUNDS_CHECK(range.start, len);                              \
+        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
         return slice<const Ty>{ptr + range.start, range.end - range.start}; \
     }                                                                       \
     slice<const Ty> operator[](range_from range) const {                    \
-        _VIXEN_BOUNDS_CHECK(range.start, len)                               \
+        _VIXEN_BOUNDS_CHECK(range.start, len);                              \
         return slice<const Ty>{ptr + range.start, len - range.start};       \
     }                                                                       \
     slice<const Ty> operator[](range_to range) const {                      \
-        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len)                       \
+        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
         return slice<const Ty>{ptr, range.end};                             \
     }                                                                       \
     slice<T> operator[](range range) {                                      \
-        _VIXEN_BOUNDS_CHECK(range.start, len)                               \
-        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len)                       \
+        _VIXEN_BOUNDS_CHECK(range.start, len);                              \
+        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
         return slice<Ty>{ptr + range.start, range.end - range.start};       \
     }                                                                       \
     slice<T> operator[](range_from range) {                                 \
-        _VIXEN_BOUNDS_CHECK(range.start, len)                               \
+        _VIXEN_BOUNDS_CHECK(range.start, len);                              \
         return slice<Ty>{ptr + range.start, len - range.start};             \
     }                                                                       \
     slice<T> operator[](range_to range) {                                   \
-        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len)                       \
+        _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
         return slice<Ty>{ptr, range.end};                                   \
     }
 #pragma endregion

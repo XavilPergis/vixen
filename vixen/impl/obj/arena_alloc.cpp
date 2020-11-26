@@ -81,41 +81,33 @@ void *arena_allocator::internal_realloc(
     const layout &old_layout, const layout &new_layout, void *old_ptr) {
     _VIXEN_REALLOC_PROLOGUE(old_layout, new_layout, old_ptr)
 
-    // We could probably deal with differing alignments, but it's not really worth the extra
-    // complexity...
-    if (old_layout.align < new_layout.align) {
-        return general_realloc(this, old_layout, new_layout, old_ptr);
-    }
+    // Differing alignments probably won't happen, or will be exceedingly rare, so we shouldn't
+    // burder ourselves with needing to think about alignment in the rest of this method.
+    bool are_alignments_same = new_layout.align == old_layout.align;
+    bool fits_in_block = void_ptr_add(old_ptr, new_layout.size) > this->current_block->end;
 
-    // Always shrink in-place
-    if (new_layout.size < old_layout.size) {
-        // Actually shrink the current block if its the last one.
-        if (old_ptr == this->current_block->last) {
-            this->current_block->current = void_ptr_add(old_ptr, new_layout.size);
-            return this->current_block->current;
+    if (are_alignments_same && fits_in_block) {
+        // Optimize shrinking reallocs
+        if (new_layout.size < old_layout.size) {
+            // Actually shrink the current block if its the last one.
+            if (old_ptr == this->current_block->last) {
+                this->current_block->current = void_ptr_add(old_ptr, new_layout.size);
+                return this->current_block->current;
+            }
+            // Just hand back the old pointer, because shrinking a block will never trigger a
+            // relocation. If we can't shrink the block because it's not current, then we can just
+            // do nothing and say we shrank it.
+            return old_ptr;
         }
-        // Just hand back the old pointer, because shrinking a block will never trigger a
-        // relocation. If we can't shrink the block because it's not current, then we can just
-        // do nothing and say we shrank it.
-        return old_ptr;
+
+        // Optimize last-allocation grows
+        if (old_ptr == current_block->last) {
+            this->current_block->current = void_ptr_add(old_ptr, new_layout.size);
+            return old_ptr;
+        }
     }
 
-    // If the block we're reallocating isn't the most recent one, or if the grown block would not
-    // fit, then just perform a normal realloc.
-    bool is_last = old_ptr == this->current_block->last;
-    bool is_block_past_end = void_ptr_add(old_ptr, new_layout.size) > this->current_block->end;
-    if (!is_last || is_block_past_end) {
-        return general_realloc(this, old_layout, new_layout, old_ptr);
-    }
-
-    // Grow in-place
-    if (new_layout.size > old_layout.size) {
-        this->current_block->current = void_ptr_add(old_ptr, new_layout.size);
-        return old_ptr;
-    }
-
-    VIXEN_ENGINE_UNREACHABLE("arena_allocator::internal_realloc got to end of function.")
-    return nullptr;
+    return general_realloc(this, old_layout, new_layout, old_ptr);
 }
 
 void arena_allocator::internal_dealloc(const layout &layout, void *ptr) {

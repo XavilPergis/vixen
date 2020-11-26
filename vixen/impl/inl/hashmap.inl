@@ -449,19 +449,19 @@ inline usize hash_map<K, V, Hasher>::prepare_insertion(const K2 &key, u64 *hash_
         return i;
     }
 
-    VIXEN_ENGINE_UNREACHABLE()
+    VIXEN_UNREACHABLE();
 }
 
 template <typename K, typename V, typename H>
 usize hash_map<K, V, H>::next_index(usize i) const {
-    _VIXEN_BOUNDS_CHECK(i, capacity)
+    _VIXEN_BOUNDS_CHECK(i, capacity);
     return (i + 1) % capacity;
 }
 
 // Returns true if the cell at `i` is free to become used
 template <typename K, typename V, typename H>
 bool hash_map<K, V, H>::is_vacant(usize i) const {
-    _VIXEN_BOUNDS_CHECK(i, capacity)
+    _VIXEN_BOUNDS_CHECK(i, capacity);
     // An active top bit signals vacancy.
     return (control[i] & 0x80) != 0;
 }

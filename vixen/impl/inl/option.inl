@@ -47,25 +47,25 @@ inline option<T>::operator bool() const {
 
 template <typename T>
 inline const T &option<T>::operator*() const {
-    VIXEN_ENGINE_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.")
+    VIXEN_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.");
     return this->internal_get();
 }
 
 template <typename T>
 inline T &option<T>::operator*() {
-    VIXEN_ENGINE_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.")
+    VIXEN_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.");
     return this->internal_get();
 }
 
 template <typename T>
 inline typename option<T>::const_pointer option<T>::operator->() const {
-    VIXEN_ENGINE_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.")
+    VIXEN_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.");
     return std::addressof(this->internal_get());
 }
 
 template <typename T>
 inline typename option<T>::pointer option<T>::operator->() {
-    VIXEN_ENGINE_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.")
+    VIXEN_DEBUG_ASSERT(this->internal_get_occupied(), "Tried to access empty option.");
     return std::addressof(this->internal_get());
 }
 
