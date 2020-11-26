@@ -17,7 +17,6 @@ unique<T>::unique(unique<T> &&other)
 
 template <typename T>
 unique<T> &unique<T>::operator=(unique<T> &&other) {
-    VIXEN_WARN("unique::operator=(unique<T>&&)");
     if (std::addressof(other) == this)
         return *this;
 
