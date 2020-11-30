@@ -33,36 +33,35 @@ struct option_storage {
 // of the whole arsenal of methods on `Option`.
 template <typename T>
 struct option_impl {
-protected:
     option_impl() : occupied(false) {}
 
-    template <typename U>
-    option_impl(U &&value) : occupied(true) {
-        storage.set(std::forward<U>(value));
+    ~option_impl() {
+        clear();
     }
 
-    const T &internal_get() const {
+    const T &get() const {
         return storage.get();
     }
 
-    T &internal_get() {
+    T &get() {
         return storage.get();
     }
 
-    bool internal_get_occupied() const {
+    bool get_occupied() const {
         return occupied;
     }
 
     template <typename U>
-    void internal_set(U &&value) {
+    void set(U &&value) {
         if (occupied)
             storage.deinit();
         storage.set(std::forward<U>(value));
         occupied = true;
     }
 
-    void internal_clear() {
-        storage.deinit();
+    void clear() {
+        if (occupied)
+            storage.deinit();
         occupied = false;
     }
 
@@ -75,27 +74,26 @@ private:
 // can encode none as that value.
 template <typename T>
 struct option_impl<T &> {
-protected:
     option_impl() : value(nullptr) {}
     option_impl(T &value) : value(&value) {}
 
-    const T &internal_get() const {
+    const T &get() const {
         return *value;
     }
 
-    T &internal_get() {
+    T &get() {
         return *value;
     }
 
-    bool internal_get_occupied() const {
+    bool get_occupied() const {
         return value != nullptr;
     }
 
-    void internal_set(T &value) {
+    void set(T &value) {
         this->value = std::addressof(value);
     }
 
-    void internal_clear() {
+    void clear() {
         value = nullptr;
     }
 
@@ -106,23 +104,22 @@ private:
 // See specialization for `T&`
 template <typename T>
 struct option_impl<const T &> {
-protected:
     option_impl() : value(nullptr) {}
     option_impl(T const &value) : value(&value) {}
 
-    const T &internal_get() const {
+    const T &get() const {
         return *value;
     }
 
-    bool internal_get_occupied() const {
+    bool get_occupied() const {
         return value != nullptr;
     }
 
-    void internal_set(T const &value) {
+    void set(T const &value) {
         this->value = std::addressof(value);
     }
 
-    void internal_clear() {
+    void clear() {
         value = nullptr;
     }
 

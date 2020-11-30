@@ -11,7 +11,7 @@
 namespace vixen {
 
 template <typename T>
-struct option : option_impl<T> {
+struct option {
     using pointer = std::remove_reference_t<T> *;
     using const_pointer = const std::remove_reference_t<T> *;
 
@@ -41,6 +41,9 @@ struct option : option_impl<T> {
     explicit operator bool() const;
     bool is_some() const;
     bool is_none() const;
+
+private:
+    option_impl<T> impl;
 };
 
 template <typename T, typename H>

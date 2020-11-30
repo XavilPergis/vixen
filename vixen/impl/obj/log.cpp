@@ -27,7 +27,7 @@ logger_id default_logger = create_logger("default", [](logger_id id) {
 });
 
 std::shared_ptr<spdlog::logger> create_raw_logger(const char *name) noexcept {
-    Shared<spdlog::logger> logger = spdlog::stdout_color_mt(name);
+    std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_mt(name);
 #ifdef VIXEN_IS_DEBUG
     logger->set_pattern(default_log_pattern_verbose);
     logger->set_level(spdlog::level::debug);

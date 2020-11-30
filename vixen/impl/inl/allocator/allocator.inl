@@ -1,14 +1,14 @@
 #pragma once
 
-#include <algorithm>
-#include <cstring>
-#include <new>
-
 #include "vixen/allocator/allocator.hpp"
 #include "vixen/allocator/profile.hpp"
 #include "vixen/defer.hpp"
 #include "vixen/types.hpp"
 #include "vixen/util.hpp"
+
+#include <algorithm>
+#include <cstring>
+#include <new>
 
 namespace vixen::heap {
 template <typename P, typename A>

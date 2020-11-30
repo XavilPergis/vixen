@@ -38,8 +38,8 @@ struct unique {
     }
 
 private:
-    allocator *alloc;
     T *data;
+    allocator *alloc;
 };
 
 template <typename T, typename H>

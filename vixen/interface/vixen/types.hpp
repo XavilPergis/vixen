@@ -1,10 +1,6 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
-
-template <typename T>
-using Shared = std::shared_ptr<T>;
 
 using usize = std::uintptr_t;
 using isize = std::intptr_t;
