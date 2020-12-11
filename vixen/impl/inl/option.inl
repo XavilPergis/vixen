@@ -24,7 +24,7 @@ inline option<T> &option<T>::operator=(U &&other) {
 
 template <typename T>
 inline bool option<T>::operator==(const option<T> &rhs) const {
-    return is_none() ? rhs.is_none() : rhs.is_some() && impl.get() == rhs.internal_get();
+    return is_none() ? rhs.is_none() : rhs.is_some() && impl.get() == rhs.impl.get();
 }
 
 template <typename T>

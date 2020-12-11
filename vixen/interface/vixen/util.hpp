@@ -81,7 +81,7 @@ inline T exchange(T &old_val, U &&new_val) {
 
 template <typename T, typename... Args>
 inline void construct_in_place(T *location, Args &&...args) {
-    new (location) T(std::forward<Args>(args)...);
+    new (static_cast<rawptr>(location)) T(std::forward<Args>(args)...);
 }
 
 template <typename T>

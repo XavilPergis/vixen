@@ -1,6 +1,7 @@
 #pragma once
 
 #include "vixen/allocator/allocator.hpp"
+#include "vixen/stream.hpp"
 #include "vixen/string.hpp"
 #include "vixen/util.hpp"
 
@@ -150,7 +151,6 @@ inline string::operator slice<char>() {
 
 #pragma endregion
 #pragma region "String Misc"
-// + ----- String Misc ---------------------------------------------------------- +
 
 template <typename S>
 S &operator<<(S &stream, const string &str) {
@@ -199,9 +199,9 @@ inline vector<char> to_null_terminated(allocator *alloc, string_slice str) {
 
 #pragma endregion
 #pragma region "string_slice"
-// +------------------------------------------------------------------------------+
+// +-------------------------------------------------------------------------------+
 // | string_slice                                                                  |
-// +------------------------------------------------------------------------------+
+// +-------------------------------------------------------------------------------+
 
 #pragma region "string_slice Constructors"
 // + ----- string_slice Constructors --------------------------------------------- +
@@ -371,10 +371,6 @@ inline S &operator<<(S &stream, const string_slice &str) {
 // +------------------------------------------------------------------------------+
 // | Traits                                                                       |
 // +------------------------------------------------------------------------------+
-
-inline void destroy(string &string) {
-    destroy(string.data);
-}
 
 template <typename H>
 inline void hash(const string &value, H &hasher) {

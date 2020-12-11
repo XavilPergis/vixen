@@ -142,6 +142,33 @@ using repeat = typename repeat_impl<K, T>::type;
 
 // --------------------------------------------------------------------------------
 
+template <typename F>
+struct function_traits : function_traits<decltype(&F::operator())> {};
+
+template <typename R, typename... Args>
+struct function_traits<R(Args...)> {
+    using return_type = R;
+    static constexpr usize arity = sizeof...(Args);
+
+    template <usize I>
+    struct argument {
+        static_assert(I < arity, "invalid parameter index");
+        using type = select<I, unpack<Args...>>;
+    };
+};
+
+template <typename R, typename... Args>
+struct function_traits<R (*)(Args...)> : public function_traits<R(Args...)> {};
+
+template <typename R, typename... Args>
+struct function_traits<R (&)(Args...)> : public function_traits<R(Args...)> {};
+
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...)> : public function_traits<R(Args...)> {};
+
+template <typename C, typename R, typename... Args>
+struct function_traits<R (C::*)(Args...) const> : public function_traits<R(Args...)> {};
+
 } // namespace vixen
 
 #include "typeops.inl"

@@ -57,7 +57,6 @@ inline void operator>>=(vixen::stream::placeholder::file_chunks_source &&stream,
     using namespace vixen;
 
     vixen::file file(stream.path, vixen::mode::read);
-    defer(destroy(file));
 
     loop {
         usize len = file.read_chunk(stream.buffer);

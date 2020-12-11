@@ -17,6 +17,7 @@ struct option {
 
     // Default constructor, initializes to unoccupied option.
     option();
+    option(std::nullptr_t) : option() {}
 
     // Forwarding constructor/assignment operator from inner type
     template <typename U>

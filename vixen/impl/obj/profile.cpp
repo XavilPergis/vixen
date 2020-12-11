@@ -3,24 +3,261 @@
 #include "vixen/allocator/stacktrace.hpp"
 #include "vixen/hashmap.hpp"
 #include "vixen/option.hpp"
+#include "vixen/stream.hpp"
 #include "vixen/string.hpp"
 #include "vixen/traits.hpp"
 #include "vixen/types.hpp"
 #include "vixen/vec.hpp"
 
+#include <thread>
+
 namespace vixen::heap {
 
 struct allocation_info {
+    allocation_info(rawptr ptr, layout layout) : base(ptr), allocated_with(layout) {}
+
+    allocation_info(allocator *alloc, const allocation_info &other)
+        : base(other.base)
+        , allocated_with(other.allocated_with)
+        , realloc_count(other.realloc_count) {
+        if (other.stack_trace) {
+            stack_trace = other.stack_trace->clone(alloc);
+        }
+    }
+
     layout allocated_with;
-    usize realloc_count;
+    rawptr base;
+
+    usize realloc_count{0};
     option<vector<void *>> stack_trace{};
 };
 
-void destroy(allocation_info &info) {
-    destroy(info.stack_trace);
+#define BUCKET_SIZE 16384
+
+usize get_bucket_id(rawptr addr) {
+    return (usize)addr / BUCKET_SIZE;
 }
 
+struct allocation_range {
+    rawptr start, end;
+};
+
+struct allocation_bucket {
+    allocation_bucket(allocator *alloc, rawptr start, rawptr end)
+        : start(start), end(end), allocations(alloc) {}
+
+    rawptr start, end;
+    vector<allocation_range> allocations;
+};
+
+rawptr range_start(const allocation_range &range) {
+    return range.start;
+}
+
+usize bucket_start(const allocation_bucket &bucket) {
+    return get_bucket_id(bucket.start);
+}
+
+// this is SO BAD
+struct allocation_checker {
+    allocator *alloc;
+    vector<allocation_bucket> buckets;
+    hash_map<rawptr, allocation_info> infos;
+
+    allocation_checker(allocator *alloc) : alloc(alloc), buckets(alloc), infos(alloc) {}
+
+    void add_range_at(rawptr addr, allocation_range range) {
+        auto bucket_idx
+            = binary_search(buckets.begin(), buckets.end(), get_bucket_id(addr), bucket_start);
+        if (bucket_idx.is_err()) {
+            allocation_bucket bucket_to_add(alloc, addr, addr + BUCKET_SIZE);
+            buckets.shift_insert(bucket_idx.unwrap_err(), MOVE(bucket_to_add));
+        }
+
+        auto &bucket = buckets[unify_result(MOVE(bucket_idx))];
+        auto range_idx = binary_search(bucket.allocations.begin(),
+            bucket.allocations.end(),
+            range.start,
+            range_start);
+        VIXEN_ASSERT(range_idx.is_err(), "tried to insert already-existent range");
+        bucket.allocations.shift_insert(range_idx.unwrap_err(), range);
+    }
+
+    option<const allocation_info &> add(rawptr ptr, allocation_info &&info) {
+        rawptr start_addr = ptr;
+        rawptr end_addr = start_addr + info.allocated_with.size;
+        auto start_bucket_addr = get_bucket_id(start_addr);
+        auto end_bucket_addr = get_bucket_id(end_addr);
+        allocation_range range{start_addr, end_addr};
+
+        // VIXEN_WARN("adding {}-{} with layout {}", start_addr, end_addr, info.allocated_with);
+
+        if (auto overlapping = get_overlapping_range(range)) {
+            // VIXEN_WARN("overlapping {}-{} ", overlapping->start, overlapping->end);
+            return infos[overlapping->start];
+        }
+
+        add_range_at(start_addr, range);
+        if (start_bucket_addr != end_bucket_addr) {
+            add_range_at(end_addr, range);
+        }
+
+        infos.insert(start_addr, MOVE(info));
+        return nullptr;
+    }
+
+    struct removal_info {
+        option<allocation_info> info;
+        bool is_dealloc_start_misaligned;
+        bool is_dealloc_end_misaligned;
+    };
+
+    removal_info remove(rawptr addr, layout layout, allocator *info_clone_alloc) {
+        rawptr start_addr = addr;
+        rawptr end_addr = start_addr + layout.size;
+        allocation_range range{start_addr, end_addr};
+
+        // VIXEN_WARN("removing {}", addr);
+
+        if (auto overlapping_range = get_overlapping_range(addr)) {
+            if (range.start == overlapping_range->start && range.end == overlapping_range->end) {
+                auto start_bucket_idx = get_bucket_index(range.start);
+                auto start_range_idx = get_range_index(*start_bucket_idx, range.start);
+                buckets[*start_bucket_idx].allocations.shift_remove(*start_range_idx);
+
+                auto end_bucket_idx = get_bucket_index(range.end);
+                if (start_bucket_idx != end_bucket_idx) {
+                    auto end_range_idx = get_range_index(*end_bucket_idx, range.start);
+                    buckets[*end_bucket_idx].allocations.shift_remove(*end_range_idx);
+                }
+
+                return {infos.remove(overlapping_range->start), false};
+            } else {
+                return {allocation_info{info_clone_alloc, infos[overlapping_range->start]},
+                    overlapping_range->start != start_addr,
+                    overlapping_range->end != end_addr};
+            }
+        }
+
+        return {nullptr, false};
+    }
+
+    option<usize> get_bucket_index(rawptr addr) const {
+        return binary_search(buckets.begin(), buckets.end(), get_bucket_id(addr), bucket_start)
+            .to_ok();
+    }
+
+    option<usize> get_range_index(usize bucket_idx, rawptr addr) const {
+        return binary_search(buckets[bucket_idx].allocations.begin(),
+            buckets[bucket_idx].allocations.end(),
+            addr,
+            range_start)
+            .to_ok();
+    }
+
+    bool remove_range(allocation_range range) {
+        auto start_bucket_index = binary_search(buckets.begin(),
+            buckets.end(),
+            get_bucket_id(range.start),
+            bucket_start);
+
+        if (start_bucket_index.is_ok()) {
+            auto &start_bucket = buckets[start_bucket_index.unwrap_ok()];
+            auto start_range_index = binary_search(start_bucket.allocations.begin(),
+                start_bucket.allocations.end(),
+                range.start,
+                range_start);
+
+            if (start_range_index.is_ok()) {
+                auto end_bucket_index = binary_search(buckets.begin(),
+                    buckets.end(),
+                    get_bucket_id(range.end),
+                    bucket_start);
+                auto &end_bucket = buckets[end_bucket_index.unwrap_ok()];
+                auto end_range_index = binary_search(end_bucket.allocations.begin(),
+                    end_bucket.allocations.end(),
+                    range.start,
+                    range_start);
+
+                if (start_bucket.allocations[start_range_index.unwrap_ok()].end != range.end) {
+                    return false;
+                }
+
+                start_bucket.allocations.shift_remove(start_range_index.unwrap_ok());
+                end_bucket.allocations.shift_remove(end_range_index.unwrap_ok());
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    option<allocation_range> get_overlapping_range(rawptr addr) const {
+        if (auto alloc_range = get_previous_range(addr)) {
+            if (alloc_range->start <= addr && alloc_range->end > addr) {
+                return alloc_range;
+            }
+        }
+        return nullptr;
+    }
+
+    option<allocation_range> get_overlapping_range(allocation_range range) const {
+        auto prev_from_end = get_previous_range(range.end);
+        if (prev_from_end.is_none())
+            return nullptr;
+
+        if (range.start < prev_from_end->end && prev_from_end->start < range.end) {
+            return prev_from_end;
+        } else {
+            return nullptr;
+        }
+    }
+
+    option<allocation_range> get_previous_range(rawptr addr) const {
+        auto bucket_addr = get_bucket_id(addr);
+        if (auto bucket_idx
+            = binary_find_previous_index(buckets.begin(), buckets.end(), bucket_addr, bucket_start))
+        {
+            const auto &bucket = buckets[*bucket_idx];
+            if (auto range_idx = binary_find_previous_index(bucket.allocations.begin(),
+                    bucket.allocations.end(),
+                    addr,
+                    range_start))
+            {
+                return bucket.allocations[*range_idx];
+            }
+        } else if (bucket_addr > 0) {
+            if (auto bucket_idx = binary_find_previous_index(buckets.begin(),
+                    buckets.end(),
+                    bucket_addr - 1,
+                    bucket_start))
+            {
+                const auto &bucket = buckets[*bucket_idx];
+                if (auto range_idx = binary_find_previous_index(bucket.allocations.begin(),
+                        bucket.allocations.end(),
+                        addr,
+                        range_start))
+                {
+                    return bucket.allocations[*range_idx];
+                }
+            }
+        }
+        return nullptr;
+    }
+
+    allocation_info &get_info(rawptr ptr) {
+        return infos[ptr];
+    }
+
+    usize count() const {
+        return infos.len();
+    }
+};
+
 struct allocator_info {
+    allocator_info(allocator *alloc) : listening_queries(alloc), checker(alloc) {}
+
     option<string> name;
 
     usize num_bytes_in_use = 0;
@@ -31,20 +268,14 @@ struct allocator_info {
     usize current_transaction_depth = 0;
     bool should_capture_stack_traces = true;
 
-    vector<query_id> listening_queries{debug_allocator()};
-    hash_map<void *, allocation_info> active_allocations{debug_allocator()};
+    vector<query_id> listening_queries;
+    allocation_checker checker;
 };
 
 struct internal_query_info {
     query_info query;
     allocator_id attached_to;
 };
-
-void destroy(allocator_info &info) {
-    destroy(info.name);
-    destroy(info.listening_queries);
-    destroy(info.active_allocations);
-}
 
 static usize max_allocator_id = 0;
 static usize max_query_id = 0;
@@ -90,10 +321,10 @@ query_info measure_memory_performace_query(query_id id) {
 void register_allocator(allocator *alloc) {
     if (freed_allocator_names.len() > 0) {
         alloc->id = *freed_allocator_names.pop();
-        allocator_infos[alloc->id.id] = allocator_info{};
+        allocator_infos[alloc->id.id] = allocator_info(debug_allocator());
     } else {
         alloc->id = {static_cast<isize>(max_allocator_id++)};
-        allocator_infos.push(allocator_info{});
+        allocator_infos.push(allocator_info(debug_allocator()));
     }
 }
 
@@ -147,22 +378,20 @@ void unregister_allocator(allocator *alloc) {
 
     translation_cache cache(debug_allocator());
 
-    if (info.active_allocations.len() > 0) {
+    if (info.checker.count() > 0) {
         VIXEN_INFO("\tActive Allocations:");
     }
-    info.active_allocations.iter([&](auto &ptr, auto &info) {
-        VIXEN_WARN("\t\t- Pointer: {}", ptr)
-        VIXEN_WARN("\t\t\t- layout: {}", info.allocated_with)
-        VIXEN_WARN("\t\t\t- Realloc Count: {}", info.realloc_count)
+    info.checker.infos.iter([&](auto &ptr, auto &info) {
+        VIXEN_WARN("\t\t- Pointer: {}", ptr);
+        VIXEN_WARN("\t\t\t- layout: {}", info.allocated_with);
+        VIXEN_WARN("\t\t\t- Realloc Count: {}", info.realloc_count);
 
         if (info.stack_trace) {
             vector<address_info> addr_infos = translate_stack_trace(&cache, *info.stack_trace);
-            defer(destroy(addr_infos));
             print_stack_trace_capture(addr_infos);
         }
     });
 
-    destroy(allocator_infos[alloc->id.id]);
     freed_allocator_names.push(alloc->id);
 }
 
@@ -236,15 +465,27 @@ static void commit_alloc(allocator_info *alloc_info, layout layout, void *ptr) {
             = std::max(query->query.maximum_bytes_in_use, query->query.bytes_in_use);
     }
 
-    allocation_info info{layout, 0};
+    allocation_info info(ptr, layout);
     if (alloc_info->should_capture_stack_traces) {
         info.stack_trace = capture_stack_trace(debug_allocator());
     }
 
-    // TODO: check for overlapping allocations, not just the subset where the allocation starts at
-    // an old start.
-    option<allocation_info> prev = alloc_info->active_allocations.insert(ptr, MOVE(info));
-    VIXEN_ASSERT(prev.is_none(), "Tried to allocate over a previous active allocation at {}", ptr);
+    if (auto overlapping = alloc_info->checker.add(ptr, MOVE(info))) {
+        VIXEN_PANIC("allocation collision: tried to allocate over a previous allocation at {}.\n",
+            overlapping->base);
+        // VIXEN_PANIC(
+        //     "allocation collision: tried to allocate over a previous allocation at {}:\n"
+        //     "previous allocation info:\n"
+        //     "\tat {}\n",
+        //     "\tlayout {}\n",
+        //     overlapping->base,
+        //     overlapping->base,
+        //     overlapping->allocated_with);
+    }
+}
+
+static bool is_even(char ch) {
+    return ch % 2 == 0;
 }
 
 static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr) {
@@ -260,20 +501,58 @@ static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr)
         query->query.deallocation_count += 1;
     }
 
-    option<allocation_info> prev = alloc_info->active_allocations.remove(ptr);
-    VIXEN_ASSERT(prev.is_some(),
-        "Tried to deallocate pointer at {} using layout {}, but the pointer was not an active allocation.",
-        ptr,
-        layout);
+    // option<allocation_info> prev = alloc_info->checker.infos.remove(ptr);
 
-    VIXEN_ASSERT(
-        prev->allocated_with.size == layout.size && prev->allocated_with.align == layout.align,
-        "Tried to deallocate pointer at {} using {}, but the pointer was allocated using {}.",
-        ptr,
-        layout,
-        prev->allocated_with);
+    // VIXEN_ASSERT(
+    //     prev->allocated_with.size == layout.size && prev->allocated_with.align == layout.align,
+    //     "Tried to deallocate pointer at {} using {}, but the pointer was allocated using {}.",
+    //     ptr,
+    //     layout,
+    //     prev->allocated_with);
 
-    destroy(prev);
+    auto removal_info = alloc_info->checker.remove(ptr, layout, debug_allocator());
+    if (auto &info = removal_info.info) {
+        if (removal_info.is_dealloc_start_misaligned || removal_info.is_dealloc_end_misaligned) {
+            vector<char> diagnostic(debug_allocator());
+            auto bi = stream::back_inserter(diagnostic);
+            auto oi = stream::make_stream_output_iterator(bi);
+
+            fmt::format_to(oi, "tried to deallocate, but the deallocation request misaligned:\n");
+
+            fmt::format_to(oi, "request:\n");
+            fmt::format_to(oi, "- pointer = {}\n", ptr);
+            fmt::format_to(oi, "- layout = {}\n", layout);
+            fmt::format_to(oi,
+                "- start misaligned = {}\n",
+                removal_info.is_dealloc_start_misaligned);
+            fmt::format_to(oi, "- end misaligned = {}\n", removal_info.is_dealloc_end_misaligned);
+            fmt::format_to(oi, "\n");
+            fmt::format_to(oi, "block in:\n");
+            fmt::format_to(oi, "- pointer = {}\n", info->base);
+            fmt::format_to(oi, "- layout = {}\n", info->allocated_with);
+            fmt::format_to(oi, "- reallocation count = {}\n", info->realloc_count);
+
+            if (info->stack_trace) {
+                fmt::format_to(oi, "- stack trace:\n");
+                translation_cache cache(heap::debug_allocator());
+                vector<address_info> stacktrace_infos
+                    = translate_stack_trace(&cache, *info->stack_trace);
+
+                usize i = 0;
+                for (auto &stacktrace_info : stacktrace_infos) {
+                    format_address_info(bi, stacktrace_info, ++i);
+                }
+            }
+
+            string diagnostic_str(MOVE(diagnostic));
+            VIXEN_PANIC("{}", diagnostic_str);
+        }
+    } else {
+        VIXEN_PANIC(
+            "tried to deallocate pointer at {} using layout {}, but the pointer was not in any active allocation.",
+            ptr,
+            layout);
+    }
 }
 
 void record_reset(allocator_id id) {}
@@ -288,7 +567,7 @@ void record_alloc(allocator_id id, layout layout, void *ptr) {
         return;
     }
 
-    VIXEN_TRACE("[A] {} ({})", layout, ptr)
+    VIXEN_TRACE("[A] {} ({})", layout, ptr);
     commit_alloc(alloc_info, layout, ptr);
 }
 
@@ -302,7 +581,7 @@ void record_dealloc(allocator_id id, layout layout, void *ptr) {
         return;
     }
 
-    VIXEN_TRACE("[D] {} ({})", layout, ptr)
+    VIXEN_TRACE("[D] {} ({})", layout, ptr);
     commit_dealloc(alloc_info, layout, ptr);
 }
 
@@ -311,6 +590,7 @@ void record_realloc(
     if (debug_allocator()->id == id) {
         return;
     }
+
     allocator_info *alloc_info = &allocator_infos[id.id];
     if (alloc_info->current_transaction_depth != 1) {
         return;
@@ -318,15 +598,15 @@ void record_realloc(
 
     if (old_ptr == nullptr && new_ptr != nullptr) {
         // Realloc zero -> something, which is an allocation.
-        VIXEN_TRACE("[R:A] {} ({})", new_layout, new_ptr)
+        VIXEN_TRACE("[R:A] {} ({})", new_layout, new_ptr);
         commit_alloc(alloc_info, new_layout, new_ptr);
     } else if (old_ptr != nullptr && new_ptr == nullptr) {
         // Realloc something -> zero, which is a deallocation.
-        VIXEN_TRACE("[R:D] {} ({})", old_layout, old_ptr)
+        VIXEN_TRACE("[R:D] {} ({})", old_layout, old_ptr);
         commit_dealloc(alloc_info, old_layout, old_ptr);
     } else if (old_ptr != nullptr, new_ptr != nullptr) {
         // Bona fide reallocation!
-        VIXEN_TRACE("[R] {} ({}) -> {} ({})", old_layout, old_ptr, new_layout, old_layout)
+        VIXEN_TRACE("[R] {} ({}) -> {} ({})", old_layout, old_ptr, new_layout, old_layout);
         alloc_info->num_bytes_in_use -= old_layout.size;
         alloc_info->num_bytes_in_use += new_layout.size;
         alloc_info->maximum_bytes_in_use
@@ -345,26 +625,63 @@ void record_realloc(
                 = std::max(query->query.maximum_bytes_in_use, query->query.bytes_in_use);
         }
 
-        option<allocation_info> prev = alloc_info->active_allocations.remove(old_ptr);
-        VIXEN_ASSERT(prev.is_some(),
-            "Tried to reallocate pointer {}, but it was not an active allocation.",
-            old_ptr);
-
-        destroy(prev->stack_trace);
-        allocation_info info{new_layout, prev->realloc_count + 1};
-        if (alloc_info->should_capture_stack_traces) {
-            info.stack_trace = capture_stack_trace(debug_allocator());
+        auto removal_info = alloc_info->checker.remove(old_ptr, old_layout, debug_allocator());
+        if (auto &info = removal_info.info) {
+            if (removal_info.is_dealloc_start_misaligned || removal_info.is_dealloc_end_misaligned)
+            {
+                VIXEN_PANIC(
+                    "tried to reallocate, but the allocated pointer was in the middle of a block:\n"
+                    "reallocation request:\n",
+                    "\told pointer = {}\n",
+                    "\told layout = {}\n",
+                    "\tnew pointer = {}\n",
+                    "\tnew layout = {}\n",
+                    "block at {}:\n",
+                    "\tlayout = {}\n",
+                    "\treallocation count = {}\n",
+                    old_ptr,
+                    old_layout,
+                    new_ptr,
+                    new_layout,
+                    info->base,
+                    info->allocated_with,
+                    info->realloc_count);
+            } else {
+                if (auto overlapping = alloc_info->checker.add(new_ptr, MOVE(*info))) {
+                    VIXEN_PANIC(
+                        "allocation collision: tried to allocate over a previous allocation at {}.\n",
+                        overlapping->base);
+                }
+            }
+        } else {
+            VIXEN_PANIC(
+                "tried to reallocate, but the old pointer was not in any active allocation:\n"
+                "reallocation request:\n",
+                "old pointer = {}\n"
+                "old layout = {}\n"
+                "new pointer = {}\n"
+                "new layout = {}\n",
+                old_ptr,
+                old_layout,
+                new_ptr,
+                new_layout);
         }
 
-        option<allocation_info> overlapping
-            = alloc_info->active_allocations.insert(new_ptr, MOVE(info));
-        VIXEN_ASSERT(overlapping.is_none(),
-            "Tried to reallocate pointer {} ({}) to {} ({}), but it overlaps with an active allocation with layout ({}).",
-            old_ptr,
-            old_layout,
-            new_ptr,
-            new_layout,
-            overlapping->allocated_with);
+        // option<allocation_info> prev = alloc_info->checker.infos.remove(old_ptr);
+        // VIXEN_ASSERT(prev.is_some(),
+        //     "Tried to reallocate pointer {}, but it was not an active allocation.",
+        //     old_ptr);
+
+        // allocation_info info{new_layout, prev->realloc_count + 1};
+        // if (alloc_info->should_capture_stack_traces) {
+        //     info.stack_trace = capture_stack_trace(debug_allocator());
+        // }
+
+        // option<allocation_info> overlapping = alloc_info->checker.infos.insert(new_ptr,
+        // MOVE(info)); VIXEN_ASSERT(overlapping.is_none(),
+        //     "Tried to reallocate pointer {} ({}) to {} ({}), but it overlaps with an active
+        //     allocation with layout ({}).", old_ptr, old_layout, new_ptr, new_layout,
+        //     overlapping->allocated_with);
     }
 }
 

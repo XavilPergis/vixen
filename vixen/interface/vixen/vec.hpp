@@ -24,7 +24,7 @@ struct vector {
 
     ~vector();
 
-    vector<T> clone(allocator *alloc);
+    vector<T> clone(allocator *alloc) const;
 
     /// Appends a single item to the end of the vector.
     template <typename U>
@@ -50,6 +50,9 @@ struct vector {
 
     /// Removes an item for the list by shifting all elements past `idx` back one. O(n)
     T shift_remove(usize idx);
+
+    template <typename U>
+    T &shift_insert(usize idx, U &&val);
 
     option<usize> index_of(const T &value);
 

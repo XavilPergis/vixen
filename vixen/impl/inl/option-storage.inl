@@ -2,31 +2,9 @@
 
 #include "vixen/option.hpp"
 
+#include "erased_storage.hpp"
+
 namespace vixen {
-
-template <typename T>
-struct option_storage {
-    template <typename U>
-    void set(U &&new_value) {
-        util::construct_in_place(reinterpret_cast<T *>(value), std::forward<U>(new_value));
-    }
-
-    T &get() {
-        return *reinterpret_cast<T *>(value);
-    }
-
-    T const &get() const {
-        return *reinterpret_cast<const T *>(value);
-    }
-
-    void deinit() {
-        get().~T();
-    }
-
-    // byte array with the same size and alignment as T so default construction of `option_storage`
-    // doesn't default initialize `value`.
-    alignas(T) u8 value[sizeof(T)];
-};
 
 // Defines how the option is encoded and how the encoding is accessed. The weird inheritance is so
 // that when this class is specialized, only the four accessor methods need to be redefined, instead
@@ -39,34 +17,38 @@ struct option_impl {
         clear();
     }
 
-    const T &get() const {
-        return storage.get();
+    option_impl(option_impl &&other)
+        : occupied(std::exchange(other.occupied, false)), storage(other.storage) {}
+    option_impl &operator=(option_impl &&other) {
+        if (std::addressof(other) == this)
+            return *this;
+        occupied = std::exchange(other.occupied, false);
+        storage = other.storage;
+        return *this;
     }
 
-    T &get() {
-        return storage.get();
-    }
-
-    bool get_occupied() const {
-        return occupied;
-    }
+    // clang-format off
+    T &get() { return storage.get(); }
+    const T &get() const { return storage.get(); }
+    bool get_occupied() const { return occupied; }
+    // clang-format on
 
     template <typename U>
     void set(U &&value) {
         if (occupied)
-            storage.deinit();
+            storage.erase();
         storage.set(std::forward<U>(value));
         occupied = true;
     }
 
     void clear() {
         if (occupied)
-            storage.deinit();
+            storage.erase();
         occupied = false;
     }
 
 private:
-    option_storage<T> storage;
+    uninitialized_storage<T> storage;
     bool occupied;
 };
 

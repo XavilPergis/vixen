@@ -2,6 +2,7 @@
 
 #include "vixen/defines.hpp"
 #include "vixen/log.hpp"
+#include "vixen/util.hpp"
 
 #define _VIXEN_BOUNDS_CHECK(idx, len)                                 \
     VIXEN_DEBUG_ASSERT(idx < len,                                     \
@@ -72,7 +73,7 @@ extern logger_id panic_logger;
 
 using panic_handler = void (*)();
 
-panic_handler install_panic_hanlder(panic_handler handler);
+panic_handler install_panic_handler(panic_handler handler);
 panic_handler remove_panic_handler();
 
 namespace detail {

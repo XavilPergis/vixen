@@ -41,8 +41,6 @@ struct file {
     void flush();
 };
 
-inline void destroy(file &file);
-
 } // namespace vixen
 
 inline vixen::open_mode operator|(vixen::open_mode const &a, vixen::open_mode const &b);

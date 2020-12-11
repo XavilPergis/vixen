@@ -31,11 +31,19 @@ string get_command_output(allocator *alloc, string cmd) {
 }
 
 address_info translate_symbol(allocator *alloc, string_slice sym) {
-    usize last_open_paren = *sym.last_index_of('(');
-    usize last_close_paren = *sym.last_index_of(')');
+    auto last_open_paren = sym.last_index_of('(');
+    auto last_close_paren = sym.last_index_of(')');
 
-    string_slice addr = sym[range(last_open_paren + 1, last_close_paren)];
-    string_slice exepath = sym[range_to(last_open_paren)];
+    address_info info;
+    info.raw_symbol = string(alloc, sym);
+    if (last_open_paren.is_none() || last_close_paren.is_none()) {
+        info.name = string(alloc, "??"_s);
+        info.location = string(alloc, "??"_s);
+        return info;
+    }
+
+    string_slice addr = sym[range(*last_open_paren + 1, *last_close_paren)];
+    string_slice exepath = sym[range_to(*last_open_paren)];
 
     string cmd(alloc);
     cmd.push("addr2line -fCe "_s);
@@ -49,10 +57,8 @@ address_info translate_symbol(allocator *alloc, string_slice sym) {
         VIXEN_ASSERT(false, "addr2line failed with output: `{}`", output);
     }
 
-    address_info info;
     info.name = MOVE(lines[0]);
     info.location = MOVE(lines[1]);
-    info.raw_symbol = string(alloc, sym);
     return info;
 }
 

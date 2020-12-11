@@ -65,7 +65,7 @@ inline vector<T> &vector<T>::operator=(vector<T> &&other) {
 }
 
 template <typename T>
-inline vector<T> vector<T>::clone(allocator *alloc) {
+inline vector<T> vector<T>::clone(allocator *alloc) const {
     return vector(alloc, *this);
 }
 
@@ -106,7 +106,7 @@ inline T *vector<T>::reserve(usize elements) {
 template <typename T>
 inline void vector<T>::truncate(usize len) {
     VIXEN_DEBUG_ASSERT(len <= length,
-        "Tried to truncate vector to {} items, but the current length was {}.",
+        "tried to truncate vector to {} items, but the current length was {}",
         len,
         length);
     for (usize i = len; i < length; ++i) {
@@ -123,7 +123,7 @@ inline option<T> vector<T>::pop() {
 template <typename T>
 inline T vector<T>::remove(usize idx) {
     VIXEN_DEBUG_ASSERT(length > idx,
-        "Tried to remove element {} from a {}-element vector.",
+        "tried to remove element {} from a {}-element vector",
         idx,
         length);
 
@@ -134,19 +134,46 @@ inline T vector<T>::remove(usize idx) {
 template <typename T>
 inline T vector<T>::shift_remove(usize idx) {
     VIXEN_DEBUG_ASSERT(length > idx,
-        "Tried to remove element {} from a {}-element vector.",
+        "tried to remove element {} from a {}-element vector",
         idx,
         length);
 
     T old_value = MOVE(data[idx]);
     util::copy(&data[idx + 1], &data[idx], length - idx + 1);
     --length;
-    return old_value;
+    return MOVE(old_value);
 }
 
 template <typename T>
 inline void vector<T>::clear() {
     truncate(0);
+}
+
+template <typename T>
+template <typename U>
+T &vector<T>::shift_insert(usize idx, U &&val) {
+    VIXEN_DEBUG_ASSERT(idx <= length,
+        "tried to insert element at {}, but the length was {}",
+        idx,
+        length);
+
+    try_grow(1);
+    util::copy(&data[idx], &data[idx + 1], length - idx);
+
+    // exception safety!
+    if constexpr (noexcept(T(std::forward<U>(val)))) {
+        util::construct_in_place(&data[idx], std::forward<U>(val));
+    } else {
+        try {
+            util::construct_in_place(&data[idx], std::forward<U>(val));
+        } catch (...) {
+            util::copy(&data[idx + 1], &data[idx], length - idx + 1);
+            --length;
+            throw;
+        }
+    }
+    ++length;
+    return data[idx];
 }
 
 #pragma endregion

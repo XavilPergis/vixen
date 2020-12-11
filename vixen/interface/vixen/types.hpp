@@ -15,3 +15,6 @@ using i8 = std::int8_t;
 
 using f32 = float;
 using f64 = double;
+
+using rawptr = void *;
+using const_rawptr = const void *;

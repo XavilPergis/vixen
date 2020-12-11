@@ -2,6 +2,7 @@
 
 #include "vixen/assert.hpp"
 #include "vixen/option.hpp"
+#include "vixen/result.hpp"
 #include "vixen/types.hpp"
 #include "vixen/util.hpp"
 
@@ -90,6 +91,58 @@ struct is_collection<slice<T>> : std::true_type {};
 
 template <typename T>
 struct collection_types<slice<T>> : standard_collection_types<T> {};
+
+// clang-format off
+template <typename T, typename Map>
+result<usize, usize> binary_search(
+    const T *start,
+    const T *end,
+    const decltype(std::declval<const Map &>()(std::declval<const T &>())) &search_for,
+    const Map &mapper
+) {
+    // clang-format on
+    if (end == start)
+        return err(0);
+
+    isize lo = 0, hi = (end - start) - 1;
+    usize mid = 0;
+    while (lo <= hi) {
+        mid = (lo + hi) / 2;
+        const T &mid_item = start[mid];
+        if (search_for == mapper(mid_item)) {
+            return ok(mid);
+        } else if (search_for > mapper(mid_item)) {
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+
+    return err(search_for > mapper(start[mid]) ? mid + 1 : mid);
+}
+
+inline option<usize> get_previous_from_binary_search_results(const result<usize, usize> &res) {
+    if (res.is_ok()) {
+        return res.unwrap_ok();
+    } else {
+        auto prev = res.unwrap_err();
+        if (prev == 0)
+            return nullptr;
+        return prev - 1;
+    }
+}
+
+// clang-format off
+template <typename T, typename Map>
+option<usize> binary_find_previous_index(
+    const T *start,
+    const T *end,
+    const decltype(std::declval<const Map &>()(std::declval<const T &>())) &search_for,
+    const Map &mapper
+) {
+    // clang-format on
+    return get_previous_from_binary_search_results(binary_search(start, end, search_for, mapper));
+}
 
 } // namespace vixen
 

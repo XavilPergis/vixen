@@ -1,9 +1,6 @@
 #pragma once
 
 namespace vixen {
-/// Like a destructor, but doesn't get called automatically at the end of a scope.
-template <typename T>
-void destroy(T &item) {}
 
 template <typename T, typename H>
 inline void hash(const T &value, H &hasher) {
@@ -18,7 +15,7 @@ struct collection_types {};
 
 template <typename T>
 struct standard_collection_types {
-    using item = T;
+    using value_type = T;
     using reference = T &;
     using const_reference = T const &;
     using pointer = T &;

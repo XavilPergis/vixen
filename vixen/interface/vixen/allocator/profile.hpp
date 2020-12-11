@@ -84,25 +84,4 @@ usize get_active_allocation_max_count(allocator_id id);
 usize get_active_byte_count(allocator_id id);
 usize get_active_byte_max_count(allocator_id id);
 
-struct Profile {
-    virtual void record_reset() = 0;
-    virtual void record_alloc(const layout &layout, void *ptr) = 0;
-    virtual void record_dealloc(const layout &layout, void *ptr) = 0;
-    virtual void record_realloc(
-        const layout &old_layout, void *old_ptr, const layout &new_layout, void *new_ptr)
-        = 0;
-
-    virtual void record_legacy_alloc(usize size, void *ptr) = 0;
-    virtual void record_legacy_dealloc(void *ptr) = 0;
-    virtual void record_legacy_realloc(void *old_ptr, usize new_size, void *new_ptr) = 0;
-
-    // HACK: this is not a good idea, but I need it so that realloc calls don't trigger
-    // alloc/dealloc calls.
-    virtual void disable() = 0;
-    virtual void enable() = 0;
-
-    virtual void attach(allocator *alloc) = 0;
-    virtual void report() = 0;
-};
-
 } // namespace vixen::heap

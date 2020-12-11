@@ -308,12 +308,16 @@ usize hash_map<K, V, H>::len() const {
 
 template <typename K, typename V, typename H>
 V &hash_map<K, V, H>::operator[](K const &key) {
-    return values[*index_for(key)];
+    auto idx = index_for(key);
+    VIXEN_DEBUG_ASSERT(idx.is_some(), "tried to access value for non-existent key {}", key);
+    return values[*idx];
 }
 
 template <typename K, typename V, typename H>
 V const &hash_map<K, V, H>::operator[](K const &key) const {
-    return values[*index_for(key)];
+    auto idx = index_for(key);
+    VIXEN_DEBUG_ASSERT(idx.is_some(), "tried to access value for non-existent key {}", key);
+    return values[*idx];
 }
 
 #pragma endregion
