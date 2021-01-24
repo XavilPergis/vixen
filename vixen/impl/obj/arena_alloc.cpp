@@ -10,6 +10,7 @@ void *arena_allocator::try_allocate_in(const layout &layout, block_descriptor &b
         return nullptr;
     }
 
+    block.last = block.current;
     block.current = next_ptr;
     return aligned_ptr;
 }
