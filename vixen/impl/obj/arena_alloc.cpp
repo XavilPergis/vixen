@@ -83,9 +83,9 @@ void *arena_allocator::internal_realloc(
     _VIXEN_REALLOC_PROLOGUE(old_layout, new_layout, old_ptr)
 
     // Differing alignments probably won't happen, or will be exceedingly rare, so we shouldn't
-    // burder ourselves with needing to think about alignment in the rest of this method.
+    // burden ourselves with needing to think about alignment in the rest of this method.
     bool are_alignments_same = new_layout.align == old_layout.align;
-    bool fits_in_block = void_ptr_add(old_ptr, new_layout.size) > this->current_block->end;
+    bool fits_in_block = void_ptr_add(old_ptr, new_layout.size) <= this->current_block->end;
 
     if (are_alignments_same && fits_in_block) {
         // Optimize shrinking reallocs
