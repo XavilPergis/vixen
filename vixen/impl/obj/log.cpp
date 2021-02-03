@@ -17,7 +17,7 @@ const char *default_log_pattern_simple
 
 logger_id default_logger = create_logger("default", [](logger_id id) {
 #ifdef VIXEN_IS_DEBUG
-    set_logger_format_string(id, default_log_pattern_verbose);
+    set_logger_format_string(id, default_log_pattern_simple);
     // set_logger_format_string(id, default_log_pattern_simple);
     set_logger_verbosity(id, spdlog::level::debug);
 #else

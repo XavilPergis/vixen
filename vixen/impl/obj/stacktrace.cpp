@@ -4,6 +4,7 @@
 #include "vixen/defer.hpp"
 #include "vixen/util.hpp"
 
+#include <dlfcn.h>
 #include <execinfo.h>
 
 namespace vixen {
@@ -30,26 +31,33 @@ string get_command_output(allocator *alloc, string cmd) {
     return result;
 }
 
-address_info translate_symbol(allocator *alloc, string_slice sym) {
-    auto last_open_paren = sym.last_index_of('(');
-    auto last_close_paren = sym.last_index_of(')');
+template <typename T>
+string format_string(allocator *alloc, const T &value) {
+    vector<char> diagnostic(alloc);
+    auto bi = stream::back_inserter(diagnostic);
+    auto oi = stream::make_stream_output_iterator(bi);
+    fmt::format_to(oi, "{}", value);
+    return string(MOVE(diagnostic));
+}
+
+address_info translate_symbol(allocator *alloc, string_slice sym, void *reladdr) {
+    auto open_paren = sym.index_of('(');
 
     address_info info;
     info.raw_symbol = string(alloc, sym);
-    if (last_open_paren.is_none() || last_close_paren.is_none()) {
+    if (open_paren.is_none()) {
         info.name = string(alloc, "??"_s);
         info.location = string(alloc, "??"_s);
         return info;
     }
 
-    string_slice addr = sym[range(*last_open_paren + 1, *last_close_paren)];
-    string_slice exepath = sym[range_to(*last_open_paren)];
+    string_slice exepath = sym[range_to(*open_paren)];
 
     string cmd(alloc);
-    cmd.push("addr2line -fCe "_s);
+    cmd.push("addr2line -ifCe "_s);
     cmd.push(exepath);
     cmd.push(" "_s);
-    cmd.push(addr);
+    cmd.push(format_string(alloc, reladdr));
 
     string output = get_command_output(alloc, MOVE(cmd));
     vector<string> lines = output.as_slice().split(alloc, "\n"_s);
@@ -60,6 +68,12 @@ address_info translate_symbol(allocator *alloc, string_slice sym) {
     info.name = MOVE(lines[0]);
     info.location = MOVE(lines[1]);
     return info;
+}
+
+void *get_reladdr(void *absolute) {
+    Dl_info info;
+    dladdr(absolute, &info);
+    return (void *)((usize)absolute - (usize)info.dli_fbase);
 }
 
 vector<string> translate_addrs(allocator *alloc, slice<void *> addrs) {
@@ -113,7 +127,9 @@ void translation_cache::translate() {
     vector<string> symbols = detail::translate_addrs(alloc, translation_queue);
 
     for (usize i = 0; i < translation_queue.len(); ++i) {
-        address_info info = detail::translate_symbol(alloc, symbols[i]);
+        address_info info = detail::translate_symbol(alloc,
+            symbols[i],
+            detail::get_reladdr(translation_queue[i]));
         translated.insert(translation_queue[i], MOVE(info));
     }
 
@@ -165,7 +181,7 @@ void print_stack_trace_capture(slice<const address_info> info) {
     for (usize i = 0; i < info.len; ++i) {
         VIXEN_INFO("\x1b[36m{: >2}\x1b[0m :: \x1b[1m\x1b[32m{}\x1b[0m", i + 1, info[i].name);
         VIXEN_INFO("   :: in {}", info[i].location);
-        VIXEN_INFO("   :: symbol {}", info[i].raw_symbol);
+        VIXEN_INFO("   :: symbol \x1b[30m{}\x1b[0m", info[i].raw_symbol);
         VIXEN_INFO("   ==");
     }
 }

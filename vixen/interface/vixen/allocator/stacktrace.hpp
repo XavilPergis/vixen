@@ -52,7 +52,7 @@ void format_address_info(Stream &stream, const address_info &info, usize level) 
     auto oi = stream::make_stream_output_iterator(stream);
     fmt::format_to(oi, "\x1b[36m{: >2}\x1b[0m :: \x1b[1m\x1b[32m{}\x1b[0m\n", level, info.name);
     fmt::format_to(oi, "   :: in {}\n", info.location);
-    fmt::format_to(oi, "   :: symbol {}\n", info.raw_symbol);
+    fmt::format_to(oi, "   :: symbol \x1b[30m{}\x1b[0m\n", info.raw_symbol);
     fmt::format_to(oi, "\n");
 }
 

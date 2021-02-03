@@ -8,7 +8,8 @@
 namespace vixen {
 
 logger_id panic_logger = create_logger("vixen-panic", [](logger_id id) {
-    set_logger_format_string(id, "%^panic:%$ in `%!` at %g:%# ~ %P/%t ~ %n/%l\n\n\n%v\n\n");
+    set_logger_format_string(id,
+        "\n%^panic:%$ in `%!` at %g:%# ~ %P/%t ~ %n/%l\n\n\x1b[31;1m# Panic Message\x1b[0m\n%v\n");
 });
 
 logger_id panic_stacktrace_logger = create_logger("vixen-panic-stacktrace", [](logger_id id) {
@@ -40,8 +41,9 @@ void default_handler() {
     }
 
     VIXEN_ERROR_EXT(panic_stacktrace_logger,
-        "A critical error has been encountered, and program execution could not continue.")
-    VIXEN_ERROR_EXT(panic_stacktrace_logger, "Below is a trace of the current execution path.\n")
+        "\x1b[1mA critical error has been encountered, and program execution could not continue.\x1b[0m")
+    VIXEN_ERROR_EXT(panic_stacktrace_logger,
+        "\x1b[1mBelow is a trace of the current execution path.\x1b[0m\n")
 
     if (barrier_idx > 0) {
         VIXEN_INFO_EXT(panic_stacktrace_logger, "...")
@@ -50,11 +52,15 @@ void default_handler() {
     for (usize i = 0; i < trace.len(); ++i) {
         if (barrier_idx < i) {
             VIXEN_INFO_EXT(panic_stacktrace_logger,
-                "\x1b[36m{: >2}\x1b[0m :: \x1b[1m\x1b[32m{}\x1b[0m",
+                "\x1b[34;1m{: >4}\x1b[0m :: \x1b[33m{}\x1b[0m",
                 i + 1,
                 trace[i].name)
-            VIXEN_INFO_EXT(panic_stacktrace_logger, "   :: in {}", trace[i].location)
-            VIXEN_INFO_EXT(panic_stacktrace_logger, "   :: symbol {}", trace[i].raw_symbol)
+            VIXEN_INFO_EXT(panic_stacktrace_logger,
+                "      \x1b[30;1min \x1b[0m\x1b[30m{}\x1b[0m",
+                trace[i].location)
+            VIXEN_INFO_EXT(panic_stacktrace_logger,
+                "      \x1b[30;1msymbol \x1b[0m\x1b[30m{}\x1b[0m",
+                trace[i].raw_symbol)
             VIXEN_INFO_EXT(panic_stacktrace_logger, "")
         }
     }

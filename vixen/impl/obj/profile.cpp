@@ -378,19 +378,19 @@ void unregister_allocator(allocator *alloc) {
 
     translation_cache cache(debug_allocator());
 
-    if (info.checker.count() > 0) {
-        VIXEN_INFO("\tActive Allocations:");
-    }
-    info.checker.infos.iter([&](auto &ptr, auto &info) {
-        VIXEN_WARN("\t\t- Pointer: {}", ptr);
-        VIXEN_WARN("\t\t\t- layout: {}", info.allocated_with);
-        VIXEN_WARN("\t\t\t- Realloc Count: {}", info.realloc_count);
+    // if (info.checker.count() > 0) {
+    //     VIXEN_INFO("\tActive Allocations:");
+    // }
+    // info.checker.infos.iter([&](auto &ptr, auto &info) {
+    //     VIXEN_WARN("\t\t- Pointer: {}", ptr);
+    //     VIXEN_WARN("\t\t\t- layout: {}", info.allocated_with);
+    //     VIXEN_WARN("\t\t\t- Realloc Count: {}", info.realloc_count);
 
-        if (info.stack_trace) {
-            vector<address_info> addr_infos = translate_stack_trace(&cache, *info.stack_trace);
-            print_stack_trace_capture(addr_infos);
-        }
-    });
+    //     if (info.stack_trace) {
+    //         vector<address_info> addr_infos = translate_stack_trace(&cache, *info.stack_trace);
+    //         print_stack_trace_capture(addr_infos);
+    //     }
+    // });
 
     freed_allocator_names.push(alloc->id);
 }
@@ -442,6 +442,15 @@ void end_transaction(allocator_id id) {
     }
 }
 
+template <typename Stream>
+void format_stack_trace(
+    Stream &stream, translation_cache &cache, const slice<void *> &stack_trace) {
+    auto translated = translate_stack_trace(&cache, stack_trace);
+    for (usize i = 0; i < translated.len(); ++i) {
+        format_address_info(stream, translated[i], i + 1);
+    }
+}
+
 static void commit_alloc(allocator_info *alloc_info, layout layout, void *ptr) {
     alloc_info->num_bytes_in_use += layout.size;
     alloc_info->num_active_allocations += 1;
@@ -471,8 +480,16 @@ static void commit_alloc(allocator_info *alloc_info, layout layout, void *ptr) {
     }
 
     if (auto overlapping = alloc_info->checker.add(ptr, MOVE(info))) {
-        VIXEN_PANIC("allocation collision: tried to allocate over a previous allocation at {}.\n",
-            overlapping->base);
+        if (alloc_info->name) {
+            VIXEN_PANIC(
+                "allocation collision: tried to allocate over a previous allocation at {} in allocator '{}'.\n",
+                overlapping->base,
+                *alloc_info->name);
+        } else {
+            VIXEN_PANIC(
+                "allocation collision: tried to allocate over a previous allocation at {}.\n",
+                overlapping->base);
+        }
         // VIXEN_PANIC(
         //     "allocation collision: tried to allocate over a previous allocation at {}:\n"
         //     "previous allocation info:\n"
@@ -520,6 +537,9 @@ static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr)
             fmt::format_to(oi, "tried to deallocate, but the deallocation request misaligned:\n");
 
             fmt::format_to(oi, "request:\n");
+            if (alloc_info->name) {
+                fmt::format_to(oi, "- allocator name = '{}'\n", *alloc_info->name);
+            }
             fmt::format_to(oi, "- pointer = {}\n", ptr);
             fmt::format_to(oi, "- layout = {}\n", layout);
             fmt::format_to(oi,
@@ -535,13 +555,7 @@ static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr)
             if (info->stack_trace) {
                 fmt::format_to(oi, "- stack trace:\n");
                 translation_cache cache(heap::debug_allocator());
-                vector<address_info> stacktrace_infos
-                    = translate_stack_trace(&cache, *info->stack_trace);
-
-                usize i = 0;
-                for (auto &stacktrace_info : stacktrace_infos) {
-                    format_address_info(bi, stacktrace_info, ++i);
-                }
+                format_stack_trace(bi, cache, *info->stack_trace);
             }
 
             string diagnostic_str(MOVE(diagnostic));
@@ -567,7 +581,11 @@ void record_alloc(allocator_id id, layout layout, void *ptr) {
         return;
     }
 
-    VIXEN_TRACE("[A] {} ({})", layout, ptr);
+    if (alloc_info->name) {
+        VIXEN_TRACE("[A] '{}' {} ({})", *alloc_info->name, layout, ptr);
+    } else {
+        VIXEN_TRACE("[A] {} ({})", layout, ptr);
+    }
     commit_alloc(alloc_info, layout, ptr);
 }
 
@@ -581,7 +599,11 @@ void record_dealloc(allocator_id id, layout layout, void *ptr) {
         return;
     }
 
-    VIXEN_TRACE("[D] {} ({})", layout, ptr);
+    if (alloc_info->name) {
+        VIXEN_TRACE("[D] '{}' {} ({})", *alloc_info->name, layout, ptr);
+    } else {
+        VIXEN_TRACE("[D] {} ({})", layout, ptr);
+    }
     commit_dealloc(alloc_info, layout, ptr);
 }
 
@@ -598,15 +620,32 @@ void record_realloc(
 
     if (old_ptr == nullptr && new_ptr != nullptr) {
         // Realloc zero -> something, which is an allocation.
-        VIXEN_TRACE("[R:A] {} ({})", new_layout, new_ptr);
+        if (alloc_info->name) {
+            VIXEN_TRACE("[R:A] '{}' {} ({})", *alloc_info->name, new_layout, new_ptr);
+        } else {
+            VIXEN_TRACE("[R:A] {} ({})", new_layout, new_ptr);
+        }
         commit_alloc(alloc_info, new_layout, new_ptr);
     } else if (old_ptr != nullptr && new_ptr == nullptr) {
         // Realloc something -> zero, which is a deallocation.
-        VIXEN_TRACE("[R:D] {} ({})", old_layout, old_ptr);
+        if (alloc_info->name) {
+            VIXEN_TRACE("[R:D] '{}' {} ({})", *alloc_info->name, old_layout, old_ptr);
+        } else {
+            VIXEN_TRACE("[R:D] {} ({})", old_layout, old_ptr);
+        }
         commit_dealloc(alloc_info, old_layout, old_ptr);
     } else if (old_ptr != nullptr, new_ptr != nullptr) {
         // Bona fide reallocation!
-        VIXEN_TRACE("[R] {} ({}) -> {} ({})", old_layout, old_ptr, new_layout, old_layout);
+        if (alloc_info->name) {
+            VIXEN_TRACE("[R] '{}' {} ({}) -> {} ({})",
+                *alloc_info->name,
+                old_layout,
+                old_ptr,
+                new_layout,
+                old_layout);
+        } else {
+            VIXEN_TRACE("[R] {} ({}) -> {} ({})", old_layout, old_ptr, new_layout, old_layout);
+        }
         alloc_info->num_bytes_in_use -= old_layout.size;
         alloc_info->num_bytes_in_use += new_layout.size;
         alloc_info->maximum_bytes_in_use
@@ -629,24 +668,46 @@ void record_realloc(
         if (auto &info = removal_info.info) {
             if (removal_info.is_dealloc_start_misaligned || removal_info.is_dealloc_end_misaligned)
             {
-                VIXEN_PANIC(
-                    "tried to reallocate, but the allocated pointer was in the middle of a block:\n"
-                    "reallocation request:\n",
-                    "\told pointer = {}\n",
-                    "\told layout = {}\n",
-                    "\tnew pointer = {}\n",
-                    "\tnew layout = {}\n",
-                    "block at {}:\n",
-                    "\tlayout = {}\n",
-                    "\treallocation count = {}\n",
-                    old_ptr,
-                    old_layout,
-                    new_ptr,
-                    new_layout,
-                    info->base,
-                    info->allocated_with,
-                    info->realloc_count);
+                vector<char> diagnostic(debug_allocator());
+                auto bi = stream::back_inserter(diagnostic);
+                auto oi = stream::make_stream_output_iterator(bi);
+
+                fmt::format_to(oi,
+                    "tried to reallocate, but the allocated pointer was in the middle of a block:\n");
+
+                fmt::format_to(oi, "request:\n");
+                if (alloc_info->name) {
+                    fmt::format_to(oi, "- allocator name = '{}'\n", *alloc_info->name);
+                }
+                fmt::format_to(oi, "- old pointer = {}\n", old_ptr);
+                fmt::format_to(oi, "- old layout = {}\n", old_layout);
+                fmt::format_to(oi, "- new pointer = {}\n", new_ptr);
+                fmt::format_to(oi, "- new layout = {}\n", new_layout);
+                fmt::format_to(oi,
+                    "- start misaligned = {}\n",
+                    removal_info.is_dealloc_start_misaligned);
+                fmt::format_to(oi,
+                    "- end misaligned = {}\n",
+                    removal_info.is_dealloc_end_misaligned);
+                fmt::format_to(oi, "\n");
+                fmt::format_to(oi, "block in:\n");
+                fmt::format_to(oi, "- pointer = {}\n", info->base);
+                fmt::format_to(oi, "- layout = {}\n", info->allocated_with);
+                fmt::format_to(oi, "- reallocation count = {}\n", info->realloc_count);
+
+                if (info->stack_trace) {
+                    fmt::format_to(oi, "- stack trace:\n");
+                    translation_cache cache(heap::debug_allocator());
+                    format_stack_trace(bi, cache, *info->stack_trace);
+                }
+
+                string diagnostic_str(MOVE(diagnostic));
+                VIXEN_PANIC("{}", diagnostic_str);
             } else {
+                // TODO: maybe record stack traces for reallocations too instead of only keeping
+                // track of the initial alloc.
+                info->allocated_with = new_layout;
+                info->base = new_ptr;
                 if (auto overlapping = alloc_info->checker.add(new_ptr, MOVE(*info))) {
                     VIXEN_PANIC(
                         "allocation collision: tried to allocate over a previous allocation at {}.\n",
