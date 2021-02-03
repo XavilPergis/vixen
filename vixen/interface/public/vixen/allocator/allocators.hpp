@@ -5,6 +5,9 @@
 #include "vixen/allocator/allocator.hpp"
 #include "vixen/traits.hpp"
 
+/// @file
+/// @ingroup vixen_allocator
+
 namespace vixen::heap {
 // Requests blocks of memory directly from the OS with `mmap` and releases them with `munmap`.
 // This allocator is a "source" and doesn't have a parent allocator.

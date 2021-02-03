@@ -36,7 +36,7 @@ inline string::string(allocator *alloc, string_slice slice)
 inline string::string(allocator *alloc, usize default_capacity)
     : data(vector<char>(alloc, default_capacity)) {}
 
-inline string::string(vector<char> &&data) : data(MOVE(data)) {
+inline string::string(vector<char> &&data) : data(mv(data)) {
     // VIXEN_ASSERT(utf8::is_valid(data), "String data was not valid UTF-8.")
 }
 
@@ -304,7 +304,7 @@ inline void string_slice::split_to(
     usize i = 0;
     while (i < len()) {
         if (raw[range(i, i + token.len())] == token.raw) {
-            out.push(MOVE(current_run));
+            out.push(mv(current_run));
             current_run = string(alloc);
             i += token.len();
             continue;

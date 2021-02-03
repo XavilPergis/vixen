@@ -3,7 +3,7 @@
 
 namespace vixen::heap {
 void *arena_allocator::try_allocate_in(const layout &layout, block_descriptor &block) {
-    void *aligned_ptr = align_up(block.current, layout.align);
+    void *aligned_ptr = util::align_pointer_up(block.current, layout.align);
     void *next_ptr = (void *)((usize)aligned_ptr + layout.size);
     // Bail if the allocation won't fit in this block.
     if (next_ptr > block.end) {
@@ -85,14 +85,14 @@ void *arena_allocator::internal_realloc(
     // Differing alignments probably won't happen, or will be exceedingly rare, so we shouldn't
     // burden ourselves with needing to think about alignment in the rest of this method.
     bool are_alignments_same = new_layout.align == old_layout.align;
-    bool fits_in_block = void_ptr_add(old_ptr, new_layout.size) <= this->current_block->end;
+    bool fits_in_block = util::offset_rawptr(old_ptr, new_layout.size) < this->current_block->end;
 
     if (are_alignments_same && fits_in_block) {
         // Optimize shrinking reallocs
         if (new_layout.size < old_layout.size) {
             // Actually shrink the current block if its the last one.
             if (old_ptr == this->current_block->last) {
-                this->current_block->current = void_ptr_add(old_ptr, new_layout.size);
+                this->current_block->current = util::offset_rawptr(old_ptr, new_layout.size);
                 return this->current_block->current;
             }
             // Just hand back the old pointer, because shrinking a block will never trigger a
@@ -103,7 +103,7 @@ void *arena_allocator::internal_realloc(
 
         // Optimize last-allocation grows
         if (old_ptr == current_block->last) {
-            this->current_block->current = void_ptr_add(old_ptr, new_layout.size);
+            this->current_block->current = util::offset_rawptr(old_ptr, new_layout.size);
             return old_ptr;
         }
     }

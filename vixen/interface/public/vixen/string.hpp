@@ -12,6 +12,8 @@ namespace vixen {
 
 struct string_slice;
 
+/// @ingroup vixen_data_structures
+/// @brief UTF-8 String.
 struct string {
     vector<char> data;
 

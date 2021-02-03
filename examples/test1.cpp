@@ -27,7 +27,7 @@ int main() {
         foo.push(1);
 
         VIXEN_INFO("making bar");
-        vixen::shared<vixen::vector<i32>> bar(&tmp, MOVE(foo));
+        vixen::shared<vixen::vector<i32>> bar(&tmp, mv(foo));
         VIXEN_INFO("making weak");
         my_weak = bar.downgrade();
         bar->push(10);

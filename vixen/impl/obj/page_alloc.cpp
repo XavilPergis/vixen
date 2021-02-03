@@ -10,7 +10,7 @@ static usize allocation_size(const layout &layout) {
     // of padding minus one page to play with to ensure that out allocation will be properly
     // aligned.
     usize size_with_align = layout.align > page_size() ? layout.size + layout.align : layout.size;
-    usize allocation_size = align_up(size_with_align, page_size());
+    usize allocation_size = util::align_pointer_up(size_with_align, page_size());
 
     return allocation_size;
 }
@@ -24,7 +24,7 @@ void *page_allocator::internal_alloc(const layout &layout) {
     if (base_ptr == MAP_FAILED) {
         throw allocation_exception{};
     }
-    void *aligned_ptr = align_up(base_ptr, layout.align);
+    void *aligned_ptr = util::align_pointer_up(base_ptr, layout.align);
 
     // Large alignments will often leave a bunch of padding before the usable allocation, so we
     // just unmap that here so we don't have to keep track of anything for dealloc.

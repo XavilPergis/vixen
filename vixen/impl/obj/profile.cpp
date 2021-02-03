@@ -1,13 +1,10 @@
 #include "vixen/allocator/profile.hpp"
 
 #include "vixen/allocator/stacktrace.hpp"
-#include "vixen/hashmap.hpp"
-#include "vixen/option.hpp"
+#include "vixen/common.hpp"
 #include "vixen/stream.hpp"
-#include "vixen/string.hpp"
 #include "vixen/traits.hpp"
 #include "vixen/types.hpp"
-#include "vixen/vec.hpp"
 
 #include <thread>
 
@@ -71,10 +68,10 @@ struct allocation_checker {
             = binary_search(buckets.begin(), buckets.end(), get_bucket_id(addr), bucket_start);
         if (bucket_idx.is_err()) {
             allocation_bucket bucket_to_add(alloc, addr, addr + BUCKET_SIZE);
-            buckets.shift_insert(bucket_idx.unwrap_err(), MOVE(bucket_to_add));
+            buckets.shift_insert(bucket_idx.unwrap_err(), mv(bucket_to_add));
         }
 
-        auto &bucket = buckets[unify_result(MOVE(bucket_idx))];
+        auto &bucket = buckets[unify_result(mv(bucket_idx))];
         auto range_idx = binary_search(bucket.allocations.begin(),
             bucket.allocations.end(),
             range.start,
@@ -102,7 +99,7 @@ struct allocation_checker {
             add_range_at(end_addr, range);
         }
 
-        infos.insert(start_addr, MOVE(info));
+        infos.insert(start_addr, mv(info));
         return nullptr;
     }
 
@@ -114,7 +111,7 @@ struct allocation_checker {
 
     removal_info remove(rawptr addr, layout layout, allocator *info_clone_alloc) {
         rawptr start_addr = addr;
-        rawptr end_addr = start_addr + layout.size;
+        rawptr end_addr = util::offset_rawptr(start_addr, layout.size);
         allocation_range range{start_addr, end_addr};
 
         // VIXEN_WARN("removing {}", addr);
@@ -381,16 +378,18 @@ void unregister_allocator(allocator *alloc) {
     if (info.checker.count() > 0) {
         VIXEN_INFO("\tActive Allocations:");
     }
-    info.checker.infos.iter([&](auto &ptr, auto &info) {
-        VIXEN_WARN("\t\t- Pointer: {}", ptr);
-        VIXEN_WARN("\t\t\t- layout: {}", info.allocated_with);
-        VIXEN_WARN("\t\t\t- Realloc Count: {}", info.realloc_count);
 
-        if (info.stack_trace) {
-            vector<address_info> addr_infos = translate_stack_trace(&cache, *info.stack_trace);
-            print_stack_trace_capture(addr_infos);
-        }
-    });
+    // FIXME
+    // info.checker.infos.iter([&](auto &ptr, auto &info) {
+    //     VIXEN_WARN("\t\t- Pointer: {}", ptr);
+    //     VIXEN_WARN("\t\t\t- layout: {}", info.allocated_with);
+    //     VIXEN_WARN("\t\t\t- Realloc Count: {}", info.realloc_count);
+
+    //     if (info.stack_trace) {
+    //         vector<address_info> addr_infos = translate_stack_trace(&cache, *info.stack_trace);
+    //         print_stack_trace_capture(addr_infos);
+    //     }
+    // });
 
     freed_allocator_names.push(alloc->id);
 }
@@ -470,7 +469,7 @@ static void commit_alloc(allocator_info *alloc_info, layout layout, void *ptr) {
         info.stack_trace = capture_stack_trace(debug_allocator());
     }
 
-    if (auto overlapping = alloc_info->checker.add(ptr, MOVE(info))) {
+    if (auto overlapping = alloc_info->checker.add(ptr, mv(info))) {
         VIXEN_PANIC("allocation collision: tried to allocate over a previous allocation at {}.\n",
             overlapping->base);
         // VIXEN_PANIC(
@@ -544,7 +543,7 @@ static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr)
                 }
             }
 
-            string diagnostic_str(MOVE(diagnostic));
+            string diagnostic_str(mv(diagnostic));
             VIXEN_PANIC("{}", diagnostic_str);
         }
     } else {
@@ -647,7 +646,7 @@ void record_realloc(
                     info->allocated_with,
                     info->realloc_count);
             } else {
-                if (auto overlapping = alloc_info->checker.add(new_ptr, MOVE(*info))) {
+                if (auto overlapping = alloc_info->checker.add(new_ptr, mv(*info))) {
                     VIXEN_PANIC(
                         "allocation collision: tried to allocate over a previous allocation at {}.\n",
                         overlapping->base);
@@ -678,7 +677,7 @@ void record_realloc(
         // }
 
         // option<allocation_info> overlapping = alloc_info->checker.infos.insert(new_ptr,
-        // MOVE(info)); VIXEN_ASSERT(overlapping.is_none(),
+        // mv(info)); VIXEN_ASSERT(overlapping.is_none(),
         //     "Tried to reallocate pointer {} ({}) to {} ({}), but it overlaps with an active
         //     allocation with layout ({}).", old_ptr, old_layout, new_ptr, new_layout,
         //     overlapping->allocated_with);

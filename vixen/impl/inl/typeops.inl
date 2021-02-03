@@ -114,4 +114,16 @@ struct repeat_impl<0, T> {
 };
 
 // --------------------------------------------------------------------------------
+
+template <usize K, typename Ts>
+struct remove_impl {
+    using type = cons<head<Ts>, remove<K - 1, tail<Ts>>>;
+};
+
+template <typename Ts>
+struct remove_impl<0, Ts> {
+    using type = tail<Ts>;
+};
+
+// --------------------------------------------------------------------------------
 } // namespace vixen

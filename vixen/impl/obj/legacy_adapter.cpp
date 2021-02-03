@@ -22,14 +22,14 @@ static_assert(MAX_LEGACY_ALIGNMENT >= sizeof(usize));
 void *legacy_adapter_allocator::internal_legacy_alloc(usize size) {
     void *raw = adapted->alloc(legacy_layout(size));
     write_alloc_size(raw, size);
-    return void_ptr_add(raw, MAX_LEGACY_ALIGNMENT);
+    return util::offset_rawptr(raw, MAX_LEGACY_ALIGNMENT);
 }
 
 void legacy_adapter_allocator::internal_legacy_dealloc(void *ptr) {
     if (ptr == nullptr)
         return;
 
-    void *raw = void_ptr_sub(ptr, MAX_LEGACY_ALIGNMENT);
+    void *raw = util::offset_rawptr(ptr, -MAX_LEGACY_ALIGNMENT);
     usize size = read_alloc_size(raw);
 
     adapted->dealloc(legacy_layout(size), raw);
@@ -42,12 +42,12 @@ void *legacy_adapter_allocator::internal_legacy_realloc(usize new_size, void *ol
         internal_legacy_dealloc(old_ptr);
         return nullptr;
     } else {
-        void *old_raw = void_ptr_sub(old_ptr, MAX_LEGACY_ALIGNMENT);
+        void *old_raw = util::offset_rawptr(old_ptr, -MAX_LEGACY_ALIGNMENT);
         usize old_size = read_alloc_size(old_raw);
 
         void *new_raw = adapted->realloc(legacy_layout(old_size), legacy_layout(new_size), old_raw);
         write_alloc_size(new_raw, new_size);
-        return void_ptr_add(new_raw, MAX_LEGACY_ALIGNMENT);
+        return util::offset_rawptr(new_raw, MAX_LEGACY_ALIGNMENT);
     }
 }
 

@@ -138,10 +138,10 @@ inline T vector<T>::shift_remove(usize idx) {
         idx,
         length);
 
-    T old_value = MOVE(data[idx]);
+    T old_value = mv(data[idx]);
     util::copy(&data[idx + 1], &data[idx], length - idx + 1);
     --length;
-    return MOVE(old_value);
+    return mv(old_value);
 }
 
 template <typename T>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "vixen/allocator/allocator.hpp"
-#include "vixen/hashmap.hpp"
+#include "vixen/hash/map.hpp"
 #include "vixen/string.hpp"
 #include "vixen/traits.hpp"
 #include "vixen/types.hpp"

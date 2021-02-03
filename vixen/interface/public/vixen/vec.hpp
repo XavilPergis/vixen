@@ -6,14 +6,19 @@
 #include "vixen/traits.hpp"
 #include "vixen/types.hpp"
 
+/// @defgroup vixen_data_structures Data Structures
+
 namespace vixen {
 // Number of elements in the initial allocation of a vector.
 constexpr const usize default_vec_capacity = 8;
 
-// Growable dynamically-allocated array. Any reference into a vector is only valid until
-// the vector's size changes.
+/// @ingroup vixen_data_structures
+/// @brief Growable dynamically-allocated array.
+///
+/// @warning Any reference into a vector is only valid until the vector's size changes.
 template <typename T>
 struct vector {
+    /// Default construction of a vector results in a vector in the moved-from state.
     vector();
 
     explicit vector(allocator *alloc);
@@ -30,11 +35,10 @@ struct vector {
     template <typename U>
     void push(U &&value);
 
-    /// Pushes `elements` elements from `ptr` onto the end of the vector.
-    // void extend(Iterator<T> elements);
-
     /// Extends the vector by `elements` elements, and returns a pointer to the start of the
     /// newly allocated elements.
+    ///
+    /// @warning This method does _not_ initialize any elements.
     T *reserve(usize elements = 1);
 
     /// Sets the length of the vector to `len` items long.

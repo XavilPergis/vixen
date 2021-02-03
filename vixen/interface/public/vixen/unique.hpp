@@ -4,6 +4,8 @@
 
 namespace vixen {
 
+/// @ingroup vixen_data_structures
+/// @brief Managed pointer that destroys its allocation at the end of its lifetime.
 template <typename T>
 struct unique {
     using pointer = T *;
@@ -38,8 +40,12 @@ struct unique {
     }
 
 private:
-    T *data;
-    allocator *alloc;
+    struct inner {
+        T data;
+        allocator *alloc;
+    };
+
+    inner *inner_pointer;
 };
 
 template <typename T, typename H>

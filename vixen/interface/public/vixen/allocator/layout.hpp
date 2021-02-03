@@ -2,6 +2,9 @@
 
 #include "vixen/types.hpp"
 
+/// @file
+/// @ingroup vixen_allocator
+
 namespace vixen::heap {
 
 struct layout {

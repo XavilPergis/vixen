@@ -39,9 +39,9 @@ struct result_impl {
 
     result_impl(result_impl<T, E> &&other) {
         if (other.is_ok()) {
-            ok_storage.set(MOVE(other.get_ok()));
+            ok_storage.set(mv(other.get_ok()));
         } else {
-            err_storage.set(MOVE(other.get_err()));
+            err_storage.set(mv(other.get_err()));
         }
     }
 
@@ -52,9 +52,9 @@ struct result_impl {
         erase();
 
         if (other.is_ok()) {
-            ok_storage.set(MOVE(other.get_ok()));
+            ok_storage.set(mv(other.get_ok()));
         } else {
-            err_storage.set(MOVE(other.get_err()));
+            err_storage.set(mv(other.get_err()));
         }
 
         return *this;
@@ -92,9 +92,9 @@ struct result_impl {
 template <typename T, typename E>
 struct result {
     template <typename U>
-    result(detail::ok<U> &&val) : impl(MOVE(val)) {}
+    result(detail::ok<U> &&val) : impl(mv(val)) {}
     template <typename U>
-    result(detail::err<U> &&val) : impl(MOVE(val)) {}
+    result(detail::err<U> &&val) : impl(mv(val)) {}
 
     result(result<T, E> &&other) = default;
     result<T, E> &operator=(result<T, E> &&other) = default;
@@ -141,14 +141,14 @@ struct result {
 
     option<T> to_ok() {
         if (impl.is_ok()) {
-            return MOVE(impl.get_ok());
+            return mv(impl.get_ok());
         } else {
             return nullptr;
         }
     }
     option<T> to_err() {
         if (!impl.is_ok()) {
-            return MOVE(impl.get_err());
+            return mv(impl.get_err());
         } else {
             return nullptr;
         }
@@ -199,7 +199,7 @@ inline detail::err<std::remove_reference_t<E>> err(E &&val) {
 
 template <typename T>
 inline T unify_result(result<T, T> &&val) {
-    return val.is_ok() ? MOVE(val.unwrap_ok()) : MOVE(val.unwrap_err());
+    return val.is_ok() ? mv(val.unwrap_ok()) : mv(val.unwrap_err());
 }
 
 } // namespace vixen

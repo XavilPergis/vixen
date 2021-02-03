@@ -5,15 +5,14 @@ namespace vixen {
 template <typename T>
 template <typename U>
 unique<T>::unique(allocator *alloc, U &&other)
-    : alloc(alloc), data(heap::create_init<T>(alloc, std::forward<U>(other))) {}
+    : inner_pointer(heap::create_init<unique<T>::inner>(alloc, std::forward<U>(other), alloc)) {}
 
 template <typename T>
 unique<T>::unique(allocator *alloc, const unique<T> &other)
-    : unique(alloc, MOVE(copy_construct_maybe_allocator_aware(alloc, *other))) {}
+    : unique(alloc, copy_construct_maybe_allocator_aware(alloc, *other)) {}
 
 template <typename T>
-unique<T>::unique(unique<T> &&other)
-    : alloc(std::exchange(other.alloc, nullptr)), data(std::exchange(other.data, nullptr)) {}
+unique<T>::unique(unique<T> &&other) : inner_pointer(std::exchange(other.inner_pointer, nullptr)) {}
 
 template <typename T>
 unique<T> &unique<T>::operator=(unique<T> &&other) {
@@ -21,9 +20,7 @@ unique<T> &unique<T>::operator=(unique<T> &&other) {
         return *this;
 
     clear();
-
-    alloc = std::exchange(other.alloc, nullptr);
-    data = std::exchange(other.data, nullptr);
+    inner_pointer = std::exchange(other.inner_pointer, nullptr);
 
     return *this;
 }
@@ -41,48 +38,47 @@ unique<T>::~unique() {
 
 template <typename T>
 const T &unique<T>::operator*() const {
-    VIXEN_ASSERT_NONNULL(data);
-    return *data;
+    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    return inner_pointer->data;
 }
 
 template <typename T>
 const T *unique<T>::operator->() const {
-    VIXEN_ASSERT_NONNULL(data);
-    return data;
+    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    return &inner_pointer->data;
 }
 
 template <typename T>
 T &unique<T>::operator*() {
-    VIXEN_ASSERT_NONNULL(data);
-    return *data;
+    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    return inner_pointer->data;
 }
 
 template <typename T>
 T *unique<T>::operator->() {
-    VIXEN_ASSERT_NONNULL(data);
-    return data;
+    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    return &inner_pointer->data;
 }
 
 template <typename T>
 unique<T>::operator bool() const {
-    return data;
+    return inner_pointer;
 }
 
 template <typename T>
 unique<T>::operator const_pointer() const {
-    return data;
+    return inner_pointer;
 }
 
 template <typename T>
 unique<T>::operator pointer() {
-    return data;
+    return inner_pointer;
 }
 
 template <typename T>
 void unique<T>::clear() {
-    if (data) {
-        data->~T();
-        heap::destroy(alloc, data);
+    if (inner_pointer) {
+        heap::destroy_init(inner_pointer->alloc, inner_pointer);
     }
 }
 

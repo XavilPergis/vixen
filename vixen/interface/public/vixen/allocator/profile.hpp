@@ -3,6 +3,9 @@
 #include "vixen/allocator/layout.hpp"
 #include "vixen/types.hpp"
 
+/// @file
+/// @ingroup vixen_allocator
+
 namespace vixen {
 struct string_slice;
 template <typename T>

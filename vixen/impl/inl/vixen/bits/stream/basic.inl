@@ -30,8 +30,7 @@ struct pipeline<T, CA, CB, Cs...> {
 
     template <typename... As>
     pipeline<T, CA, CB, Cs..., As...> append_pipeline(pipeline<pipeline_output, As...> &&appended) {
-        return pipeline<T, CA, CB, Cs..., As...>{MOVE(component),
-            rest.append_pipeline(MOVE(appended))};
+        return pipeline<T, CA, CB, Cs..., As...>{mv(component), rest.append_pipeline(mv(appended))};
     }
 };
 
@@ -50,7 +49,7 @@ struct pipeline<T, C> {
     // Assumes incomplete pipeline
     template <typename U, typename... As>
     pipeline<T, C, As...> append_pipeline(pipeline<U, As...> &&appended) {
-        return pipeline<T, C, As...>{MOVE(component), MOVE(appended)};
+        return pipeline<T, C, As...>{mv(component), mv(appended)};
     }
 };
 

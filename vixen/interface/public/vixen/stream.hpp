@@ -53,7 +53,7 @@ namespace vixen::stream {
 /// @brief Lifts a conforming stream component and makes it usable with generic stream utilities.
 template <typename T, typename C>
 pipeline<T, C> make_pipeline(C &&component) {
-    return pipeline<T, C>{MOVE(component)};
+    return pipeline<T, C>{mv(component)};
 }
 
 /// @ingroup vixen_streams
@@ -76,9 +76,9 @@ inline pipeline<typename collection_types<Coll>::value_type, detail::back_insert
 /// @ingroup vixen_streams
 /// @brief Creates an adapter that takes an input `n` and pushes `n` if `predicate(n)` returns true.
 template <typename F>
-inline pipeline<typename function_traits<F>::argument<0>::type, detail::filter_adapter<F>> filter(
+inline pipeline<typename function_traits<F>::argument<0>, detail::filter_adapter<F>> filter(
     F &&predicate) {
-    return make_pipeline<typename function_traits<F>::argument<0>::type>(
+    return make_pipeline<typename function_traits<F>::argument<0>>(
         detail::filter_adapter<F>{predicate});
 }
 
@@ -97,10 +97,8 @@ inline pipeline<typename function_traits<F>::argument<0>::type, detail::filter_a
 /// // `output` should now contain the values [6, 7, 8]
 /// @endcode
 template <typename F>
-inline pipeline<typename function_traits<F>::argument<0>::type, detail::map_adapter<F>> map(
-    F &&mapper) {
-    return make_pipeline<typename function_traits<F>::argument<0>::type>(
-        detail::map_adapter<F>{mapper});
+inline pipeline<typename function_traits<F>::argument<0>, detail::map_adapter<F>> map(F &&mapper) {
+    return make_pipeline<typename function_traits<F>::argument<0>>(detail::map_adapter<F>{mapper});
 }
 
 /// @ingroup vixen_streams
@@ -118,7 +116,7 @@ inline detail::output_iterator_source<T, CA, Cs...> make_stream_output_iterator(
 /// components from `last`.
 template <typename T, typename U, typename... As, typename... Bs>
 inline pipeline<T, As..., Bs...> operator|(pipeline<T, As...> &&first, pipeline<U, Bs...> &&last) {
-    return first.append_pipeline(MOVE(last));
+    return first.append_pipeline(mv(last));
 }
 
 } // namespace vixen::stream

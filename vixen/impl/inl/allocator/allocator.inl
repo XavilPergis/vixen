@@ -11,17 +11,6 @@
 #include <new>
 
 namespace vixen::heap {
-template <typename P, typename A>
-constexpr P align_up(P ptr, A align) {
-    return (P)((A)ptr + (align - 1) & ~(align - 1));
-}
-
-constexpr void *void_ptr_add(void *ptr, usize bytes) {
-    return (void *)((usize)ptr + bytes);
-}
-constexpr void *void_ptr_sub(void *ptr, usize bytes) {
-    return (void *)((usize)ptr - bytes);
-}
 
 inline bool layout::operator==(const layout &rhs) const {
     return size == rhs.size && align == rhs.align;
@@ -64,7 +53,7 @@ inline void *general_realloc(
         util::fill(DEALLOCATION_PATTERN, (u8 *)old_ptr, old_layout.size);
         if (new_layout.size > old_layout.size) {
             util::fill(ALLOCATION_PATTERN,
-                (u8 *)void_ptr_add(new_ptr, old_layout.size),
+                (u8 *)util::offset_rawptr(new_ptr, old_layout.size),
                 new_layout.size - old_layout.size);
         }
         alloc->dealloc(old_layout, old_ptr);
@@ -100,12 +89,18 @@ inline T *create_init(allocator *alloc, Args &&...args) {
 }
 
 template <typename T>
-inline void destroy(allocator *alloc, T *ptr) {
+inline void destroy_uninit(allocator *alloc, T *ptr) {
     alloc->dealloc(layout::of<T>(), ptr);
 }
 
 template <typename T>
-inline void destroy_array(allocator *alloc, T *ptr, usize len) {
+inline void destroy_init(allocator *alloc, T *ptr) {
+    ptr->~T();
+    alloc->dealloc(layout::of<T>(), ptr);
+}
+
+template <typename T>
+inline void destroy_array_uninit(allocator *alloc, T *ptr, usize len) {
     alloc->dealloc(layout::array_of<T>(len), ptr);
 }
 

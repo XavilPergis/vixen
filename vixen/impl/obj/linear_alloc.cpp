@@ -3,7 +3,7 @@
 namespace vixen::heap {
 linear_allocator::linear_allocator(void *block, usize len) {
     this->start = block;
-    this->end = void_ptr_add(block, len);
+    this->end = util::offset_rawptr(block, len);
     this->cursor = block;
     this->prev_cursor = block;
 }
@@ -24,19 +24,19 @@ void *linear_allocator::internal_realloc(
 
     if (new_layout.size < old_layout.size) {
         if (old_ptr == this->prev_cursor) {
-            this->cursor = void_ptr_add(old_ptr, new_layout.size);
+            this->cursor = util::offset_rawptr(old_ptr, new_layout.size);
             return this->cursor;
         }
         return old_ptr;
     }
 
-    if (old_ptr != this->prev_cursor || void_ptr_add(old_ptr, new_layout.size) > this->end) {
+    if (old_ptr != this->prev_cursor || util::offset_rawptr(old_ptr, new_layout.size) > this->end) {
         return general_realloc(this, old_layout, new_layout, old_ptr);
     }
 
     // Grow in-place
     if (new_layout.size > old_layout.size) {
-        this->cursor = void_ptr_add(old_ptr, new_layout.size);
+        this->cursor = util::offset_rawptr(old_ptr, new_layout.size);
         return old_ptr;
     }
 
@@ -47,8 +47,8 @@ void *linear_allocator::internal_realloc(
 void *linear_allocator::internal_alloc(const layout &layout) {
     _VIXEN_ALLOC_PROLOGUE(layout)
 
-    void *base = align_up(this->cursor, layout.align);
-    void *next = void_ptr_add(base, layout.size);
+    void *base = util::align_pointer_up(this->cursor, layout.align);
+    void *next = util::offset_rawptr(base, layout.size);
     if (next > this->end) {
         throw allocation_exception{};
     }

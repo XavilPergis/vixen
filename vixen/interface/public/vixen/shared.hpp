@@ -32,6 +32,9 @@ struct shared_repr {
 template <typename T>
 struct weak;
 
+/// @ingroup vixen_data_structures
+/// @brief Managed pointer that destroys its allocation when all other shared pointers to the same
+/// object are destroyed.
 template <typename T>
 struct shared {
     using pointer = T *;
@@ -74,6 +77,9 @@ private:
     shared_repr<T> *repr = nullptr;
 };
 
+/// @ingroup vixen_data_structures
+/// @brief Weak reference to a shared pointer's data that does not interfere with the destruction of
+/// the shared pointer.
 template <typename T>
 struct weak {
     using pointer = T *;

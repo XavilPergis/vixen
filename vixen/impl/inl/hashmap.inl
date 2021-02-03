@@ -1,478 +1,403 @@
-#pragma once
+// #pragma once
 
-#include "vixen/allocator/allocator.hpp"
-#include "vixen/hashmap.hpp"
-#include "vixen/option.hpp"
-#include "vixen/traits.hpp"
-#include "vixen/types.hpp"
-#include "vixen/util.hpp"
+// #include "vixen/allocator/allocator.hpp"
+// #include "vixen/hashmap.hpp"
+// #include "vixen/option.hpp"
+// #include "vixen/traits.hpp"
+// #include "vixen/types.hpp"
+// #include "vixen/util.hpp"
 
-namespace vixen {
+// namespace vixen {
 
-#pragma region "Hasher"
-// + ----- Hasher --------------------------------------------------------------- +
-
-constexpr u64 rol(const u64 n, const u64 i) {
-    const u64 m = std::numeric_limits<u64>::digits - 1;
-    const u64 c = i & m;
-    return (n << c) | (n >> ((-c) & m));
-}
-
-constexpr u64 ror(const u64 n, const u64 i) {
-    const u64 m = std::numeric_limits<u64>::digits - 1;
-    const u64 c = i & m;
-    return (n >> c) | (n << ((-c) & m));
-}
-
-constexpr u64 hash_finalize(u64 v) {
-    v ^= ror(v, 25) ^ ror(v, 50);
-    v *= 0xa24baed4963ee407ul;
-    v ^= ror(v, 24) ^ ror(v, 49);
-    v *= 0x9fb21c651e98df25ul;
-    return v ^ v >> 28;
-}
-
-namespace detail {
-constexpr usize extract_h1(usize hash) noexcept {
-    return hash >> 7;
-}
-
-constexpr usize extract_h2(usize hash) noexcept {
-    return hash & 0x7f;
-}
-}; // namespace detail
-
-inline fx_hasher::fx_hasher(u64 seed) : current(seed) {}
-
-inline u64 fx_hasher::finish() {
-    return hash_finalize(current);
-}
-
-inline void fx_hasher::add_to_hash(u64 i) {
-    current = 0x517cc1b727220a95 * (rol(current, 5) ^ i);
-}
-
-inline void fx_hasher::write_bytes(slice<const char> bytes) {
-    while (bytes.len > sizeof(u64)) {
-        u64 data;
-        util::copy_nonoverlapping<char>(bytes.ptr, (char *)&data, sizeof(u64));
-        add_to_hash(data);
-        bytes = bytes[range_from(sizeof(u64))];
-    }
-
-    for (const char byte : bytes) {
-        add_to_hash((u64)byte);
-    }
-}
-
-#define _VIXEN_FXHASHER_WRITE_OVERLOAD(T)             \
-    template <>                                       \
-    inline void fx_hasher::write<T>(const T &value) { \
-        add_to_hash((u64)value);                      \
-    }
-
-// Add fast-path specializations for small key types, calling `add_to_hash` directly.
-_VIXEN_FXHASHER_WRITE_OVERLOAD(u64)
-_VIXEN_FXHASHER_WRITE_OVERLOAD(u32)
-_VIXEN_FXHASHER_WRITE_OVERLOAD(u16)
-_VIXEN_FXHASHER_WRITE_OVERLOAD(u8)
-_VIXEN_FXHASHER_WRITE_OVERLOAD(i64)
-_VIXEN_FXHASHER_WRITE_OVERLOAD(i32)
-_VIXEN_FXHASHER_WRITE_OVERLOAD(i16)
-_VIXEN_FXHASHER_WRITE_OVERLOAD(i8)
-
-template <typename T>
-inline void fx_hasher::write(const T &value) {
-    write_bytes({(char *)&value, sizeof(T)});
-}
-
-template <typename T, typename H>
-constexpr u64 make_hash(const T &value) {
-    H hasher{};
-    hash(value, hasher);
-    return hasher.finish();
-}
-
-#pragma endregion
-#pragma region "Hashmap Initialization and Deinitialization"
-// + ----- Hashmap Initialization and Deinitialization -------------------------- +
-
-template <typename K, typename V, typename H>
-inline hash_map<K, V, H>::hash_map() {}
-
-template <typename K, typename V, typename H>
-inline hash_map<K, V, H>::hash_map(allocator *alloc) : alloc(alloc) {}
-
-template <typename K, typename V, typename H>
-inline hash_map<K, V, H>::hash_map(allocator *alloc, usize default_capacity) : hash_map(alloc) {
-    if (default_capacity > 0) {
-        control = heap::create_array_init<u8>(alloc, default_capacity, ctrl_free);
-        keys = heap::create_array_uninit<K>(alloc, default_capacity);
-        values = heap::create_array_uninit<V>(alloc, default_capacity);
-        capacity = default_capacity;
-    }
-}
-
-template <typename K, typename V, typename H>
-template <typename OtherHasher>
-inline hash_map<K, V, H>::hash_map(allocator *alloc, const hash_map<K, V, OtherHasher> &other) {}
-
-template <typename K, typename V, typename H>
-inline hash_map<K, V, H>::hash_map(hash_map<K, V, H> &&other)
-    : alloc(util::exchange(other.alloc, nullptr))
-    , capacity(util::exchange(other.capacity, 0))
-    , occupied(util::exchange(other.occupied, 0))
-    , items(util::exchange(other.items, 0))
-    , control(util::exchange(other.control, nullptr))
-    , keys(util::exchange(other.keys, nullptr))
-    , values(util::exchange(other.values, nullptr)) {}
-
-template <typename K, typename V, typename H>
-inline hash_map<K, V, H> &hash_map<K, V, H>::operator=(hash_map<K, V, H> &&other) {
-    if (std::addressof(other) == this)
-        return *this;
-
-    this->alloc = util::exchange(other.alloc, nullptr);
-    this->capacity = util::exchange(other.capacity, 0);
-    this->occupied = util::exchange(other.occupied, 0);
-    this->items = util::exchange(other.items, 0);
-    this->control = util::exchange(other.control, nullptr);
-    this->keys = util::exchange(other.keys, nullptr);
-    this->values = util::exchange(other.values, nullptr);
-    return *this;
-}
+// #pragma region "Hashmap Initialization and Deinitialization"
+// // + ----- Hashmap Initialization and Deinitialization -------------------------- +
 
 // template <typename K, typename V, typename H>
 // inline hash_map<K, V, H>::hash_map() {}
 
-template <typename K, typename V, typename H>
-inline hash_map<K, V, H>::~hash_map() {
-    if (capacity == 0)
-        return;
+// template <typename K, typename V, typename H>
+// inline hash_map<K, V, H>::hash_map(allocator *alloc) : alloc(alloc) {}
 
-    for (usize i = 0; i < capacity; ++i) {
-        if (!is_vacant(i)) {
-            keys[i].~K();
-            values[i].~V();
-        }
-    }
+// template <typename K, typename V, typename H>
+// inline hash_map<K, V, H>::hash_map(allocator *alloc, usize default_capacity) : hash_map(alloc) {
+//     if (default_capacity > 0) {
+//         control = heap::create_array_init<u8>(alloc, default_capacity, ctrl_free);
+//         keys = heap::create_array_uninit<K>(alloc, default_capacity);
+//         values = heap::create_array_uninit<V>(alloc, default_capacity);
+//         capacity = default_capacity;
+//     }
+// }
 
-    heap::destroy_array<u8>(alloc, control, capacity);
-    heap::destroy_array<K>(alloc, keys, capacity);
-    heap::destroy_array<V>(alloc, values, capacity);
-}
+// template <typename K, typename V, typename H>
+// template <typename OtherHasher>
+// inline hash_map<K, V, H>::hash_map(allocator *alloc, const hash_map<K, V, OtherHasher> &other) {}
 
-#pragma endregion
-#pragma region "hash_map Operations"
-// + ----- hash_map Operations --------------------------------------------------- +
+// template <typename K, typename V, typename H>
+// inline hash_map<K, V, H>::hash_map(hash_map<K, V, H> &&other)
+//     : alloc(util::exchange(other.alloc, nullptr))
+//     , capacity(util::exchange(other.capacity, 0))
+//     , occupied(util::exchange(other.occupied, 0))
+//     , items(util::exchange(other.items, 0))
+//     , control(util::exchange(other.control, nullptr))
+//     , keys(util::exchange(other.keys, nullptr))
+//     , values(util::exchange(other.values, nullptr)) {}
 
-template <typename K, typename V, typename Hasher>
-inline option<V &> hash_map<K, V, Hasher>::get(const K &key) {
-    if (capacity == 0) {
-        return {};
-    }
+// template <typename K, typename V, typename H>
+// inline hash_map<K, V, H> &hash_map<K, V, H>::operator=(hash_map<K, V, H> &&other) {
+//     if (std::addressof(other) == this)
+//         return *this;
 
-    if (auto idx = index_for(key)) {
-        return values[*idx];
-    }
-    return {};
-}
+//     this->alloc = util::exchange(other.alloc, nullptr);
+//     this->capacity = util::exchange(other.capacity, 0);
+//     this->occupied = util::exchange(other.occupied, 0);
+//     this->items = util::exchange(other.items, 0);
+//     this->control = util::exchange(other.control, nullptr);
+//     this->keys = util::exchange(other.keys, nullptr);
+//     this->values = util::exchange(other.values, nullptr);
+//     return *this;
+// }
 
-template <typename K, typename V, typename Hasher>
-inline option<V> hash_map<K, V, Hasher>::remove(const K &key) {
-    if (capacity == 0) {
-        return {};
-    }
+// // template <typename K, typename V, typename H>
+// // inline hash_map<K, V, H>::hash_map() {}
 
-    if (auto i = index_for(key)) {
-        // Let's say we have three keys that we want to insert: A, B, and C. First A is
-        // inserted into slot 0, then B into slot 1. When C is inserted, its hash is the
-        // same as A's, but the first available slot is at index 2, so C is inserted there.
-        // Then, B is removed. If B's slot were to be marked as free, later searches for C
-        // would come up empty, as the search would not get past the now free slot.
-        //
-        // To remedy this, we insert a "tombstone" in B's slot if it's not the last in a
-        // search chain. This tombstone can be populated again with a live item just like a
-        // free slot, but critically *does not stop a search*.
-        bool can_free = control[next_index(*i)] == ctrl_free;
-        control[*i] = can_free ? ctrl_free : ctrl_deleted;
-        occupied -= can_free;
-        items -= 1;
-        return MOVE(values[*i]);
-    }
+// template <typename K, typename V, typename H>
+// inline hash_map<K, V, H>::~hash_map() {
+//     if (capacity == 0)
+//         return;
 
-    return {};
-}
+//     for (usize i = 0; i < capacity; ++i) {
+//         if (!is_vacant(i)) {
+//             keys[i].~K();
+//             values[i].~V();
+//         }
+//     }
 
-template <typename K, typename V, typename Hasher>
-template <typename K2, typename V2>
-inline option<V> hash_map<K, V, Hasher>::insert(K2 &&key, V2 &&value) {
-    try_grow();
+//     heap::destroy_array<u8>(alloc, control, capacity);
+//     heap::destroy_array<K>(alloc, keys, capacity);
+//     heap::destroy_array<V>(alloc, values, capacity);
+// }
 
-    u64 hash;
-    usize index = prepare_insertion(key, &hash);
+// #pragma endregion
+// #pragma region "hash_map Operations"
+// // + ----- hash_map Operations --------------------------------------------------- +
 
-    option<V> old_value;
-    if (!is_vacant(index)) {
-        old_value = MOVE(values[index]);
-    }
+// template <typename K, typename V, typename Hasher>
+// inline option<V &> hash_map<K, V, Hasher>::get(const K &key) {
+//     if (capacity == 0) {
+//         return {};
+//     }
 
-    util::construct_in_place(&keys[index], std::forward<K2>(key));
-    util::construct_in_place(&values[index], std::forward<V2>(value));
+//     if (auto idx = index_for(key)) {
+//         return values[*idx];
+//     }
+//     return {};
+// }
 
-    occupied += control[index] == ctrl_free;
-    items += 1;
-    control[index] = (detail::extract_h2(hash) & 0x7f) % capacity;
+// template <typename K, typename V, typename Hasher>
+// inline option<V> hash_map<K, V, Hasher>::remove(const K &key) {
+//     if (capacity == 0) {
+//         return {};
+//     }
 
-    return old_value;
-}
+//     if (auto i = index_for(key)) {
+//         // Let's say we have three keys that we want to insert: A, B, and C. First A is
+//         // inserted into slot 0, then B into slot 1. When C is inserted, its hash is the
+//         // same as A's, but the first available slot is at index 2, so C is inserted there.
+//         // Then, B is removed. If B's slot were to be marked as free, later searches for C
+//         // would come up empty, as the search would not get past the now free slot.
+//         //
+//         // To remedy this, we insert a "tombstone" in B's slot if it's not the last in a
+//         // search chain. This tombstone can be populated again with a live item just like a
+//         // free slot, but critically *does not stop a search*.
+//         bool can_free = control[next_index(*i)] == ctrl_free;
+//         control[*i] = can_free ? ctrl_free : ctrl_deleted;
+//         occupied -= can_free;
+//         items -= 1;
+//         return mv(values[*i]);
+//     }
 
-template <typename K, typename V, typename Hasher>
-inline bool hash_map<K, V, Hasher>::key_exists(const K &key) const {
-    if (capacity == 0) {
-        return false;
-    }
+//     return {};
+// }
 
-    return (bool)index_for(key);
-}
+// template <typename K, typename V, typename Hasher>
+// template <typename K2, typename V2>
+// inline option<V> hash_map<K, V, Hasher>::insert(K2 &&key, V2 &&value) {
+//     try_grow();
 
-template <typename K, typename V, typename H>
-template <typename K2, typename V2>
-inline V &hash_map<K, V, H>::get_or_insert(K2 &&key, V2 &&value) {
-    if (auto index = index_for(key)) {
-        return values[*index];
-    }
+//     u64 hash;
+//     usize index = prepare_insertion(key, &hash);
 
-    try_grow();
+//     option<V> old_value;
+//     if (!is_vacant(index)) {
+//         old_value = mv(values[index]);
+//     }
 
-    u64 hash;
-    usize index = prepare_insertion(key, &hash);
-    util::construct_in_place(&keys[index], std::forward<K2>(key));
-    util::construct_in_place(&values[index], std::forward<V2>(value));
+//     util::construct_in_place(&keys[index], std::forward<K2>(key));
+//     util::construct_in_place(&values[index], std::forward<V2>(value));
 
-    occupied += control[index] == ctrl_free;
-    items += 1;
-    control[index] = (detail::extract_h2(hash) & 0x7f) % capacity;
+//     occupied += control[index] == ctrl_free;
+//     items += 1;
+//     control[index] = (detail::extract_h2(hash) & 0x7f) % capacity;
 
-    return values[index];
-}
+//     return old_value;
+// }
 
-template <typename K, typename V, typename H>
-template <typename K2, typename F>
-inline V &hash_map<K, V, H>::get_or_insert_with(K2 &&key, F producer) {
-    if (auto index = index_for(key)) {
-        return values[*index];
-    }
+// template <typename K, typename V, typename Hasher>
+// inline bool hash_map<K, V, Hasher>::key_exists(const K &key) const {
+//     if (capacity == 0) {
+//         return false;
+//     }
 
-    try_grow();
+//     return (bool)index_for(key);
+// }
 
-    u64 hash;
-    usize index = prepare_insertion(key, &hash);
-    util::construct_in_place(&keys[index], std::forward<K2>(key));
-    util::construct_in_place(&values[index], producer());
+// template <typename K, typename V, typename H>
+// template <typename K2, typename V2>
+// inline V &hash_map<K, V, H>::get_or_insert(K2 &&key, V2 &&value) {
+//     if (auto index = index_for(key)) {
+//         return values[*index];
+//     }
 
-    occupied += control[index] == ctrl_free;
-    items += 1;
-    control[index] = (detail::extract_h2(hash) & 0x7f) % capacity;
+//     try_grow();
 
-    return values[index];
-}
+//     u64 hash;
+//     usize index = prepare_insertion(key, &hash);
+//     util::construct_in_place(&keys[index], std::forward<K2>(key));
+//     util::construct_in_place(&values[index], std::forward<V2>(value));
 
-template <typename K, typename V, typename H>
-inline void hash_map<K, V, H>::clear() {
-    // TODO: might be a good idea to fill keys and values with a repeating garbage pattern, so we
-    // can see if we use an old value.
-    util::fill(ctrl_free, control, capacity);
-    occupied = 0;
-    items = 0;
-}
+//     occupied += control[index] == ctrl_free;
+//     items += 1;
+//     control[index] = (detail::extract_h2(hash) & 0x7f) % capacity;
 
-template <typename K, typename V, typename H>
-template <typename F>
-inline void hash_map<K, V, H>::iter(F func) {
-    for (usize i = 0; i < capacity; i++) {
-        if (!is_vacant(i)) {
-            func(keys[i], values[i]);
-        }
-    }
-}
+//     return values[index];
+// }
 
-#pragma endregion
-#pragma region "hash_map Accessors"
-// + ----- hash_map Accessors ---------------------------------------------------- +
+// template <typename K, typename V, typename H>
+// template <typename K2, typename F>
+// inline V &hash_map<K, V, H>::get_or_insert_with(K2 &&key, F producer) {
+//     if (auto index = index_for(key)) {
+//         return values[*index];
+//     }
 
-template <typename K, typename V, typename H>
-usize hash_map<K, V, H>::len() const {
-    return items;
-}
+//     try_grow();
 
-template <typename K, typename V, typename H>
-V &hash_map<K, V, H>::operator[](K const &key) {
-    auto idx = index_for(key);
-    VIXEN_DEBUG_ASSERT(idx.is_some(), "tried to access value for non-existent key {}", key);
-    return values[*idx];
-}
+//     u64 hash;
+//     usize index = prepare_insertion(key, &hash);
+//     util::construct_in_place(&keys[index], std::forward<K2>(key));
+//     util::construct_in_place(&values[index], producer());
 
-template <typename K, typename V, typename H>
-V const &hash_map<K, V, H>::operator[](K const &key) const {
-    auto idx = index_for(key);
-    VIXEN_DEBUG_ASSERT(idx.is_some(), "tried to access value for non-existent key {}", key);
-    return values[*idx];
-}
+//     occupied += control[index] == ctrl_free;
+//     items += 1;
+//     control[index] = (detail::extract_h2(hash) & 0x7f) % capacity;
 
-#pragma endregion
-#pragma region "hash_map stats"
-// + ----- hash_map stats -------------------------------------------------------- +
+//     return values[index];
+// }
 
-template <typename K, typename V, typename H>
-hashmap_stats hash_map<K, V, H>::stats() const {
-    hashmap_stats stats;
+// template <typename K, typename V, typename H>
+// inline void hash_map<K, V, H>::clear() {
+//     for (usize i = 0; i < capacity; i++) {
+//         if (!is_vacant(i)) {
+//             keys[i].~K();
+//             values[i].~V();
+//             control[i] = ctrl_free;
+//         }
+//     }
 
-    stats.length = capacity;
-    stats.occupied = occupied;
-    stats.items = items;
-    stats.collisions = 0;
+//     occupied = 0;
+//     items = 0;
+// }
 
-    for (usize i = 0; i < capacity; ++i) {
-        if (!is_vacant(i)) {
-            u64 hash = make_hash<K, H>(keys[i]);
-            u64 actual = detail::extract_h1(hash) % capacity;
+// template <typename K, typename V, typename H>
+// template <typename F>
+// inline void hash_map<K, V, H>::iter(F func) {
+//     for (usize i = 0; i < capacity; i++) {
+//         if (!is_vacant(i)) {
+//             func(keys[i], values[i]);
+//         }
+//     }
+// }
 
-            // See `find_collisions`
-            stats.collisions += actual != i;
-        }
-    }
+// #pragma endregion
+// #pragma region "hash_map Accessors"
+// // + ----- hash_map Accessors ---------------------------------------------------- +
 
-    return stats;
-};
+// template <typename K, typename V, typename H>
+// usize hash_map<K, V, H>::len() const {
+//     return items;
+// }
 
-template <typename K, typename V, typename H>
-vector<collision<K>> hash_map<K, V, H>::find_collisions(allocator *alloc) const {
-    vector<collision<K>> collisions(alloc);
+// template <typename K, typename V, typename H>
+// V &hash_map<K, V, H>::operator[](K const &key) {
+//     auto idx = index_for(key);
+//     VIXEN_DEBUG_ASSERT(idx.is_some(), "tried to access value for non-existent key {}", key);
+//     return values[*idx];
+// }
 
-    for (usize i = 0; i < capacity; ++i) {
-        if (!is_vacant(i)) {
-            u64 hash = make_hash<K, H>(keys[i]);
-            u64 actual = detail::extract_h1(hash) % capacity;
+// template <typename K, typename V, typename H>
+// V const &hash_map<K, V, H>::operator[](K const &key) const {
+//     auto idx = index_for(key);
+//     VIXEN_DEBUG_ASSERT(idx.is_some(), "tried to access value for non-existent key {}", key);
+//     return values[*idx];
+// }
 
-            // If the hash of the current key points to the same slot, then it is "not
-            // colliding" with anything. Note that collision is not a symmetric relationship, so
-            // a slot can have no collisions itself, while there are collisions *to* that slot.
-            if (actual == i) {
-                continue;
-            }
+// #pragma endregion
+// #pragma region "hash_map stats"
+// // + ----- hash_map stats -------------------------------------------------------- +
 
-            collision<K> *coll = collisions.reserve(1);
-            coll->slot = actual;
-            coll->current = &keys[i];
-            coll->current_hash = hash;
-            coll->collided_with_tombstone = control[actual] == ctrl_deleted;
-            coll->collided = control[actual] == ctrl_deleted ? option<K *>() : &keys[actual];
-            coll->collided_hash
-                = control[actual] == ctrl_deleted ? option<u64>() : make_hash<K, H>(keys[actual]);
+// template <typename K, typename V, typename H>
+// hashmap_stats hash_map<K, V, H>::stats() const {
+//     hashmap_stats stats;
 
-            // Assumes linear probing. If the hash wraps around, then it's the sum of the distance
-            // between the actual slot and the end of the array, the distance between the start of
-            // the array and the actual insert spot (which is just the insert spot due to a
-            // subtraction by 0), and the "distance" between the end and start of the array, which
-            // is always 1.
-            coll->probe_chain_length = i > actual ? i - actual : 1 + (capacity - actual) + i;
-        }
-    }
+//     stats.length = capacity;
+//     stats.occupied = occupied;
+//     stats.items = items;
+//     stats.collisions = 0;
 
-    return collisions;
-}
+//     for (usize i = 0; i < capacity; ++i) {
+//         if (!is_vacant(i)) {
+//             u64 hash = make_hash<K, H>(keys[i]);
+//             u64 actual = detail::extract_h1(hash) % capacity;
 
-#pragma endregion
-#pragma region "hash_map Internal"
-// + ----- hash_map Internal ----------------------------------------------------- +
+//             // See `find_collisions`
+//             stats.collisions += actual != i;
+//         }
+//     }
 
-template <typename K, typename V, typename H>
-inline void hash_map<K, V, H>::grow() {
-    usize new_len = capacity == 0 ? default_hashmap_capacity : capacity * 2;
+//     return stats;
+// };
 
-    hash_map<K, V, H> new_map(alloc, new_len);
-    for (usize i = 0; i < capacity; i++) {
-        if (!is_vacant(i)) {
-            new_map.insert(MOVE(keys[i]), MOVE(values[i]));
-        }
-    }
+// template <typename K, typename V, typename H>
+// vector<collision<K>> hash_map<K, V, H>::find_collisions(allocator *alloc) const {
+//     vector<collision<K>> collisions(alloc);
 
-    *this = MOVE(new_map);
-}
+//     for (usize i = 0; i < capacity; ++i) {
+//         if (!is_vacant(i)) {
+//             u64 hash = make_hash<K, H>(keys[i]);
+//             u64 actual = detail::extract_h1(hash) % capacity;
 
-template <typename K, typename V, typename H>
-inline void hash_map<K, V, H>::try_grow() {
-    if (capacity == 0 || load_factor() >= hashmap_load_factor) {
-        grow();
-    }
-}
+//             // If the hash of the current key points to the same slot, then it is "not
+//             // colliding" with anything. Note that collision is not a symmetric relationship, so
+//             // a slot can have no collisions itself, while there are collisions *to* that slot.
+//             if (actual == i) {
+//                 continue;
+//             }
 
-template <typename K, typename V, typename Hasher>
-inline option<usize> hash_map<K, V, Hasher>::index_for(const K &key) const {
-    u64 hash = make_hash<K, Hasher>(key);
-    u64 hash1 = detail::extract_h1(hash) % capacity;
-    u8 hash2 = detail::extract_h2(hash) % capacity;
+//             collision<K> *coll = collisions.reserve(1);
+//             coll->slot = actual;
+//             coll->current = &keys[i];
+//             coll->current_hash = hash;
+//             coll->collided_with_tombstone = control[actual] == ctrl_deleted;
+//             coll->collided = control[actual] == ctrl_deleted ? option<K *>() : &keys[actual];
+//             coll->collided_hash
+//                 = control[actual] == ctrl_deleted ? option<u64>() : make_hash<K,
+//                 H>(keys[actual]);
 
-    for (usize i = hash1;; i = next_index(i)) {
-        // Note that the hash2 comparison also acts as an existence check, as a vacant slot has
-        // the highest bit set, and the mask with 0x7f removes the highest bit from the computed
-        // hash.
-        if (((hash2 & 0x7f) == control[i]) && likely(key == keys[i])) {
-            return i;
-        }
+//             // Assumes linear probing. If the hash wraps around, then it's the sum of the
+//             distance
+//             // between the actual slot and the end of the array, the distance between the start
+//             of
+//             // the array and the actual insert spot (which is just the insert spot due to a
+//             // subtraction by 0), and the "distance" between the end and start of the array,
+//             which
+//             // is always 1.
+//             coll->probe_chain_length = i > actual ? i - actual : 1 + (capacity - actual) + i;
+//         }
+//     }
 
-        // We hit the end of this probe chain and didn't find a matching key
-        if (control[i] == ctrl_free) {
-            return option<usize>();
-        }
-    }
-}
+//     return collisions;
+// }
 
-template <typename K, typename V, typename Hasher>
-template <typename K2>
-inline usize hash_map<K, V, Hasher>::prepare_insertion(const K2 &key, u64 *hash_out) {
-    u64 hash = make_hash<K, Hasher>(key);
-    u64 hash1 = detail::extract_h1(hash) % capacity;
-    u8 hash2 = detail::extract_h2(hash) % capacity;
+// #pragma endregion
+// #pragma region "hash_map Internal"
+// // + ----- hash_map Internal ----------------------------------------------------- +
 
-    // We didn't find the key in the map already, so it's good to go ahead and search for an empty
-    // slot to insert into.
-    for (usize i = hash1;; i = next_index(i)) {
-        if (!is_vacant(i)) {
-            if ((hash2 & 0x7f) != control[i])
-                continue;
+// template <typename K, typename V, typename H>
+// inline void hash_map<K, V, H>::grow() {
+//     usize new_len = capacity == 0 ? default_hashmap_capacity : capacity * 2;
 
-            if (unlikely(key != keys[i]))
-                continue;
-        }
+//     hash_map<K, V, H> new_map(alloc, new_len);
+//     for (usize i = 0; i < capacity; i++) {
+//         if (!is_vacant(i)) {
+//             new_map.insert(mv(keys[i]), mv(values[i]));
+//         }
+//     }
 
-        if (hash_out)
-            *hash_out = hash;
+//     *this = mv(new_map);
+// }
 
-        return i;
-    }
+// template <typename K, typename V, typename H>
+// inline void hash_map<K, V, H>::try_grow() {
+//     if (capacity == 0 || load_factor() >= hashmap_load_factor) {
+//         grow();
+//     }
+// }
 
-    VIXEN_UNREACHABLE();
-}
+// template <typename K, typename V, typename Hasher>
+// inline option<usize> hash_map<K, V, Hasher>::index_for(const K &key) const {
+//     u64 hash = make_hash<K, Hasher>(key);
+//     u64 hash1 = detail::extract_h1(hash) % capacity;
+//     u8 hash2 = detail::extract_h2(hash) % capacity;
 
-template <typename K, typename V, typename H>
-usize hash_map<K, V, H>::next_index(usize i) const {
-    _VIXEN_BOUNDS_CHECK(i, capacity);
-    return (i + 1) % capacity;
-}
+//     for (usize i = hash1;; i = next_index(i)) {
+//         // Note that the hash2 comparison also acts as an existence check, as a vacant slot has
+//         // the highest bit set, and the mask with 0x7f removes the highest bit from the computed
+//         // hash.
+//         if (((hash2 & 0x7f) == control[i]) && likely(key == keys[i])) {
+//             return i;
+//         }
 
-// Returns true if the cell at `i` is free to become used
-template <typename K, typename V, typename H>
-bool hash_map<K, V, H>::is_vacant(usize i) const {
-    _VIXEN_BOUNDS_CHECK(i, capacity);
-    // An active top bit signals vacancy.
-    return (control[i] & 0x80) != 0;
-}
+//         // We hit the end of this probe chain and didn't find a matching key
+//         if (control[i] == ctrl_free) {
+//             return option<usize>();
+//         }
+//     }
+// }
 
-template <typename K, typename V, typename H>
-f64 hash_map<K, V, H>::load_factor() const {
-    return (f64)occupied / (f64)capacity;
-}
+// template <typename K, typename V, typename Hasher>
+// template <typename K2>
+// inline usize hash_map<K, V, Hasher>::prepare_insertion(const K2 &key, u64 *hash_out) {
+//     u64 hash = make_hash<K, Hasher>(key);
+//     u64 hash1 = detail::extract_h1(hash) % capacity;
+//     u8 hash2 = detail::extract_h2(hash) % capacity;
 
-} // namespace vixen
+//     // We didn't find the key in the map already, so it's good to go ahead and search for an
+//     empty
+//     // slot to insert into.
+//     for (usize i = hash1;; i = next_index(i)) {
+//         if (!is_vacant(i)) {
+//             if ((hash2 & 0x7f) != control[i])
+//                 continue;
+
+//             if (unlikely(key != keys[i]))
+//                 continue;
+//         }
+
+//         if (hash_out)
+//             *hash_out = hash;
+
+//         return i;
+//     }
+
+//     VIXEN_UNREACHABLE();
+// }
+
+// template <typename K, typename V, typename H>
+// usize hash_map<K, V, H>::next_index(usize i) const {
+//     _VIXEN_BOUNDS_CHECK(i, capacity);
+//     return (i + 1) % capacity;
+// }
+
+// // Returns true if the cell at `i` is free to become used
+// template <typename K, typename V, typename H>
+// bool hash_map<K, V, H>::is_vacant(usize i) const {
+//     _VIXEN_BOUNDS_CHECK(i, capacity);
+//     // An active top bit signals vacancy.
+//     return (control[i] & 0x80) != 0;
+// }
+
+// template <typename K, typename V, typename H>
+// f64 hash_map<K, V, H>::load_factor() const {
+//     return (f64)occupied / (f64)capacity;
+// }
+
+// } // namespace vixen

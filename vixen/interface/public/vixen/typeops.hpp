@@ -142,6 +142,18 @@ using repeat = typename repeat_impl<K, T>::type;
 
 // --------------------------------------------------------------------------------
 
+// remove :: Int -> [a] -> [a]
+// remove k [t|ts] = t : remove (k-1) t
+// remove 0 [_|ts] = ts
+
+template <usize K, typename T>
+struct remove_impl;
+
+template <usize K, typename T>
+using remove = typename remove_impl<K, T>::type;
+
+// --------------------------------------------------------------------------------
+
 template <typename F>
 struct function_traits : function_traits<decltype(&F::operator())> {};
 
@@ -150,11 +162,16 @@ struct function_traits<R(Args...)> {
     using return_type = R;
     static constexpr usize arity = sizeof...(Args);
 
+private:
     template <usize I>
-    struct argument {
+    struct get_argument {
         static_assert(I < arity, "invalid parameter index");
         using type = select<I, unpack<Args...>>;
     };
+
+public:
+    template <usize I>
+    using argument = typename get_argument<I>::type;
 };
 
 template <typename R, typename... Args>

@@ -13,7 +13,7 @@ namespace vixen {
 
 namespace detail {
 string get_command_output(allocator *alloc, string cmd) {
-    vector<char> cmdbuf = MOVE(cmd.data);
+    vector<char> cmdbuf = mv(cmd.data);
     null_terminate(&cmdbuf);
 
     FILE *pipe = popen(cmdbuf.begin(), "r");
@@ -51,14 +51,14 @@ address_info translate_symbol(allocator *alloc, string_slice sym) {
     cmd.push(" "_s);
     cmd.push(addr);
 
-    string output = get_command_output(alloc, MOVE(cmd));
+    string output = get_command_output(alloc, mv(cmd));
     vector<string> lines = output.as_slice().split(alloc, "\n"_s);
     if (lines.len() < 2) {
         VIXEN_ASSERT(false, "addr2line failed with output: `{}`", output);
     }
 
-    info.name = MOVE(lines[0]);
-    info.location = MOVE(lines[1]);
+    info.name = mv(lines[0]);
+    info.location = mv(lines[1]);
     return info;
 }
 
@@ -114,7 +114,7 @@ void translation_cache::translate() {
 
     for (usize i = 0; i < translation_queue.len(); ++i) {
         address_info info = detail::translate_symbol(alloc, symbols[i]);
-        translated.insert(translation_queue[i], MOVE(info));
+        translated.insert(translation_queue[i], mv(info));
     }
 
     translation_queue.clear();
