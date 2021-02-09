@@ -185,13 +185,13 @@ constexpr K const &hash_map_entry<K, V, H, C>::key() const {
 template <typename K, typename V, typename H, typename C>
 constexpr V const &hash_map_entry<K, V, H, C>::value() const {
     VIXEN_DEBUG_ASSERT_EXT(slot.is_some(), "tried to access const value of empty map entry.");
-    return map_in->table.get(*slot).template get<0>();
+    return map_in->table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
 constexpr V &hash_map_entry<K, V, H, C>::value() {
     VIXEN_DEBUG_ASSERT_EXT(slot.is_some(), "tried to access value of empty map entry.");
-    return map_in->table.get(*slot).template get<0>();
+    return map_in->table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
