@@ -12,69 +12,151 @@ struct empty_opt_type {};
 constexpr empty_opt_type empty_opt = empty_opt_type{};
 
 template <typename T>
-using remove_cvref_t = std::remove_cv_t<std::remove_reference_t<T>>;
+using remove_cvref_t = std::remove_reference_t<std::remove_cv_t<T>>;
 
 template <typename... Conds>
 using require = std::enable_if_t<std::conjunction_v<Conds...>, bool>;
+
+template <typename T>
+struct option_storage {
+protected:
+    option_storage() = default;
+    option_storage(bool occupied) : occupied(occupied) {}
+
+    void copy_assign(option_storage const &other) {
+        if (this->occupied && other.occupied) {
+            this->storage.get() = other.storage.get();
+        } else if (this->occupied) {
+            this->storage.destruct();
+        } else if (other.occupied) {
+            this->storage.construct_in_place(other.storage.get());
+        }
+    }
+
+    void move_assign(option_storage &&other) {
+        if (this->occupied && other.occupied) {
+            this->storage.get() = mv(other.storage.get());
+        } else if (this->occupied) {
+            this->storage.destruct();
+        } else if (other.occupied) {
+            this->storage.construct_in_place(mv(other.storage.get()));
+        }
+    }
+
+    bool occupied;
+    uninitialized_storage<T> storage;
+};
 
 template <typename T,
     bool = has_trivial_destructor<T>,
     bool = has_trivial_copy_ops<T>,
     bool = has_trivial_move_ops<T>>
-struct option_base {
+struct option_base;
+
+template <typename T, bool C, bool M>
+struct option_base<T, false, C, M> : option_base<T, true, false, false> {
     // Default constructor, initializes to unoccupied option.
-    option_base() : occupied(false) {}
-    option_base(empty_opt_type) : option_base() {}
+    option_base() : option_base<T, true, false, false>() {}
+    option_base(empty_opt_type) : option_base<T, true, false, false>() {}
 
-    option_base(option_base const &other) : occupied(other.occupied) {
+    option_base(option_base const &other) = default;
+    option_base &operator=(option_base const &other) = default;
+    option_base(option_base &&other) = default;
+    option_base &operator=(option_base &&other) = default;
+};
+
+template <typename T>
+struct option_base<T, true, true, true> : option_storage<T> {
+    // Default constructor, initializes to unoccupied option.
+    option_base() : option_storage<T>(false) {}
+    option_base(empty_opt_type) : option_storage<T>(false) {}
+
+    option_base(option_base const &other) = default;
+    option_base &operator=(option_base const &other) = default;
+
+    option_base(option_base &&other) = default;
+    option_base &operator=(option_base &&other) = default;
+};
+
+template <typename T>
+struct option_base<T, true, true, false> : option_storage<T> {
+    // Default constructor, initializes to unoccupied option.
+    option_base() : option_storage<T>(false) {}
+    option_base(empty_opt_type) : option_storage<T>(false) {}
+
+    option_base(option_base const &other) = default;
+    option_base &operator=(option_base const &other) = default;
+
+    option_base(option_base &&other) : option_storage<T>(other.occupied) {
         if (other.occupied) {
-            storage.construct_in_place(other.storage.get());
-        }
-    }
-    option_base &operator=(option_base const &other) {
-        if (this == std::addressof(other))
-            return *this;
-
-        if (occupied && other.occupied) {
-            storage.get() = other.storage.get();
-        } else if (occupied) {
-            storage.destruct();
-        } else if (other.occupied) {
-            storage.construct_in_place(other.storage.get());
-        }
-
-        return *this;
-    }
-
-    // @TODO: should moved-from options be empty? I feel like it would be clean to do, but it isn't
-    // reeally necessary, since movable items already have to have moved-from states/be trivial,
-    // plus that would mean we can't ever make our move constructors trivial. So I'm leaning much
-    // more towards not doing that.
-    option_base(option_base &&other) : occupied(other.occupied) {
-        if (other.occupied) {
-            storage.construct_in_place(mv(other.storage.get()));
+            this->storage.construct_in_place(mv(other.storage.get()));
         }
     }
     option_base &operator=(option_base &&other) {
-        if (this == std::addressof(other))
-            return *this;
+        this->move_assign(mv(other));
+        return *this;
+    }
+};
 
-        if (occupied && other.occupied) {
-            storage.get() = mv(other.storage.get());
-        } else if (occupied) {
-            storage.destruct();
-        } else if (other.occupied) {
-            storage.construct_in_place(mv(other.storage.get()));
+// why would anyone do this? trivially movable but not trivially copyable??
+template <typename T>
+struct option_base<T, true, false, true> : option_storage<T> {
+    // Default constructor, initializes to unoccupied option.
+    option_base() : option_storage<T>(false) {}
+    option_base(empty_opt_type) : option_storage<T>(false) {}
+
+    option_base(option_base const &other) : option_storage<T>(other.occupied) {
+        if (other.occupied) {
+            this->storage.construct_in_place(other.storage.get());
         }
-
+    }
+    option_base &operator=(option_base const &other) {
+        this->copy_assign(other);
         return *this;
     }
 
-protected:
-    bool occupied;
-    uninitialized_storage<T> storage;
+    option_base(option_base &&other) = default;
+    option_base &operator=(option_base &&other) = default;
 };
 
+template <typename T>
+struct option_base<T, true, false, false> : option_storage<T> {
+    // Default constructor, initializes to unoccupied option.
+    option_base() : option_storage<T>(false) {}
+    option_base(empty_opt_type) : option_storage<T>(false) {}
+
+    option_base(option_base const &other) : option_storage<T>(other.occupied) {
+        if (other.occupied) {
+            this->storage.construct_in_place(other.storage.get());
+        }
+    }
+    option_base &operator=(option_base const &other) {
+        this->copy_assign(other);
+        return *this;
+    }
+
+    // @NOTE: moved-from options are not set to empty, since any movable inner type will already
+    // have to have a state that signifies being moved-from, and we'd have to trade off either
+    // consistency with trivially movable inner types, which wouldn't set the old option to empty,
+    // or we'd sacrifice the ability to have trivial move operators entirely for the sake of being
+    // consistent. The least bad option is to be consistent and fast!
+    option_base(option_base &&other) : option_storage<T>(other.occupied) {
+        if (other.occupied) {
+            this->storage.construct_in_place(mv(other.storage.get()));
+        }
+    }
+    option_base &operator=(option_base &&other) {
+        this->move_assign(mv(other));
+        return *this;
+    }
+};
+
+// @NOTE/Unintuitive: because of C++ weirdness, if T is both copy constructible and NOT move
+// constructible, option<T> WILL be move constructible via T's copy constructor, I mean, i don't
+// think this is going to be much of an issue, since when the hell are you going to ever have a
+// class that's copy constructible but NOT move constructible?? that doesn't even make any sense.
+// Also, std::optional suffers from the same problem, so I don't feel so bad about leaving this one
+// be.
 template <typename T>
 struct option
     : option_base<T>
@@ -87,7 +169,7 @@ struct option
 
     // Forwarding constructor/assignment operator from inner type
     template <typename U>
-    using is_not_self = std::negation<std::is_same<option_base<T>, remove_cvref_t<U>>>;
+    using is_not_self = std::negation<std::is_same<option<T>, remove_cvref_t<U>>>;
     template <typename U>
     using is_not_empty_tag = std::negation<std::is_same<T, remove_cvref_t<U>>>;
 
@@ -110,52 +192,6 @@ struct option
         }
         return *this;
     }
-
-    // Forwarding constructor/assignment operator from inner type
-    // template <typename U>
-    // using is_not_self = std::negation<std::is_same<option<T>, remove_cvref_t<U>>>;
-    // template <typename U>
-    // using is_not_empty_tag = std::negation<std::is_same<T, remove_cvref_t<U>>>;
-
-    // // Don't declare these for other `option<T>`s
-    // template <typename U, require<is_not_self<U>, std::is_constructible<T, U &&>> = true>
-    // option(U &&value) {
-    //     storage.construct_in_place(std::forward<U>(value));
-    // }
-
-    // template <typename U, require<is_not_self<U>, std::is_constructible<T, U &&>> = true>
-    // option &operator=(U &&other) {
-    //     storage.construct_in_place(std::forward<U>(other));
-    //     return *this;
-    // }
-
-    // option(option const &other) : occupied(other.is_some()) {
-    //     if (other.is_some()) {
-    //         storage.construct_in_place(other.get());
-    //     }
-    // }
-    // option &operator=(option const &other) {
-    //     if (this == std::addressof(other))
-    //         return *this;
-
-    //     if (is_some() && other.is_some()) {
-    //         storage.get() = other.storage.get();
-    //     } else if (is_some()) {
-    //         storage.destruct();
-    //     } else if (other.is_some()) {
-    //         storage.construct_in_place(other.storage.get());
-    //     }
-
-    //     return *this;
-    // }
-
-    // // @TODO: should moved-from options be empty? I feel like it would be clean to do, but it
-    // isn't
-    // // reeally necessary, since movable items already have to have moved-from states/be trivial,
-    // // plus that would mean we can't ever make our move constructors trivial. So I'm leaning much
-    // // more towards not doing that.
-    // option(option &&other) = default;
-    // option &operator=(option &&other) = default;
 
     template <typename... Args>
     void construct_in_place(Args &&...args) {
@@ -290,10 +326,10 @@ template <typename T, typename U, require<std::is_convertible<U, T>> = true>
 bool operator==(const option<T> &lhs, const U &rhs) {
     return lhs.is_some() && lhs.get() == rhs;
 }
-// template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-// bool operator==(const T &lhs, const option<T> &rhs) {
-//     return rhs.is_some() && lhs == rhs.get();
-// }
+template <typename T, typename U, require<std::is_convertible<U, T>> = true>
+bool operator==(const U &lhs, const option<T> &rhs) {
+    return rhs.is_some() && lhs == rhs.get();
+}
 
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
 bool operator!=(const option<T> &lhs, const option<U> &rhs) {
@@ -303,10 +339,10 @@ template <typename T, typename U, require<std::is_convertible<U, T>> = true>
 bool operator!=(const option<T> &lhs, const U &rhs) {
     return !(lhs == rhs);
 }
-// template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-// bool operator!=(const T &lhs, const option<T> &rhs) {
-//     return !(lhs == rhs);
-// }
+template <typename T, typename U, require<std::is_convertible<U, T>> = true>
+bool operator!=(const U &lhs, const option<T> &rhs) {
+    return !(lhs == rhs);
+}
 
 template <typename T, typename H>
 inline void hash(const option<T> &option, H &hasher) {
@@ -314,7 +350,7 @@ inline void hash(const option<T> &option, H &hasher) {
     if (option) {
         hash(*option, hasher);
     } else {
-        hash(0, hasher);
+        hash(-1337, hasher);
     }
 }
 
