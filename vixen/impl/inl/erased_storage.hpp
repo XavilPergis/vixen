@@ -10,7 +10,9 @@ struct raw_uninitialized_storage {
     static_assert(Size > 0);
     static_assert(Align > 0);
 
-    using type = alignas(Align) u8[Size];
+    struct type {
+        alignas(Align) u8 data[Size];
+    };
 };
 
 template <usize Size, usize Align>
@@ -18,24 +20,24 @@ using raw_uninitialized_storage_type = typename raw_uninitialized_storage<Size, 
 
 template <typename T>
 struct uninitialized_storage {
-    template <typename U>
-    void set(U &&new_value) {
-        util::construct_in_place(reinterpret_cast<T *>(raw), std::forward<U>(new_value));
+    template <typename... Args>
+    constexpr void construct_in_place(Args &&...args) {
+        util::construct_in_place(reinterpret_cast<T *>(raw), std::forward<Args...>(args)...);
     }
 
-    void erase() {
+    constexpr void destruct() {
         get().~T();
     }
 
-    T &get() {
+    constexpr T &get() {
         return *reinterpret_cast<T *>(raw);
     }
 
-    T const &get() const {
+    constexpr T const &get() const {
         return *reinterpret_cast<const T *>(raw);
     }
 
-    raw_uninitialized_storage_type<sizeof(T), alignof(T)> raw;
+    alignas(T) u8 raw[sizeof(T)];
 };
 
 } // namespace vixen

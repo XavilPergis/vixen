@@ -127,7 +127,7 @@ inline option<usize> get_previous_from_binary_search_results(const result<usize,
     } else {
         auto prev = res.unwrap_err();
         if (prev == 0)
-            return nullptr;
+            return empty_opt;
         return prev - 1;
     }
 }

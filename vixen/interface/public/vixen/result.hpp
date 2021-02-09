@@ -24,11 +24,11 @@ template <typename T, typename E>
 struct result_impl {
     template <typename U>
     result_impl(detail::ok<U> &&val) : ok_flag(true) {
-        ok_storage.set(std::forward<U>(val.value));
+        ok_storage.construct_in_place(std::forward<U>(val.value));
     }
     template <typename U>
     result_impl(detail::err<U> &&val) : ok_flag(false) {
-        err_storage.set(std::forward<U>(val.value));
+        err_storage.construct_in_place(std::forward<U>(val.value));
     }
 
     result_impl() = delete;
@@ -39,9 +39,9 @@ struct result_impl {
 
     result_impl(result_impl<T, E> &&other) {
         if (other.is_ok()) {
-            ok_storage.set(mv(other.get_ok()));
+            ok_storage.construct_in_place(mv(other.get_ok()));
         } else {
-            err_storage.set(mv(other.get_err()));
+            err_storage.construct_in_place(mv(other.get_err()));
         }
     }
 
@@ -52,9 +52,9 @@ struct result_impl {
         erase();
 
         if (other.is_ok()) {
-            ok_storage.set(mv(other.get_ok()));
+            ok_storage.construct_in_place(mv(other.get_ok()));
         } else {
-            err_storage.set(mv(other.get_err()));
+            err_storage.construct_in_place(mv(other.get_err()));
         }
 
         return *this;
@@ -64,21 +64,21 @@ struct result_impl {
     bool is_ok() const { return ok_flag; }
 
     template <typename U>
-    void set_ok(U &&val) { return ok_storage.set(std::forward<U>(val)); }
+    void set_ok(U &&val) { return ok_storage.construct_in_place(std::forward<U>(val)); }
     T &get_ok() { return ok_storage.get(); }
     const T &get_ok() const { return ok_storage.get(); }
 
     template <typename U>
-    void set_err(U &&val) { return err_storage.set(std::forward<U>(val)); }
+    void set_err(U &&val) { return err_storage.construct_in_place(std::forward<U>(val)); }
     T &get_err() { return err_storage.get(); }
     const T &get_err() const { return err_storage.get(); }
     // clang-format on
 
     void erase() {
         if (ok_flag) {
-            ok_storage.erase();
+            ok_storage.destruct();
         } else {
-            err_storage.erase();
+            err_storage.destruct();
         }
     }
 
@@ -123,19 +123,19 @@ struct result {
     }
 
     T &unwrap_ok() {
-        VIXEN_DEBUG_ASSERT(impl.is_ok(), "tried to unwrap result with err value.");
+        VIXEN_DEBUG_ASSERT_EXT(impl.is_ok(), "tried to unwrap result with err value.");
         return impl.get_ok();
     }
     T &unwrap_err() {
-        VIXEN_DEBUG_ASSERT(!impl.is_ok(), "tried to err-unwrap result with ok value.");
+        VIXEN_DEBUG_ASSERT_EXT(!impl.is_ok(), "tried to err-unwrap result with ok value.");
         return impl.get_err();
     }
     const T &unwrap_ok() const {
-        VIXEN_DEBUG_ASSERT(impl.is_ok(), "tried to unwrap result with err value.");
+        VIXEN_DEBUG_ASSERT_EXT(impl.is_ok(), "tried to unwrap result with err value.");
         return impl.get_ok();
     }
     const T &unwrap_err() const {
-        VIXEN_DEBUG_ASSERT(!impl.is_ok(), "tried to err-unwrap result with ok value.");
+        VIXEN_DEBUG_ASSERT_EXT(!impl.is_ok(), "tried to err-unwrap result with ok value.");
         return impl.get_err();
     }
 
@@ -143,14 +143,14 @@ struct result {
         if (impl.is_ok()) {
             return mv(impl.get_ok());
         } else {
-            return nullptr;
+            return empty_opt;
         }
     }
     option<T> to_err() {
         if (!impl.is_ok()) {
             return mv(impl.get_err());
         } else {
-            return nullptr;
+            return empty_opt;
         }
     }
 
@@ -158,28 +158,28 @@ struct result {
         if (impl.is_ok()) {
             return impl.get_ok();
         } else {
-            return nullptr;
+            return empty_opt;
         }
     }
     option<T &> err() {
         if (!impl.is_ok()) {
             return impl.get_err();
         } else {
-            return nullptr;
+            return empty_opt;
         }
     }
     option<const T &> ok() const {
         if (impl.is_ok()) {
             return impl.get_ok();
         } else {
-            return nullptr;
+            return empty_opt;
         }
     }
     option<const T &> err() const {
         if (!impl.is_ok()) {
             return impl.get_err();
         } else {
-            return nullptr;
+            return empty_opt;
         }
     }
 

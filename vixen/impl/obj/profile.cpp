@@ -76,7 +76,7 @@ struct allocation_checker {
             bucket.allocations.end(),
             range.start,
             range_start);
-        VIXEN_ASSERT(range_idx.is_err(), "tried to insert already-existent range");
+        VIXEN_ASSERT_EXT(range_idx.is_err(), "tried to insert already-existent range");
         bucket.allocations.shift_insert(range_idx.unwrap_err(), range);
     }
 
@@ -100,7 +100,7 @@ struct allocation_checker {
         }
 
         infos.insert(start_addr, mv(info));
-        return nullptr;
+        return empty_opt;
     }
 
     struct removal_info {
@@ -136,7 +136,7 @@ struct allocation_checker {
             }
         }
 
-        return {nullptr, false};
+        return {empty_opt, false};
     }
 
     option<usize> get_bucket_index(rawptr addr) const {
@@ -196,18 +196,18 @@ struct allocation_checker {
                 return alloc_range;
             }
         }
-        return nullptr;
+        return empty_opt;
     }
 
     option<allocation_range> get_overlapping_range(allocation_range range) const {
         auto prev_from_end = get_previous_range(range.end);
         if (prev_from_end.is_none())
-            return nullptr;
+            return empty_opt;
 
         if (range.start < prev_from_end->end && prev_from_end->start < range.end) {
             return prev_from_end;
         } else {
-            return nullptr;
+            return empty_opt;
         }
     }
 
@@ -240,7 +240,7 @@ struct allocation_checker {
                 }
             }
         }
-        return nullptr;
+        return empty_opt;
     }
 
     allocation_info &get_info(rawptr ptr) {
@@ -517,7 +517,7 @@ static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr)
 
     // option<allocation_info> prev = alloc_info->checker.infos.remove(ptr);
 
-    // VIXEN_ASSERT(
+    // VIXEN_ASSERT_EXT(
     //     prev->allocated_with.size == layout.size && prev->allocated_with.align == layout.align,
     //     "Tried to deallocate pointer at {} using {}, but the pointer was allocated using {}.",
     //     ptr,
@@ -726,7 +726,7 @@ void record_realloc(
         }
 
         // option<allocation_info> prev = alloc_info->checker.infos.remove(old_ptr);
-        // VIXEN_ASSERT(prev.is_some(),
+        // VIXEN_ASSERT_EXT(prev.is_some(),
         //     "Tried to reallocate pointer {}, but it was not an active allocation.",
         //     old_ptr);
 
@@ -736,7 +736,7 @@ void record_realloc(
         // }
 
         // option<allocation_info> overlapping = alloc_info->checker.infos.insert(new_ptr,
-        // mv(info)); VIXEN_ASSERT(overlapping.is_none(),
+        // mv(info)); VIXEN_ASSERT_EXT(overlapping.is_none(),
         //     "Tried to reallocate pointer {} ({}) to {} ({}), but it overlaps with an active
         //     allocation with layout ({}).", old_ptr, old_layout, new_ptr, new_layout,
         //     overlapping->allocated_with);

@@ -21,10 +21,10 @@ inline void shared_repr<T>::acquire_strong() {
 template <typename T>
 inline void shared_repr<T>::release_strong() {
     if (strong_count.fetch_sub(1) == 1) {
-        heap::destroy(alloc, data);
+        heap::destroy_init(alloc, data);
     }
     if (weak_count.fetch_sub(1) == 1) {
-        heap::destroy(alloc, this);
+        heap::destroy_init(alloc, this);
     }
 }
 
@@ -36,7 +36,7 @@ inline void shared_repr<T>::acquire_weak() {
 template <typename T>
 inline void shared_repr<T>::release_weak() {
     if (weak_count.fetch_sub(1) == 1) {
-        heap::destroy(alloc, this);
+        heap::destroy_init(alloc, this);
     }
 }
 

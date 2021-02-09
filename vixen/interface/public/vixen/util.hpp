@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <utility>
 
 /// @defgroup vixen_util Utility
 /// @brief Miscellaneous utilities
@@ -33,6 +34,7 @@ struct run_at_static_init {
 } // namespace vixen::impl
 
 namespace vixen::util {
+
 /// @ingroup vixen_util
 template <typename T>
 inline void copy(T const *src, T *dst, usize elements) {
@@ -84,13 +86,13 @@ using remove_reference = typename remove_reference_trait<T>::type;
 
 /// @ingroup vixen_util
 template <typename T>
-inline remove_reference<T> &&move(T &&val) {
+constexpr remove_reference<T> &&move(T &&val) {
     return static_cast<remove_reference<T> &&>(val);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-inline void fill(T const &pattern, T *ptr, usize count) {
+constexpr void fill(T const &pattern, T *ptr, usize count) {
     for (usize i = 0; i < count; i++) {
         ptr[i] = pattern;
     }
@@ -98,7 +100,7 @@ inline void fill(T const &pattern, T *ptr, usize count) {
 
 /// @ingroup vixen_util
 template <typename T, typename U = T>
-inline T exchange(T &old_val, U &&new_val) {
+constexpr T exchange(T &old_val, U &&new_val) {
     auto ret = std::move(old_val);
     old_val = std::forward<U>(new_val);
     return ret;
@@ -106,7 +108,7 @@ inline T exchange(T &old_val, U &&new_val) {
 
 /// @ingroup vixen_util
 template <typename T, typename... Args>
-inline void construct_in_place(T *location, Args &&...args) {
+constexpr void construct_in_place(T *location, Args &&...args) {
     new (static_cast<rawptr>(location)) T(std::forward<Args>(args)...);
 }
 

@@ -31,7 +31,8 @@ unique<T>::~unique() {
 }
 
 #ifdef VIXEN_IS_DEBUG
-#define VIXEN_ASSERT_NONNULL(ptr) VIXEN_ASSERT(ptr != nullptr, "Tried to deference a null pointer.")
+#define VIXEN_ASSERT_NONNULL(ptr) \
+    VIXEN_ASSERT_EXT(ptr != nullptr, "Tried to deference a null pointer.")
 #else
 #define VIXEN_ASSERT_NONNULL(...)
 #endif

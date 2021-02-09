@@ -35,8 +35,8 @@ constexpr usize extract_h2(usize hash) {
 
 template <typename T, typename H, typename C>
 hash_table<T, H, C>::hash_table(allocator *alloc, usize default_capacity) : alloc(alloc) {
-    control = heap::create_array_init<u8>(alloc, default_capacity, impl::control_free);
-    buckets = heap::create_array_uninit<T>(alloc, default_capacity);
+    heap::alloc_parallel<u8, T>(alloc, default_capacity, control, buckets);
+    util::fill(impl::control_free, control, default_capacity);
     capacity = default_capacity;
 }
 
@@ -91,16 +91,32 @@ hash_table<T, H, C>::~hash_table() {
         clear();
     }
 
-    heap::destroy_array_uninit(alloc, control, capacity);
-    heap::destroy_array_uninit(alloc, buckets, capacity);
+    if (alloc && capacity > 0) {
+        heap::dealloc_parallel<u8, T>(alloc, capacity, control, buckets);
+    }
+}
+
+template <typename T, typename H, typename C>
+void hash_table<T, H, C>::grow() {
+    if (does_table_need_resize()) {
+        usize new_cap = capacity == 0 ? default_hashmap_capacity : capacity * 2;
+        hash_table new_table(alloc, new_cap);
+
+        for (usize i = 0; i < capacity; ++i) {
+            if (!impl::is_vacant(control[i])) {
+                auto const &entry = C::map_entry(buckets[i]);
+                auto hash = make_hash<H>(entry);
+                auto slot = new_table.find_insert_slot(hash, entry);
+                new_table.insert_no_resize(slot, hash, mv(buckets[i]));
+            }
+        }
+
+        std::swap(*this, new_table);
+    }
 }
 
 template <typename T, typename H, typename C>
 void hash_table<T, H, C>::insert(usize slot, u64 hash, T &&value) {
-    if (does_table_need_resize()) {
-        std::exchange(*this, hash_table(alloc, *this));
-    }
-
     insert_no_resize(slot, hash, mv(value));
 }
 
@@ -110,7 +126,7 @@ template <typename T, typename H, typename C>
 constexpr void hash_table<T, H, C>::insert_no_resize(usize slot, u64 hash, T &&value) {
     util::construct_in_place(&buckets[slot], mv(value));
 
-    items += 1;
+    items += impl::is_vacant(control[slot]);
     occupied += impl::is_free(control[slot]);
     control[slot] = impl::extract_h2(hash) & 0x7f;
 }
@@ -121,6 +137,7 @@ constexpr void hash_table<T, H, C>::remove(usize slot) {
     bool is_next_free = impl::is_free(control[(slot + 1) % capacity]);
     occupied -= is_next_free;
     control[slot] = is_next_free ? impl::control_free : impl::control_deleted;
+    buckets[slot].~T();
 }
 
 template <typename T, typename H, typename C>
@@ -156,7 +173,7 @@ constexpr option<usize> hash_table<T, H, C>::find_slot(u64 hash, const OT &value
 
     for (usize i = hash1;; i = (i + 1) % capacity) {
         if (impl::is_free(control[i])) {
-            return nullptr;
+            return empty_opt;
         }
 
         if (impl::control_matches(control[i], hash2) && likely(C::eq(buckets[i], value))) {
@@ -170,6 +187,8 @@ constexpr option<usize> hash_table<T, H, C>::find_slot(u64 hash, const OT &value
 template <typename T, typename H, typename C>
 template <typename OT>
 constexpr usize hash_table<T, H, C>::find_insert_slot(u64 hash, const OT &value) const {
+    VIXEN_DEBUG_ASSERT(capacity > 0);
+
     u64 hash1 = impl::extract_h1(hash) % capacity;
     u8 hash2 = impl::extract_h2(hash);
 
@@ -205,7 +224,7 @@ constexpr usize hash_table<T, H, C>::find_insert_slot(u64 hash, const OT &value)
 template <typename T, typename H, typename C>
 constexpr bool hash_table<T, H, C>::does_table_need_resize() const {
     // integer-only check for `occupied / capacity >= 0.7`
-    return 7 * occupied >= 10 * capacity;
+    return load_factor_denomenator * occupied >= load_factor_numerator * capacity;
 }
 
 } // namespace vixen

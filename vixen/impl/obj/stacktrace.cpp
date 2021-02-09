@@ -19,7 +19,7 @@ string get_command_output(allocator *alloc, string cmd) {
 
     FILE *pipe = popen(cmdbuf.begin(), "r");
     if (pipe == nullptr) {
-        VIXEN_ASSERT(false, "`popen({})` failed.", cmd);
+        VIXEN_PANIC("`popen({})` failed.", cmd);
     }
     defer(pclose(pipe));
 
@@ -62,7 +62,7 @@ address_info translate_symbol(allocator *alloc, string_slice sym, void *reladdr)
     string output = get_command_output(alloc, mv(cmd));
     vector<string> lines = output.as_slice().split(alloc, "\n"_s);
     if (lines.len() < 2) {
-        VIXEN_ASSERT(false, "addr2line failed with output: `{}`", output);
+        VIXEN_PANIC("addr2line failed with output: `{}`", output);
     }
 
     info.name = mv(lines[0]);
@@ -79,7 +79,7 @@ void *get_reladdr(void *absolute) {
 vector<string> translate_addrs(allocator *alloc, slice<void *> addrs) {
     char **syms = backtrace_symbols(addrs.ptr, addrs.len);
     if (syms == nullptr) {
-        VIXEN_ASSERT(false, "`backtrace_symbols` name buffer allocation failed.");
+        VIXEN_PANIC("`backtrace_symbols` name buffer allocation failed.");
     }
     defer(free((void *)syms));
 
@@ -137,7 +137,7 @@ void translation_cache::translate() {
 }
 
 address_info const &translation_cache::get_info(void *addr) const {
-    VIXEN_ASSERT(translated.key_exists(addr), "Address {} was not translated yet.", addr);
+    VIXEN_ASSERT_EXT(translated.contains_key(addr), "Address {} was not translated yet.", addr);
     return translated[addr];
 }
 

@@ -7,9 +7,9 @@
 
 #include <cstring>
 
-#define _VIXEN_UTF8_CODEPOINT_VALID(codepoint)                          \
-    VIXEN_DEBUG_ASSERT(::vixen::utf8::is_valid_for_encoding(codepoint), \
-        "Codepoint U+{:X} is a not valid for UTF-8 encoding.",          \
+#define _VIXEN_UTF8_CODEPOINT_VALID(codepoint)                              \
+    VIXEN_DEBUG_ASSERT_EXT(::vixen::utf8::is_valid_for_encoding(codepoint), \
+        "Codepoint U+{:X} is a not valid for UTF-8 encoding.",              \
         codepoint)
 
 namespace vixen {
@@ -37,7 +37,7 @@ inline string::string(allocator *alloc, usize default_capacity)
     : data(vector<char>(alloc, default_capacity)) {}
 
 inline string::string(vector<char> &&data) : data(mv(data)) {
-    // VIXEN_ASSERT(utf8::is_valid(data), "String data was not valid UTF-8.")
+    // VIXEN_ASSERT_EXT(utf8::is_valid(data), "String data was not valid UTF-8.")
 }
 
 #pragma endregion
@@ -178,7 +178,7 @@ inline usize count_invalid_nuls(slice<char> data) {
 
 inline void null_terminate(vector<char> *data) {
     usize invalid_nuls = detail::count_invalid_nuls(*data);
-    VIXEN_ASSERT(invalid_nuls == 0,
+    VIXEN_ASSERT_EXT(invalid_nuls == 0,
         "Tried to create a nul-terminated string out of a buffer with {} internal nuls.",
         invalid_nuls);
 
@@ -320,14 +320,14 @@ inline void string_slice::split_to(
 // + ----- string_slice Accessors ------------------------------------------------ +
 
 inline string_slice string_slice::operator[](range r) const {
-    VIXEN_DEBUG_ASSERT(utf8::is_char_boundary(raw[r.start]),
+    VIXEN_DEBUG_ASSERT_EXT(utf8::is_char_boundary(raw[r.start]),
         "Tried to slice string, but start index {} was not on a char boundary.",
         r.start);
     return string_slice(raw[r]);
 }
 
 inline string_slice string_slice::operator[](range_from range) const {
-    VIXEN_DEBUG_ASSERT(utf8::is_char_boundary(raw[range.start]),
+    VIXEN_DEBUG_ASSERT_EXT(utf8::is_char_boundary(raw[range.start]),
         "Tried to slice string, but start index {} was not on a char boundary.",
         range.start);
     return string_slice(raw[range]);

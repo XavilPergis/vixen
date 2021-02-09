@@ -66,6 +66,8 @@ struct string {
     friend S &operator<<(S &stream, const string &str);
 };
 
+static_assert(!std::is_copy_constructible<option<string>>::value);
+
 struct string_slice {
     slice<const char> raw;
 

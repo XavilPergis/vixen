@@ -104,74 +104,80 @@ inline void destroy_array_uninit(allocator *alloc, T *ptr, usize len) {
     alloc->dealloc(layout::array_of<T>(len), ptr);
 }
 
+template <typename T>
+inline void *resize_array(allocator *alloc, T *old_ptr, usize old_len, usize new_len) {
+    return alloc->realloc(layout::array_of<T>(old_len), layout::array_of<T>(new_len), old_ptr);
+}
+
 // --- PARALLEL DEALLOC ---
 
 template <typename H>
-inline void dealloc_parallel(allocator *alloc, usize len, H *head) {
-    alloc->dealloc(layout::array_of<H>(len), (void *)head);
+inline void dealloc_parallel(allocator *alloc, usize len, H *&head) {
+    alloc->dealloc(layout::array_of<H>(len), static_cast<void *>(head));
+    head = nullptr;
 }
 
 template <typename H, typename... Args>
-inline void dealloc_parallel(allocator *alloc, usize len, H *head, Args *...args) {
-    alloc->dealloc(layout::array_of<H>(len), (void *)head);
+inline void dealloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args) {
+    alloc->dealloc(layout::array_of<H>(len), static_cast<void *>(head));
     dealloc_parallel(alloc, len, args...);
+    head = nullptr;
 }
 
 // --- PARALLEL ALLOC ---
 
 template <typename H>
-inline void alloc_parallel(allocator *alloc, usize len, H **head) {
-    *head = (H *)alloc->alloc(layout::array_of<H>(len));
+inline void alloc_parallel(allocator *alloc, usize len, H *&head) {
+    head = (H *)alloc->alloc(layout::array_of<H>(len));
 }
 
 template <typename H, typename... Args>
-inline void alloc_parallel(allocator *alloc, usize len, H **head, Args **...args) {
+inline void alloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args) {
     layout layout = layout::array_of<H>(len);
     auto *allocated = (H *)alloc->alloc(layout);
 
     try {
         alloc_parallel(alloc, len, args...);
     } catch (allocation_exception &ex) {
-        alloc->dealloc(layout, (void *)allocated);
+        alloc->dealloc(layout, static_cast<void *>(allocated));
         throw;
     }
 
-    *head = allocated;
+    head = allocated;
 }
 
 // --- PARALLEL REALLOC ---
 
-// template <typename H>
-// inline void realloc_parallel(allocator *alloc, usize old_len, usize new_len, H **head) {
-//     // Since this is the lasy layer called, we don't need to worry about any of the other
-//     // reallocations throwing.
-//     *head
-//         = alloc->realloc(layout::array_of<H>(old_len), layout::array_of<H>(new_len), (void
-//         *)head);
-// }
+template <typename H>
+inline void realloc_parallel(allocator *alloc, usize old_len, usize new_len, H *&head) {
+    // Since this is the lasy layer called, we don't need to worry about any of the other
+    // reallocations throwing.
+    head = reinterpret_cast<H *>(alloc->realloc(layout::array_of<H>(old_len),
+        layout::array_of<H>(new_len),
+        static_cast<void *>(head)));
+}
 
-// template <typename H, typename... Args>
-// inline void realloc_parallel(
-//     allocator *alloc, usize old_len, usize new_len, H **head, Args **... args) {
-//     layout old_layout = layout::array_of<H>(old_len);
-//     layout new_layout = layout::array_of<H>(new_len);
-//     H *new_head = alloc->alloc(new_layout);
+template <typename H, typename... Args>
+inline void realloc_parallel(
+    allocator *alloc, usize old_len, usize new_len, H *&head, Args *&...args) {
+    layout old_layout = layout::array_of<H>(old_len);
+    layout new_layout = layout::array_of<H>(new_len);
+    H *new_head = reinterpret_cast<H *>(alloc->alloc(new_layout));
 
-//     // Split off the list and realloc the rest of the items. If one of the reallocs throw, then
-//     we
-//     // undo the tentative allocation and rethrow so the next layer up can do the same.
-//     try {
-//         realloc_parallel(alloc, old_len, new_len, args...);
-//     } catch (allocation_exception &ex) {
-//         alloc->dealloc(new_layout, new_head);
-//         throw;
-//     }
+    // Split off the list and realloc the rest of the items. If one of the reallocs throw, then
+    // we undo the tentative allocation and rethrow so the next layer up can do the same.
+    try {
+        realloc_parallel(alloc, old_len, new_len, args...);
+    } catch (allocation_exception &ex) {
+        alloc->dealloc(new_layout, new_head);
+        throw;
+    }
 
-//     util::copy(*head, new_head, std::min(old_len, new_len));
+    util::copy(head, new_head, std::min(old_len, new_len));
 
-//     // If we got here, nothing in the chain threw and we can dealloc the old and assign the new
-//     alloc->dealloc(old_layout, (void *)*head);
-//     *head = new_head;
-// }
+    // If we got here, nothing in the chain threw and we can dealloc the old and assign the new
+    alloc->dealloc(old_layout, static_cast<void *>(head));
+    head = new_head;
+}
 
 } // namespace vixen::heap

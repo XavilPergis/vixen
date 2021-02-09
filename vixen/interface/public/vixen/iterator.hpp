@@ -20,7 +20,7 @@ struct reified_pipeline<CA, CB, Cs...> {
 
 template <typename C>
 struct reified_pipeline<C> {
-    using type = typename C::reified<void>;
+    using type = typename C::reified;
 };
 
 template <typename... Cs>
@@ -29,44 +29,47 @@ struct iterator_pipeline;
 template <typename CA, typename CB, typename... Cs>
 struct iterator_pipeline<CA, CB, Cs...> {
     using child_pipeline = iterator_pipeline<CB, Cs...>;
-    using pipeline_output = typename CA::output<iterator_pipeline<CB, Cs...>::pipeline_output>;
-    using reified_component = typename reified_pipeline<CA, CB, Cs...>::type;
+    // using pipeline_output = typename CA::output<iterator_pipeline<CB, Cs...>::pipeline_output>;
+    // using reified_component = typename reified_pipeline<CA, CB, Cs...>::type;
 
     CA component;
-    child_pipeline rest;
+    child_pipeline downstream;
 
     template <typename... As>
     using concat_pipeline = iterator_pipeline<CA, CB, Cs..., As...>;
 
     template <typename... As>
     concat_pipeline<As...> concat(iterator_pipeline<As...> &&concatenated) {
-        return concat_pipeline<As...>{mv(component), rest.concat(mv(concatenated))};
-    }
-
-    reified_component reify() {
-        return typename CA::reified<reified_component>{mv(component), rest.reify()};
+        return concat_pipeline<As...>{mv(component), downstream.concat(mv(concatenated))};
     }
 };
 
 template <typename C>
 struct iterator_pipeline<C> {
-    using pipeline_output = typename C::output<void>;
-    using reified_component = typename reified_pipeline<C>::type;
+    // using pipeline_output = typename C::output<void>;
+    // using reified_component = typename reified_pipeline<C>::type;
 
     C component;
 
     template <typename... As>
     iterator_pipeline<C, As...> concat(iterator_pipeline<As...> &&concatenated) {
-        return iterator_pipeline<C, As...>{mv(component), mv(concatenated)};
-    }
-
-    typename C::reified reify() {
-        return typename C::reified{mv(component)};
+        return iterator_pipeline<C, As...>(mv(component), mv(concatenated));
     }
 };
 
-template <typename Iter>
-using pipeline_output = typename Iter::pipeline_output;
+template <typename C, typename... Cs>
+auto reify(iterator_pipeline<C, Cs...> &&pipeline) {
+    using downstream_reified = typename reified_pipeline<Cs...>::type;
+    return typename C::reified<downstream_reified>(mv(pipeline.component), mv(pipeline.downstream));
+}
+
+template <typename C>
+auto reify(iterator_pipeline<C> &&pipeline) {
+    return typename C::reified{mv(pipeline.component)};
+}
+
+// template <typename Iter>
+// // using pipeline_output = typename Iter::pipeline_output;
 
 template <typename Iter>
 using iter_output = typename Iter::output;
@@ -115,15 +118,21 @@ struct map_iterator {
         F mapper;
         Iter downstream;
 
-        bool has_next(Iter &prev) {
-            return prev.has_next();
+        bool has_next() {
+            return downstream.has_next();
         }
 
-        output next(Iter &prev) {
-            return mapper(prev.next());
+        output next() {
+            return mapper(downstream.next());
         }
     };
 };
+
+/// @ingroup vixen_iterators
+template <typename F>
+inline iterator_pipeline<map_iterator<F>> map(F &&mapper) {
+    return make_pipeline(map_iterator<F>{mv(mapper)});
+}
 
 template <typename F>
 struct filter_iterator {
@@ -140,24 +149,24 @@ struct filter_iterator {
         Iter downstream;
         option<output> last_output;
 
-        bool has_next(Iter &prev) {
+        bool has_next() {
             if (last_output)
                 return true;
             loop {
-                if (!prev.has_next()) {
+                if (!downstream.has_next()) {
                     return false;
-                    last_output = nullptr;
+                    last_output = empty_opt;
                 }
-                last_output = prev.next();
+                last_output = downstream.next();
                 if (predicate(*last_output)) {
                     return true;
                 }
             }
         }
 
-        output next(Iter &prev) {
+        output next() {
             auto ret = mv(*last_output);
-            last_output = nullptr;
+            last_output = empty_opt;
             return mv(ret);
         }
     };
@@ -167,7 +176,7 @@ struct filter_iterator {
 /// @brief Creates an adapter that takes an input `n` and pushes `n` if `predicate(n)` returns true.
 template <typename F>
 inline iterator_pipeline<filter_iterator<F>> filter(F &&predicate) {
-    return make_pipeline<typename function_traits<F>::argument<0>>(filter_iterator<F>{predicate});
+    return make_pipeline(filter_iterator<F>{mv(predicate)});
 }
 
 template <typename T>
@@ -225,11 +234,21 @@ struct iter_to_std : public std::iterator<std::input_iterator_tag, typename Iter
         load_next();
     }
 
+    iter_to_std(iter_to_std &&other) = default;
+
     using value_type = typename Iter::output;
     using reference = typename Iter::output &;
 
     // end iterator
     iter_to_std() {}
+
+    iter_to_std begin() const {
+        return mv(*this);
+    }
+
+    iter_to_std end() const {
+        return iter_to_std();
+    }
 
     // clang-format off
     reference operator*() { return *prev; }
@@ -267,7 +286,7 @@ private:
 template <typename... Cs>
 iter_to_std<typename reified_pipeline<Cs...>::type> make_input_iterator(
     iterator_pipeline<Cs...> &&iter) {
-    return iter_to_std<typename reified_pipeline<Cs...>::type>(iter.reify());
+    return iter_to_std<typename reified_pipeline<Cs...>::type>(reify(mv(iter)));
 }
 
 // NOTE: we do this backwards because values are pulled down the pipeline from front to back,
@@ -275,7 +294,7 @@ iter_to_std<typename reified_pipeline<Cs...>::type> make_input_iterator(
 // pipeline with `operator|`, `a | b` means that `b` will request values from `a` when the
 // iterator is executed.
 template <typename... As, typename... Bs>
-inline iterator_pipeline<As..., Bs...> operator|(
+inline iterator_pipeline<Bs..., As...> operator|(
     iterator_pipeline<As...> &&tail, iterator_pipeline<Bs...> &&head) {
     return head.concat(mv(tail));
 }
@@ -288,3 +307,8 @@ if (foo.has_next()) { foo.next().blah(); }
 */
 
 } // namespace vixen::iter
+
+#define CLS1(...)             \
+    ([](auto it) {            \
+        return (__VA_ARGS__); \
+    })

@@ -5,13 +5,13 @@
 #include "vixen/util.hpp"
 
 #define _VIXEN_BOUNDS_CHECK(idx, len)                                 \
-    VIXEN_DEBUG_ASSERT(idx < len,                                     \
-        "Index out of bounds: The length is {} but the index is {}.", \
+    VIXEN_DEBUG_ASSERT_EXT(idx < len,                                 \
+        "index out of bounds: the length is {} but the index is {}.", \
         len,                                                          \
         idx)
 #define _VIXEN_BOUNDS_CHECK_EXCLUSIVE(idx, len)                       \
-    VIXEN_DEBUG_ASSERT(idx <= len,                                    \
-        "Index out of bounds: The length is {} but the index is {}.", \
+    VIXEN_DEBUG_ASSERT_EXT(idx <= len,                                \
+        "index out of bounds: the length is {} but the index is {}.", \
         len,                                                          \
         idx)
 
@@ -43,12 +43,19 @@ VIXEN_FORCE_ENABLE_DEBUG_ASSERT or VIXEN_FORCE_DISBLE_ASSERT.
     } while (false)
 
 #ifdef _VIXEN_ASSERT_ENABLED
-#define VIXEN_ASSERT(cond, ...)       \
+#define VIXEN_ASSERT_EXT(cond, ...)   \
     do {                              \
         if (!(likely(cond)))          \
             VIXEN_PANIC(__VA_ARGS__); \
     } while (false)
+
+#define VIXEN_ASSERT(cond)                                        \
+    do {                                                          \
+        if (!(likely(cond)))                                      \
+            VIXEN_PANIC("anonymous assertion failed: {}", #cond); \
+    } while (false)
 #else
+#define VIXEN_ASSERT_EXT(...)
 #define VIXEN_ASSERT(...)
 #endif
 
@@ -56,15 +63,17 @@ VIXEN_FORCE_ENABLE_DEBUG_ASSERT or VIXEN_FORCE_DISBLE_ASSERT.
 // release mode, like bounds checking on index operators. Normal asserts are preferred to these
 // wherever you can put them, though.
 #ifdef _VIXEN_DEBUG_ASSERT_ENABLED
+#define VIXEN_DEBUG_ASSERT_EXT(...) VIXEN_ASSERT_EXT(__VA_ARGS__)
 #define VIXEN_DEBUG_ASSERT(...) VIXEN_ASSERT(__VA_ARGS__)
 #else
+#define VIXEN_DEBUG_ASSERT_EXT(...)
 #define VIXEN_DEBUG_ASSERT(...)
 #endif
 
-#define VIXEN_UNREACHABLE(...)                                         \
-    do {                                                               \
-        VIXEN_ASSERT(false, "Entered unreachable code: " __VA_ARGS__); \
-        __builtin_unreachable();                                       \
+#define VIXEN_UNREACHABLE(...)                                 \
+    do {                                                       \
+        VIXEN_PANIC("entered unreachable code: " __VA_ARGS__); \
+        __builtin_unreachable();                               \
     } while (false)
 
 namespace vixen {

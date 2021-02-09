@@ -31,7 +31,7 @@ inline int get_open_mode_flags(open_mode mode) {
     } else if (mode.is_readwrite()) {
         flags = O_RDWR;
     } else {
-        VIXEN_ASSERT(false, "Tried to open file without read or write flags set.");
+        VIXEN_PANIC("Tried to open file without read or write flags set.");
     }
 
     if (mode.append) {
@@ -81,7 +81,7 @@ inline vector<char> file::read_all(allocator *alloc, usize chunk_size) {
 } // namespace vixen
 
 vixen::open_mode operator|(vixen::open_mode const &a, vixen::open_mode const &b) {
-    VIXEN_ASSERT(a.create_mode == b.create_mode, "");
+    VIXEN_ASSERT(a.create_mode == b.create_mode);
 
     vixen::open_mode n = a;
     n.read |= b.read;
@@ -90,7 +90,7 @@ vixen::open_mode operator|(vixen::open_mode const &a, vixen::open_mode const &b)
     n.truncate |= b.truncate;
 
     if (b.create) {
-        VIXEN_ASSERT(!n.create, "");
+        VIXEN_ASSERT(!n.create);
         n.create = true;
         n.create_mode = b.create_mode;
     }

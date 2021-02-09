@@ -105,7 +105,7 @@ inline T *vector<T>::reserve(usize elements) {
 
 template <typename T>
 inline void vector<T>::truncate(usize len) {
-    VIXEN_DEBUG_ASSERT(len <= length,
+    VIXEN_DEBUG_ASSERT_EXT(len <= length,
         "tried to truncate vector to {} items, but the current length was {}",
         len,
         length);
@@ -122,7 +122,7 @@ inline option<T> vector<T>::pop() {
 
 template <typename T>
 inline T vector<T>::remove(usize idx) {
-    VIXEN_DEBUG_ASSERT(length > idx,
+    VIXEN_DEBUG_ASSERT_EXT(length > idx,
         "tried to remove element {} from a {}-element vector",
         idx,
         length);
@@ -133,7 +133,7 @@ inline T vector<T>::remove(usize idx) {
 
 template <typename T>
 inline T vector<T>::shift_remove(usize idx) {
-    VIXEN_DEBUG_ASSERT(length > idx,
+    VIXEN_DEBUG_ASSERT_EXT(length > idx,
         "tried to remove element {} from a {}-element vector",
         idx,
         length);
@@ -152,7 +152,7 @@ inline void vector<T>::clear() {
 template <typename T>
 template <typename U>
 T &vector<T>::shift_insert(usize idx, U &&val) {
-    VIXEN_DEBUG_ASSERT(idx <= length,
+    VIXEN_DEBUG_ASSERT_EXT(idx <= length,
         "tried to insert element at {}, but the length was {}",
         idx,
         length);
@@ -216,7 +216,7 @@ inline option<usize> vector<T>::index_of(const T &value) {
 
 template <typename T>
 inline void vector<T>::swap(usize a, usize b) {
-    VIXEN_DEBUG_ASSERT((length > a) && (length > b),
+    VIXEN_DEBUG_ASSERT_EXT((length > a) && (length > b),
         "Tried swapping elements {} and {} in a(n) {}-element vector.",
         a,
         b,
@@ -343,7 +343,7 @@ inline void vector<T>::try_grow(usize elements_needed) {
 
 template <typename T>
 inline void vector<T>::set_capacity(usize cap) {
-    VIXEN_ASSERT(alloc != nullptr, "Tried to grow a vector with no allocator.");
+    VIXEN_ASSERT_EXT(alloc != nullptr, "Tried to grow a vector with no allocator.");
 
     data = (T *)alloc->realloc(heap::layout::array_of<T>(capacity),
         heap::layout::array_of<T>(cap),

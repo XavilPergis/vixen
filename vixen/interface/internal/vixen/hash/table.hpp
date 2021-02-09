@@ -5,6 +5,10 @@
 
 namespace vixen {
 
+constexpr usize load_factor_numerator = 7;
+constexpr usize load_factor_denomenator = 10;
+constexpr usize default_hashmap_capacity = 16;
+
 template <typename T>
 struct collision {
     usize slot;
@@ -55,6 +59,7 @@ struct hash_table {
     constexpr bool is_occupied(usize slot) const;
 
     constexpr void clear();
+    void grow();
 
     template <typename OT>
     constexpr usize find_insert_slot(u64 hash, const OT &value) const;
@@ -79,48 +84,73 @@ struct hash_table {
     T *buckets = nullptr;
 };
 
-template <typename T, typename H>
-struct hash_table_iterator : public std::iterator<std::forward_iterator_tag, T> {
-    hash_table_iterator() = default;
-    hash_table_iterator(const hash_table_iterator &other) = default;
+// template <typename T, typename H, typename C>
+// struct hash_table_iterator {
+//     hash_table_iterator(const hash_table_iterator &other) = default;
+//     hash_table_iterator(hash_table<T, H, C> &iterating) : iterating(iterating) {}
 
-    hash_table_iterator(hash_table<T, H> &iterating)
-        : iterating(std::addressof(iterating)), index(0) {
-        // We initialize with index 0, but the first slot might be unoccupied, so we have to point
-        // the iterator to the correct spot.
-        ++*this;
-    }
+//     struct reified {
+//         hash_table_iterator(hash_table_iterator &&desc) : iterating(desc.iterating) {}
 
-    bool operator==(const hash_table_iterator &other) {
-        return index == other.index && iterating == other.iterating;
-    }
+//         using output = T &;
 
-    bool operator!=(const hash_table_iterator &other) {
-        return index != other.index || iterating != other.iterating;
-    }
+//         bool has_next() {}
 
-    hash_table_iterator &operator++() {
-        while (index < iterating->capacity && !iterating->is_vacant(++index))
-            ;
-    }
+//         output next() {
+//             output &ret = iterating.get(current_slot++);
+//             while (iterating.is_occupied())
+//         }
 
-    hash_table_iterator operator++(int) {
-        hash_table_iterator original = *this;
-        ++*this;
-        return original;
-    }
+//         usize current_slot = 0;
+//         hash_table<T, H, C> &iterating;
+//     };
 
-    T &operator*() {
-        return iterating->keys[index];
-    }
+//     hash_table<T, H, C> &iterating;
+// };
 
-    T *operator->() {
-        return &iterating->keys[index];
-    }
+// template <typename T, typename H>
+// struct hash_table_iterator : public std::iterator<std::forward_iterator_tag, T> {
+//     hash_table_iterator() = default;
+//     hash_table_iterator(const hash_table_iterator &other) = default;
 
-    usize index;
-    hash_table<T, H> *iterating;
-};
+//     hash_table_iterator(hash_table<T, H> &iterating)
+//         : iterating(std::addressof(iterating)), index(0) {
+//         // We initialize with index 0, but the first slot might be unoccupied, so we have to
+//         point
+//         // the iterator to the correct spot.
+//         ++*this;
+//     }
+
+//     bool operator==(const hash_table_iterator &other) {
+//         return index == other.index && iterating == other.iterating;
+//     }
+
+//     bool operator!=(const hash_table_iterator &other) {
+//         return index != other.index || iterating != other.iterating;
+//     }
+
+//     hash_table_iterator &operator++() {
+//         while (index < iterating->capacity && !iterating->is_vacant(++index))
+//             ;
+//     }
+
+//     hash_table_iterator operator++(int) {
+//         hash_table_iterator original = *this;
+//         ++*this;
+//         return original;
+//     }
+
+//     T &operator*() {
+//         return iterating->keys[index];
+//     }
+
+//     T *operator->() {
+//         return &iterating->keys[index];
+//     }
+
+//     usize index;
+//     hash_table<T, H> *iterating;
+// };
 
 } // namespace vixen
 

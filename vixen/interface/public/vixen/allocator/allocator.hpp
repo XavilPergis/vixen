@@ -19,34 +19,34 @@
 // These prologs normalize the behavior of allocation and deallocation funtions
 // and can provide extra correctness checks, so that this code is not duplicated
 // in each allocatior implementation
-#define _VIXEN_ALLOC_PROLOGUE(layout)                          \
-    if ((layout).size == 0) {                                  \
-        return nullptr;                                        \
-    }                                                          \
-    VIXEN_ASSERT(vixen::util::is_power_of_two((layout).align), \
-        "Alignment {} is not a power of 2.",                   \
+#define _VIXEN_ALLOC_PROLOGUE(layout)                              \
+    if ((layout).size == 0) {                                      \
+        return nullptr;                                            \
+    }                                                              \
+    VIXEN_ASSERT_EXT(vixen::util::is_power_of_two((layout).align), \
+        "Alignment {} is not a power of 2.",                       \
         (layout).align);
 
-#define _VIXEN_DEALLOC_PROLOGUE(layout, ptr)                   \
-    if (ptr == nullptr) {                                      \
-        return;                                                \
-    }                                                          \
-    VIXEN_ASSERT(vixen::util::is_power_of_two((layout).align), \
-        "Alignment {} is not a power of 2.",                   \
-        (layout).align);
-
-#define _VIXEN_REALLOC_PROLOGUE(old_layout, new_layout, ptr)       \
+#define _VIXEN_DEALLOC_PROLOGUE(layout, ptr)                       \
     if (ptr == nullptr) {                                          \
-        return internal_alloc(new_layout);                         \
+        return;                                                    \
     }                                                              \
-    if (old_layout == new_layout) {                                \
-        return ptr;                                                \
-    }                                                              \
-    VIXEN_ASSERT(vixen::util::is_power_of_two((old_layout).align), \
+    VIXEN_ASSERT_EXT(vixen::util::is_power_of_two((layout).align), \
         "Alignment {} is not a power of 2.",                       \
-        (old_layout).align);                                       \
-    VIXEN_ASSERT(vixen::util::is_power_of_two((new_layout).align), \
-        "Alignment {} is not a power of 2.",                       \
+        (layout).align);
+
+#define _VIXEN_REALLOC_PROLOGUE(old_layout, new_layout, ptr)           \
+    if (ptr == nullptr) {                                              \
+        return internal_alloc(new_layout);                             \
+    }                                                                  \
+    if (old_layout == new_layout) {                                    \
+        return ptr;                                                    \
+    }                                                                  \
+    VIXEN_ASSERT_EXT(vixen::util::is_power_of_two((old_layout).align), \
+        "Alignment {} is not a power of 2.",                           \
+        (old_layout).align);                                           \
+    VIXEN_ASSERT_EXT(vixen::util::is_power_of_two((new_layout).align), \
+        "Alignment {} is not a power of 2.",                           \
         (new_layout).align);
 
 namespace vixen::heap {
@@ -154,12 +154,6 @@ template <typename T, typename... Args>
 VIXEN_NODISCARD inline T *create_init(allocator *alloc, Args &&...args);
 
 /// @ingroup vixen_allocator
-/// @brief Allocates `len * sizeof(T)` bytes with alignment of `alignof(T)` using `alloc`, and
-/// returns a pointer to the beginning of the uninitialized data.
-template <typename T>
-VIXEN_NODISCARD inline T *create_array_uninit(allocator *alloc, usize len);
-
-/// @ingroup vixen_allocator
 /// @brief Deallocates `sizeof(T)` bytes with alignment of `alignof(T)` that was previously
 /// allocated with the same layout from `alloc`.
 ///
@@ -174,22 +168,36 @@ template <typename T>
 inline void destroy_init(allocator *alloc, T *ptr);
 
 /// @ingroup vixen_allocator
+/// @brief Allocates `len * sizeof(T)` bytes with alignment of `alignof(T)` using `alloc`, and
+/// returns a pointer to the beginning of the uninitialized data.
+template <typename T>
+VIXEN_NODISCARD inline T *create_array_uninit(allocator *alloc, usize len);
+
+/// @ingroup vixen_allocator
 /// @brief Dellocates `len * sizeof(T)` bytes with alignment of `alignof(T)` that was previously
 /// allocated with the same layout from `alloc`.
 template <typename T>
 inline void destroy_array_uninit(allocator *alloc, T *ptr, usize len);
 
 /// @ingroup vixen_allocator
-template <typename H, typename... Args>
-inline void dealloc_parallel(allocator *alloc, usize len, H *head, Args *...args);
+/// @brief Resizes an allocation of size `old_len * sizeof(T)` bytes that was previously allocated
+/// with `alloc` using an alignment of `alignof(T)` to be `new_len * sizeof(T)` with the same
+/// alignment and allocator.
+template <typename T>
+VIXEN_NODISCARD inline void *resize_array(
+    allocator *alloc, T *old_ptr, usize old_len, usize new_len);
 
 /// @ingroup vixen_allocator
 template <typename H, typename... Args>
-inline void alloc_parallel(allocator *alloc, usize len, H **head, Args **...args);
+inline void dealloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args);
 
 /// @ingroup vixen_allocator
 template <typename H, typename... Args>
-inline void realloc_parallel(allocator *alloc, usize len, usize new_len, H **head, Args **...args);
+inline void alloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args);
+
+/// @ingroup vixen_allocator
+template <typename H, typename... Args>
+inline void realloc_parallel(allocator *alloc, usize len, usize new_len, H *&head, Args *&...args);
 
 /// @ingroup vixen_allocator
 allocator *global_allocator();

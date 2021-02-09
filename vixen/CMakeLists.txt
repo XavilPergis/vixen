@@ -33,3 +33,6 @@ target_compile_features(vixen PRIVATE cxx_std_17)
 
 target_link_libraries(vixen PUBLIC spdlog)
 target_link_libraries(vixen PRIVATE dl)
+
+target_compile_options(vixen PUBLIC -fsanitize=undefined -fsanitize=address -fdiagnostics-color=always)
+target_link_options(vixen PUBLIC -fsanitize=undefined -fsanitize=address)

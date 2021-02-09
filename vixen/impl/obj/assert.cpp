@@ -81,9 +81,13 @@ panic_handler remove_panic_handler() {
 
 namespace detail {
 void invoke_panic_handler() {
-    if (!g_already_panicking)
+    if (!g_already_panicking) {
+        g_already_panicking = true;
         g_panic_handler();
-    ::std::abort();
+    } else {
+        VIXEN_CRITICAL("panicked while panicking! aborting.");
+        ::std::abort();
+    }
 }
 } // namespace detail
 
