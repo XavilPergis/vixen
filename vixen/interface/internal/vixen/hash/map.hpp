@@ -60,7 +60,7 @@ struct hash_map {
 
     constexpr explicit hash_map(allocator *alloc);
     hash_map(allocator *alloc, usize default_capacity);
-    hash_map(allocator *alloc, const hash_map &other);
+    hash_map(copy_tag_t, allocator *alloc, const hash_map &other);
     constexpr hash_map(hash_map &&other) = default;
     constexpr hash_map &operator=(hash_map &&other) = default;
 

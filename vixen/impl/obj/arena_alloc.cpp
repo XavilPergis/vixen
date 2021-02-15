@@ -59,7 +59,7 @@ void arena_allocator::internal_reset() {
     }
 }
 
-arena_allocator::arena_allocator(allocator *alloc) {
+arena_allocator::arena_allocator(allocator *alloc) : resettable_allocator() {
     this->last_size = 32;
     this->blocks = nullptr;
     this->current_block = nullptr;
@@ -124,7 +124,10 @@ void arena_allocator::internal_dealloc(const layout &layout, void *ptr) {
 void *arena_allocator::internal_alloc(const layout &layout) {
     _VIXEN_ALLOC_PROLOGUE(layout)
 
-    void *ptr = try_allocate_in_chain(layout, *this->current_block);
+    void *ptr = this->current_block == nullptr
+        ? nullptr
+        : try_allocate_in_chain(layout, *this->current_block);
+
     if (!ptr) {
         block_descriptor *new_block = allocate_block(layout);
         this->last_size = (usize)new_block->end - (usize)new_block->start;

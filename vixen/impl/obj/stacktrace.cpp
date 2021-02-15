@@ -97,26 +97,22 @@ vector<string> translate_addrs(allocator *alloc, slice<void *> addrs) {
 // + ----- address_info ---------------------------------------------------------- +
 
 address_info::address_info(allocator *alloc) : name(alloc), location(alloc), raw_symbol(alloc) {}
-address_info::address_info(allocator *alloc, const address_info &other)
+address_info::address_info(copy_tag_t, allocator *alloc, const address_info &other)
     : name(other.name.clone(alloc))
     , location(other.location.clone(alloc))
     , raw_symbol(other.raw_symbol.clone(alloc)) {}
-
-address_info address_info::clone(allocator *alloc) const {
-    return address_info(alloc, *this);
-}
 
 #pragma endregion
 #pragma region "translation_cache"
 // + ----- translation_cache ----------------------------------------------------- +
 
 translation_cache::translation_cache(allocator *alloc)
-    : alloc(alloc), translated(alloc), translation_queue(alloc) {}
+    : alloc(alloc), translation_queue(alloc), translated(alloc) {}
 
-translation_cache::translation_cache(allocator *alloc, const translation_cache &other)
+translation_cache::translation_cache(copy_tag_t, allocator *alloc, const translation_cache &other)
     : alloc(alloc)
-    , translated(alloc, other.translated)
-    , translation_queue(alloc, other.translation_queue) {}
+    , translation_queue(other.translation_queue.clone(alloc))
+    , translated(other.translated.clone(alloc)) {}
 
 void translation_cache::add_symbol(void *symbol) {
     translation_queue.push(symbol);

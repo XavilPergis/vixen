@@ -78,10 +78,12 @@ option<u32> decode(slice<const char> buf) {
     return {};
 }
 
-#define MATCH_RANGE(o, s, e)                                       \
-    valid &= data[current + o] >= (s) && data[current + o] <= (e); \
+#define MATCH_RANGE(o, s, e)                                                                       \
+    valid                                                                                          \
+        &= static_cast<u8>(data[current + o]) >= (s) && static_cast<u8>(data[current + o]) <= (e); \
     ++current;
-#define IN_RANGE(s, e) (data[current] >= (s) && data[current] <= (e))
+#define IN_RANGE(s, e) \
+    (static_cast<u8>(data[current]) >= (s) && static_cast<u8>(data[current]) <= (e))
 #define IN_BOUNDS(l) ((current + (l)-1) < data.len)
 
 bool is_valid(slice<const char> data) {
@@ -107,7 +109,7 @@ bool is_valid(slice<const char> data) {
 
         // ===== TRIPLE WIDE =====
         // E0 / A0..BF / 80..BF
-        else if (IN_BOUNDS(3) && data[current] == 0xe0)
+        else if (IN_BOUNDS(3) && static_cast<u8>(data[current]) == 0xe0)
         {
             MATCH_RANGE(1, 0xc2, 0xbf)
             MATCH_RANGE(2, 0x80, 0xbf)
@@ -121,7 +123,7 @@ bool is_valid(slice<const char> data) {
         }
 
         // ED / 80..9F / 80..BF
-        else if (IN_BOUNDS(3) && data[current] == 0xed)
+        else if (IN_BOUNDS(3) && static_cast<u8>(data[current]) == 0xed)
         {
             MATCH_RANGE(1, 0x80, 0x9f)
             MATCH_RANGE(2, 0x80, 0xbf)
@@ -136,7 +138,7 @@ bool is_valid(slice<const char> data) {
 
         // ===== QUADRUPLE WIDE =====
         // F0 / 90..BF / 80..BF / 80..BF
-        else if (IN_BOUNDS(4) && data[current] == 0xf0)
+        else if (IN_BOUNDS(4) && static_cast<u8>(data[current]) == 0xf0)
         {
             MATCH_RANGE(1, 0x90, 0xbf)
             MATCH_RANGE(2, 0x80, 0xbf)
@@ -152,7 +154,7 @@ bool is_valid(slice<const char> data) {
         }
 
         // F0 / 90..BF / 80..BF / 80..BF
-        else if (IN_BOUNDS(4) && data[current] == 0xf0)
+        else if (IN_BOUNDS(4) && static_cast<u8>(data[current]) == 0xf0)
         {
             MATCH_RANGE(1, 0x90, 0xbf)
             MATCH_RANGE(2, 0x80, 0xbf)

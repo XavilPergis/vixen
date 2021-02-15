@@ -45,7 +45,7 @@ constexpr u64 hash_finalize(u64 v) {
     return v ^ v >> 28;
 }
 
-}; // namespace detail
+} // namespace detail
 
 constexpr fx_hasher::fx_hasher(u64 seed) : current(seed) {}
 

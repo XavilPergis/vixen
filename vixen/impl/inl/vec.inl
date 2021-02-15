@@ -24,11 +24,8 @@ inline vector<T>::vector() {
 }
 
 template <typename T>
-inline vector<T>::vector(allocator *alloc) {
+inline vector<T>::vector(allocator *alloc) : alloc(alloc) {
     this->alloc = alloc;
-    data = nullptr;
-    length = 0;
-    capacity = 0;
 }
 
 template <typename T>
@@ -37,7 +34,7 @@ inline vector<T>::vector(allocator *alloc, usize default_capacity) : vector(allo
 }
 
 template <typename T>
-inline vector<T>::vector(allocator *alloc, const vector<T> &other) : vector(alloc) {
+inline vector<T>::vector(copy_tag_t, allocator *alloc, const vector<T> &other) : vector(alloc) {
     set_capacity(other.capacity);
 
     for (usize i = 0; i < other.len(); ++i) {
@@ -66,7 +63,7 @@ inline vector<T> &vector<T>::operator=(vector<T> &&other) {
 
 template <typename T>
 inline vector<T> vector<T>::clone(allocator *alloc) const {
-    return vector(alloc, *this);
+    return vector(copy_tag, alloc, *this);
 }
 
 template <typename T>
@@ -158,7 +155,7 @@ T &vector<T>::shift_insert(usize idx, U &&val) {
         length);
 
     try_grow(1);
-    util::copy(&data[idx], &data[idx + 1], length - idx);
+    util::copy_move(&data[idx], &data[idx + 1], length - idx);
 
     // exception safety!
     if constexpr (noexcept(T(std::forward<U>(val)))) {
@@ -167,7 +164,7 @@ T &vector<T>::shift_insert(usize idx, U &&val) {
         try {
             util::construct_in_place(&data[idx], std::forward<U>(val));
         } catch (...) {
-            util::copy(&data[idx + 1], &data[idx], length - idx + 1);
+            util::copy_move(&data[idx + 1], &data[idx], length - idx + 1);
             --length;
             throw;
         }
@@ -345,10 +342,12 @@ template <typename T>
 inline void vector<T>::set_capacity(usize cap) {
     VIXEN_ASSERT_EXT(alloc != nullptr, "Tried to grow a vector with no allocator.");
 
-    data = (T *)alloc->realloc(heap::layout::array_of<T>(capacity),
-        heap::layout::array_of<T>(cap),
-        (void *)data);
-    capacity = cap;
+    if (cap > 0) {
+        data = (T *)alloc->realloc(heap::layout::array_of<T>(capacity),
+            heap::layout::array_of<T>(cap),
+            (void *)data);
+        capacity = cap;
+    }
 }
 
 #pragma endregion

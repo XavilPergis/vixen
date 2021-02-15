@@ -34,5 +34,20 @@ target_compile_features(vixen PRIVATE cxx_std_17)
 target_link_libraries(vixen PUBLIC spdlog)
 target_link_libraries(vixen PRIVATE dl)
 
-target_compile_options(vixen PUBLIC -fsanitize=undefined -fsanitize=address -fdiagnostics-color=always)
-target_link_options(vixen PUBLIC -fsanitize=undefined -fsanitize=address)
+target_compile_options(vixen PRIVATE -fdiagnostics-color=always -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror -fmax-errors=3)
+
+option(ENABLE_UBSAN "Enable Undefined Behavior Sanitizer" OFF)
+option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
+
+target_compile_options(vixen PRIVATE -fdiagnostics-color=always -fmax-errors=3)
+
+if(${ENABLE_UBSAN})
+    target_compile_options(vixen PRIVATE -fsanitize=undefined)
+    target_link_options(vixen PUBLIC -fsanitize=undefined)
+endif()
+    
+if(${ENABLE_ASAN})
+    target_compile_options(vixen PRIVATE -fsanitize=address)
+    target_link_options(vixen PUBLIC -fsanitize=address)
+endif()
+

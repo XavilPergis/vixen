@@ -46,9 +46,11 @@ struct hash_table {
 
     constexpr explicit hash_table(allocator *alloc) : alloc(alloc) {}
     hash_table(allocator *alloc, usize default_capacity);
-    hash_table(allocator *alloc, const hash_table &other);
+    hash_table(copy_tag_t, allocator *alloc, const hash_table &other);
     constexpr hash_table(hash_table &&other);
     constexpr hash_table &operator=(hash_table &&other);
+
+    VIXEN_DEFINE_CLONE_METHOD(hash_table)
 
     ~hash_table();
 

@@ -12,13 +12,13 @@ hash_map<K, V, H, C>::hash_map(allocator *alloc, usize default_capacity)
     : table(alloc, default_capacity) {}
 
 template <typename K, typename V, typename H, typename C>
-hash_map<K, V, H, C>::hash_map(allocator *alloc, const hash_map &other)
-    : table(alloc, other.table) {}
+hash_map<K, V, H, C>::hash_map(copy_tag_t, allocator *alloc, const hash_map &other)
+    : table(other.table.clone(alloc)) {}
 
 template <typename K, typename V, typename H, typename C>
 constexpr option<V &> hash_map<K, V, H, C>::get(const K &key) {
     if (auto slot_opt = table.find_slot(make_hash<H>(key), key)) {
-        return table.get(*slot_opt);
+        return table.get(*slot_opt).template get<1>();
     }
     return empty_opt;
 }
@@ -26,7 +26,7 @@ constexpr option<V &> hash_map<K, V, H, C>::get(const K &key) {
 template <typename K, typename V, typename H, typename C>
 constexpr option<V const &> hash_map<K, V, H, C>::get(const K &key) const {
     if (auto slot_opt = table.find_slot(make_hash<H>(key), key)) {
-        return table.get(*slot_opt);
+        return table.get(*slot_opt).template get<1>();
     }
     return empty_opt;
 }

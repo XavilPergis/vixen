@@ -22,8 +22,8 @@ struct allocation_info {
         }
     }
 
-    layout allocated_with;
     rawptr base;
+    layout allocated_with;
 
     usize realloc_count{0};
     option<vector<void *>> stack_trace{};
@@ -67,7 +67,7 @@ struct allocation_checker {
         auto bucket_idx
             = binary_search(buckets.begin(), buckets.end(), get_bucket_id(addr), bucket_start);
         if (bucket_idx.is_err()) {
-            allocation_bucket bucket_to_add(alloc, addr, addr + BUCKET_SIZE);
+            allocation_bucket bucket_to_add(alloc, addr, util::offset_rawptr(addr, BUCKET_SIZE));
             buckets.shift_insert(bucket_idx.unwrap_err(), mv(bucket_to_add));
         }
 
@@ -82,7 +82,7 @@ struct allocation_checker {
 
     option<const allocation_info &> add(rawptr ptr, allocation_info &&info) {
         rawptr start_addr = ptr;
-        rawptr end_addr = start_addr + info.allocated_with.size;
+        rawptr end_addr = util::offset_rawptr(start_addr, info.allocated_with.size);
         auto start_bucket_addr = get_bucket_id(start_addr);
         auto end_bucket_addr = get_bucket_id(end_addr);
         allocation_range range{start_addr, end_addr};
@@ -128,7 +128,7 @@ struct allocation_checker {
                     buckets[*end_bucket_idx].allocations.shift_remove(*end_range_idx);
                 }
 
-                return {infos.remove(overlapping_range->start), false};
+                return {infos.remove(overlapping_range->start), false, false};
             } else {
                 return {allocation_info{info_clone_alloc, infos[overlapping_range->start]},
                     overlapping_range->start != start_addr,
@@ -136,7 +136,7 @@ struct allocation_checker {
             }
         }
 
-        return {empty_opt, false};
+        return {empty_opt, false, false};
     }
 
     option<usize> get_bucket_index(rawptr addr) const {
@@ -428,13 +428,13 @@ option<string_slice> get_allocator_name(allocator_id id) {
 // allocator_id get_allocator_parent(allocator_id child) {}
 
 void begin_transaction(allocator_id id) {
-    if (debug_allocator()->id != id) {
+    if (id != debug_allocator()->id && id != NOT_TRACKED_ID) {
         allocator_infos[id.id].current_transaction_depth += 1;
     }
 }
 
 void end_transaction(allocator_id id) {
-    if (debug_allocator()->id != id) {
+    if (id != debug_allocator()->id && id != NOT_TRACKED_ID) {
         allocator_infos[id.id].current_transaction_depth -= 1;
     }
 }
@@ -496,10 +496,6 @@ static void commit_alloc(allocator_info *alloc_info, layout layout, void *ptr) {
         //     overlapping->base,
         //     overlapping->allocated_with);
     }
-}
-
-static bool is_even(char ch) {
-    return ch % 2 == 0;
 }
 
 static void commit_dealloc(allocator_info *alloc_info, layout layout, void *ptr) {
@@ -631,7 +627,7 @@ void record_realloc(
             VIXEN_TRACE("[R:D] {} ({})", old_layout, old_ptr);
         }
         commit_dealloc(alloc_info, old_layout, old_ptr);
-    } else if (old_ptr != nullptr, new_ptr != nullptr) {
+    } else if (old_ptr != nullptr && new_ptr != nullptr) {
         // Bona fide reallocation!
         if (alloc_info->name) {
             VIXEN_TRACE("[R] '{}' {} ({}) -> {} ({})",

@@ -19,8 +19,9 @@ struct address_info {
     address_info &operator=(address_info &&other) = default;
 
     explicit address_info(allocator *alloc);
-    address_info(allocator *alloc, const address_info &other);
-    address_info clone(allocator *alloc) const;
+    address_info(copy_tag_t, allocator *alloc, const address_info &other);
+
+    VIXEN_DEFINE_CLONE_METHOD(address_info)
 };
 
 struct translation_cache {
@@ -32,8 +33,9 @@ struct translation_cache {
     translation_cache &operator=(translation_cache &&other) = default;
 
     explicit translation_cache(allocator *alloc);
-    translation_cache(allocator *alloc, const translation_cache &other);
-    translation_cache clone(allocator *alloc) const;
+    translation_cache(copy_tag_t, allocator *alloc, const translation_cache &other);
+
+    VIXEN_DEFINE_CLONE_METHOD(translation_cache)
 
     void add_symbol(void *symbol);
     void translate();

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "vixen/assert.hpp"
 #include "vixen/traits.hpp"
 #include "vixen/types.hpp"
 #include "vixen/util.hpp"
@@ -257,8 +258,8 @@ struct option<T &> {
     constexpr T *operator->() { return &get(); }
 
     constexpr explicit operator bool() const { return storage != nullptr; }
-    constexpr bool is_some() const { return storage == nullptr; }
-    constexpr bool is_none() const { return storage != nullptr; }
+    constexpr bool is_some() const { return storage != nullptr; }
+    constexpr bool is_none() const { return storage == nullptr; }
     // clang-format on
 
     constexpr void clear() {
@@ -301,8 +302,8 @@ struct option<T const &> {
     constexpr T const *operator->() const { return &get(); }
 
     constexpr explicit operator bool() const { return storage != nullptr; }
-    constexpr bool is_some() const { return storage == nullptr; }
-    constexpr bool is_none() const { return storage != nullptr; }
+    constexpr bool is_some() const { return storage != nullptr; }
+    constexpr bool is_none() const { return storage == nullptr; }
     // clang-format on
 
     constexpr void clear() {

@@ -23,7 +23,7 @@ struct vector {
 
     explicit vector(allocator *alloc);
     vector(allocator *alloc, usize default_capacity);
-    vector(allocator *alloc, const vector<T> &other);
+    vector(copy_tag_t, allocator *alloc, const vector<T> &other);
     vector(vector<T> &&other);
     vector<T> &operator=(vector<T> &&other);
 
@@ -109,6 +109,40 @@ struct is_collection<vector<T>> : std::true_type {};
 
 template <typename T>
 struct collection_types<vector<T>> : standard_collection_types<T> {};
+
+template <typename T,
+    typename U,
+    require<std::is_convertible<decltype(std::declval<T const &>() == std::declval<U const &>()),
+        bool>> = true>
+constexpr bool operator==(vector<T> const &lhs, vector<U> const &rhs) {
+    if (lhs.len() != rhs.len())
+        return false;
+
+    for (usize i = 0; i < lhs.len(); ++i) {
+        if (!(lhs[i] == rhs[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+template <typename T,
+    typename U,
+    require<std::is_convertible<decltype(std::declval<T const &>() != std::declval<U const &>()),
+        bool>> = true>
+constexpr bool operator!=(vector<T> const &lhs, vector<U> const &rhs) {
+    if (lhs.len() != rhs.len())
+        return true;
+
+    for (usize i = 0; i < lhs.len(); ++i) {
+        if (!(lhs[i] != rhs[i])) {
+            return false;
+        }
+    }
+
+    return true;
+}
 
 } // namespace vixen
 

@@ -21,58 +21,59 @@
 namespace vixen {
 namespace detail {
 template <typename F>
-struct Defer {
-    Defer(F func) : func(func), is_active(true) {}
-    ~Defer() {
+struct defer_ty {
+    defer_ty(F func) : func(func), is_active(true) {}
+    ~defer_ty() {
         if (is_active) {
             this->func();
         }
     }
 
-    Defer(const Defer &) = delete;
-    Defer(const Defer &&) = delete;
-    void operator=(const Defer &) = delete;
+    defer_ty(const defer_ty &) = delete;
+    defer_ty(const defer_ty &&) = delete;
+    void operator=(const defer_ty &) = delete;
 
-    Defer(Defer &&other) : func(other.func), is_active(true) {
+    defer_ty(defer_ty &&other) : func(other.func), is_active(true) {
         other.is_active = false;
     }
 
 private:
-    bool is_active;
     F func;
+    bool is_active;
 };
 
 template <typename F>
-struct ErrDefer {
-    ErrDefer(F func) : func(func), exception_count(std::uncaught_exceptions()), is_active(true) {}
-    ~ErrDefer() {
+struct err_defer_ty {
+    err_defer_ty(F func)
+        : func(func), exception_count(std::uncaught_exceptions()), is_active(true) {}
+    ~err_defer_ty() {
         if (is_active && std::uncaught_exceptions() > exception_count) {
             this->func();
         }
     }
 
-    ErrDefer(const ErrDefer &) = delete;
-    ErrDefer(const ErrDefer &&) = delete;
-    void operator=(const ErrDefer &) = delete;
+    err_defer_ty(const err_defer_ty &) = delete;
+    err_defer_ty(const err_defer_ty &&) = delete;
+    void operator=(const err_defer_ty &) = delete;
 
-    ErrDefer(ErrDefer &&other) : func(other.func), is_active(true) {
+    err_defer_ty(err_defer_ty &&other) : func(other.func), is_active(true) {
         other.is_active = false;
     }
 
 private:
-    bool is_active;
     F func;
     int exception_count;
+    bool is_active;
 };
 
 template <typename F>
-Defer<F> make_defer(F func) {
-    return Defer<F>(func);
+defer_ty<F> make_defer(F func) {
+    return defer_ty<F>(func);
 }
 
 template <typename F>
-ErrDefer<F> make_errdefer(F func) {
-    return ErrDefer<F>(func);
+err_defer_ty<F> make_errdefer(F func) {
+    return err_defer_ty<F>(func);
 }
 } // namespace detail
 

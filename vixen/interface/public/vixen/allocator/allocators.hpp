@@ -5,6 +5,8 @@
 #include "vixen/allocator/allocator.hpp"
 #include "vixen/traits.hpp"
 
+#include "erased_storage.hpp"
+
 /// @file
 /// @ingroup vixen_allocator
 

@@ -126,6 +126,7 @@ protected:
 /// Allocators inheriting from this class are _resettable_, and may have all of their allocations
 /// discarded with a single call to `reset`.
 struct resettable_allocator : public allocator {
+    resettable_allocator() : allocator() {}
     virtual ~resettable_allocator() {}
 
     void reset();
@@ -222,9 +223,12 @@ using allocator = vixen::heap::allocator;
 
 namespace vixen {
 
+struct copy_tag_t {};
+constexpr copy_tag_t copy_tag{};
+
 template <typename T>
 using has_allocator_aware_copy_ctor_type
-    = decltype(T{std::declval<allocator *>(), std::declval<const T &>()});
+    = decltype(T{copy_tag, std::declval<allocator *>(), std::declval<const T &>()});
 
 template <typename T, typename = void>
 struct has_allocator_aware_copy_ctor : std::false_type {};
@@ -236,7 +240,7 @@ struct has_allocator_aware_copy_ctor<T, std::void_t<has_allocator_aware_copy_cto
 template <typename T>
 T copy_construct_maybe_allocator_aware(allocator *alloc, const T &original) {
     if constexpr (has_allocator_aware_copy_ctor<T>::value) {
-        return T(alloc, original);
+        return T(copy_tag, alloc, original);
     } else {
         return T(original);
     }

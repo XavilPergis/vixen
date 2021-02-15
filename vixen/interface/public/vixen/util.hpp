@@ -35,42 +35,6 @@ struct run_at_static_init {
 
 namespace vixen::util {
 
-/// @ingroup vixen_util
-template <typename T>
-inline void copy(T const *src, T *dst, usize elements) {
-    ::std::memmove(dst, src, sizeof(T) * elements);
-}
-
-/// @ingroup vixen_util
-template <typename T>
-inline void copy_nonoverlapping(T const *src, T *dst, usize elements) {
-    ::std::memcpy(dst, src, sizeof(T) * elements);
-}
-
-/// @ingroup vixen_util
-template <typename T>
-inline void copy_to_raw(T const *src, void *dst, usize elements) {
-    ::std::memmove(dst, src, sizeof(T) * elements);
-}
-
-/// @ingroup vixen_util
-template <typename T>
-inline void copy_nonoverlapping_to_raw(T const *src, void *dst, usize elements) {
-    ::std::memcpy(dst, src, sizeof(T) * elements);
-}
-
-/// @ingroup vixen_util
-template <typename T>
-inline void copy_from_raw(void const *src, T *dst, usize elements) {
-    ::std::memmove(dst, src, sizeof(T) * elements);
-}
-
-/// @ingroup vixen_util
-template <typename T>
-inline void copy_nonoverlapping_from_raw(void const *src, T *dst, usize elements) {
-    ::std::memcpy(dst, src, sizeof(T) * elements);
-}
-
 template <typename T>
 struct remove_reference_trait {
     using type = T;
@@ -88,6 +52,88 @@ using remove_reference = typename remove_reference_trait<T>::type;
 template <typename T>
 constexpr remove_reference<T> &&move(T &&val) {
     return static_cast<remove_reference<T> &&>(val);
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy(T const *src, T *dst, usize elements) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+        ::std::memmove(dst, src, sizeof(T) * elements);
+    } else {
+        for (usize i = 0; i < elements; ++i) {
+            dst[i] = src[i];
+        }
+    }
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy_move(T *src, T *dst, usize elements) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+        ::std::memmove(dst, src, sizeof(T) * elements);
+    } else {
+        if (src > dst) {
+            for (usize i = 0; i < elements; ++i) {
+                dst[i] = mv(src[i]);
+            }
+        } else if (src < dst) {
+            for (usize i = 0; i < elements; ++i) {
+                dst[i] = mv(src[i]);
+            }
+        }
+    }
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy_nonoverlapping(T const *src, T *dst, usize elements) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+        ::std::memcpy(dst, src, sizeof(T) * elements);
+    } else {
+        for (usize i = 0; i < elements; ++i) {
+            dst[i] = src[i];
+        }
+    }
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy_move_nonoverlapping(T const *src, T *dst, usize elements) {
+    if constexpr (std::is_trivially_copyable_v<T>) {
+        ::std::memcpy(dst, src, sizeof(T) * elements);
+    } else {
+        for (usize i = 0; i < elements; ++i) {
+            dst[i] = mv(src[i]);
+        }
+    }
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy_to_raw(T const *src, void *dst, usize elements) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    ::std::memmove(dst, src, sizeof(T) * elements);
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy_nonoverlapping_to_raw(T const *src, void *dst, usize elements) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    ::std::memcpy(dst, src, sizeof(T) * elements);
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy_from_raw(void const *src, T *dst, usize elements) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    ::std::memmove(dst, src, sizeof(T) * elements);
+}
+
+/// @ingroup vixen_util
+template <typename T>
+inline void copy_nonoverlapping_from_raw(void const *src, T *dst, usize elements) {
+    static_assert(std::is_trivially_copyable_v<T>);
+    ::std::memcpy(dst, src, sizeof(T) * elements);
 }
 
 /// @ingroup vixen_util
@@ -121,7 +167,7 @@ constexpr bool is_power_of_two(T n) {
 /// @ingroup vixen_util
 template <typename P, typename A>
 constexpr P align_pointer_up(P ptr, A align) {
-    return (P)((A)ptr + (align - 1) & ~(align - 1));
+    return (P)(((A)ptr + (align - 1)) & ~(align - 1));
 }
 
 /// @ingroup vixen_util

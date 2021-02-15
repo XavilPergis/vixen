@@ -39,25 +39,25 @@ unique<T>::~unique() {
 
 template <typename T>
 const T &unique<T>::operator*() const {
-    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    VIXEN_ASSERT_NONNULL(inner_pointer);
     return inner_pointer->data;
 }
 
 template <typename T>
 const T *unique<T>::operator->() const {
-    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    VIXEN_ASSERT_NONNULL(inner_pointer);
     return &inner_pointer->data;
 }
 
 template <typename T>
 T &unique<T>::operator*() {
-    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    VIXEN_ASSERT_NONNULL(inner_pointer);
     return inner_pointer->data;
 }
 
 template <typename T>
 T *unique<T>::operator->() {
-    VIXEN_ASSERT_NONNULL(inner_pointer->data);
+    VIXEN_ASSERT_NONNULL(inner_pointer);
     return &inner_pointer->data;
 }
 
@@ -68,12 +68,12 @@ unique<T>::operator bool() const {
 
 template <typename T>
 unique<T>::operator const_pointer() const {
-    return inner_pointer;
+    return inner_pointer ? &inner_pointer->data : nullptr;
 }
 
 template <typename T>
 unique<T>::operator pointer() {
-    return inner_pointer;
+    return inner_pointer ? &inner_pointer->data : nullptr;
 }
 
 template <typename T>

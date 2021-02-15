@@ -9,5 +9,5 @@
 // and `V>`.
 #define VIXEN_DEFINE_CLONE_METHOD(...)                         \
     __VA_ARGS__ clone(::vixen::heap::allocator *alloc) const { \
-        return __VA_ARGS__(alloc, *this);                      \
+        return __VA_ARGS__(copy_tag, alloc, *this);            \
     }

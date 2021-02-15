@@ -32,6 +32,10 @@ struct layout {
     /// new alignment.
     constexpr layout add_alignment(usize align) const;
 
+    constexpr layout packed_duplicate(usize count) const {
+        return {count * size, align};
+    }
+
     usize size, align;
 
     template <typename S>

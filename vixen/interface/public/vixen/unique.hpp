@@ -45,7 +45,7 @@ private:
         allocator *alloc;
     };
 
-    inner *inner_pointer;
+    inner *inner_pointer = nullptr;
 };
 
 template <typename T, typename H>

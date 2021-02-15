@@ -384,7 +384,7 @@ inline void hash(const string &value, H &hasher) {
 namespace utf8 {
 
 inline bool is_char_boundary(char utf8_char) {
-    return (utf8_char & 0xc0) != 0xe0;
+    return (utf8_char & 0xc0) != 0x80;
 }
 
 inline string_slice encode_slice(u32 codepoint, char *buf) {

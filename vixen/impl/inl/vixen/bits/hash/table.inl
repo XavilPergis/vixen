@@ -41,7 +41,7 @@ hash_table<T, H, C>::hash_table(allocator *alloc, usize default_capacity) : allo
 }
 
 template <typename T, typename H, typename C>
-hash_table<T, H, C>::hash_table(allocator *alloc, const hash_table &other)
+hash_table<T, H, C>::hash_table(copy_tag_t, allocator *alloc, const hash_table &other)
     : hash_table(alloc, other.capacity) {
     for (usize i = 0; i < capacity; ++i) {
         if (!impl::is_vacant(other.control[i])) {
@@ -168,6 +168,9 @@ constexpr void hash_table<T, H, C>::clear() {
 template <typename T, typename H, typename C>
 template <typename OT>
 constexpr option<usize> hash_table<T, H, C>::find_slot(u64 hash, const OT &value) const {
+    if (capacity == 0)
+        return empty_opt;
+
     u64 hash1 = impl::extract_h1(hash) % capacity;
     u8 hash2 = impl::extract_h2(hash);
 

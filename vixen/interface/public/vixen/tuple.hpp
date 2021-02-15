@@ -6,107 +6,114 @@
 #include "vixen/types.hpp"
 
 namespace vixen {
+
+struct tuple_concat_tag {};
+
+template <usize Index, typename... Ts>
+struct pack_select;
+
+template <typename T, typename... Ts>
+struct pack_select<0, T, Ts...> {
+    using type = T;
+};
+
+template <usize Index, typename T, typename... Ts>
+struct pack_select<Index, T, Ts...> : pack_select<Index - 1, Ts...> {};
+
 template <usize L, typename T>
 struct value_holder {
-    value_holder(T &&value) : value(mv(value)) {}
-    value_holder(T const &value) : value(value) {}
     value_holder() = default;
+    value_holder(value_holder &&) = default;
+    value_holder(value_holder const &) = default;
+    value_holder &operator=(value_holder &&) = default;
+    value_holder &operator=(value_holder const &) = default;
 
-    value_holder(value_holder &&other) = default;
-    value_holder(value_holder const &other) = default;
-    value_holder(allocator *alloc, value_holder const &other)
+    template <typename U>
+    value_holder(U &&val) : value(std::forward<U>(val)) {}
+
+    value_holder(copy_tag_t, allocator *alloc, value_holder const &other)
         : value(copy_construct_maybe_allocator_aware(alloc, other.value)) {}
-
-    T &get() {
-        return value;
-    }
-
-    T const &get() const {
-        return value;
-    }
 
     T value;
 };
 
-template <usize L, typename Ts>
-struct tuple_impl_base
-    : public tuple_impl_base<L + 1, tail<Ts>>
-    , public value_holder<L, head<Ts>> {
-    using base = tuple_impl_base<L + 1, tail<Ts>>;
-    using holder = value_holder<L, head<Ts>>;
+template <usize Index, typename... Ts>
+struct tuple_impl;
+
+template <usize Index, typename A, typename B, typename... Ts>
+struct tuple_impl<Index, A, B, Ts...>
+    : value_holder<Index, A>
+    , tuple_impl<Index + 1, B, Ts...> {
+    using base = tuple_impl<Index + 1, B, Ts...>;
+    using holder = value_holder<Index, A>;
+
+    tuple_impl() = default;
+    tuple_impl(tuple_impl &&other) = default;
+    tuple_impl(tuple_impl const &other) = default;
+    tuple_impl &operator=(tuple_impl &&other) = default;
+    tuple_impl &operator=(tuple_impl const &other) = default;
 
     template <typename U, typename... Us>
-    tuple_impl_base(U &&value, Us &&...values)
-        : base(std::forward<Us>(values)...), holder(std::forward<U>(value)) {}
-    tuple_impl_base() = default;
+    tuple_impl(U &&head, Us &&...values)
+        : holder(std::forward<U>(head)), base(std::forward<Us>(values)...) {}
 
-    tuple_impl_base(tuple_impl_base &&other) = default;
-    tuple_impl_base(tuple_impl_base const &other) = default;
-    tuple_impl_base(allocator *alloc, tuple_impl_base const &other)
-        : base(alloc, static_cast<base const &>(other))
-        , holder(alloc, static_cast<holder const &>(other)) {}
-
-    template <typename F>
-    void each(F &&func) {
-        func(holder::get());
-        base::each(func);
-    }
-
-    template <typename T, typename F>
-    T fold(T &&acc, F &func) {
-        return base::fold(func(std::forward<T>(acc), holder::get()));
-    }
+    tuple_impl(copy_tag_t, allocator *alloc, tuple_impl const &other)
+        : holder(copy_tag, alloc, static_cast<holder const &>(other))
+        , base(copy_tag, alloc, static_cast<base const &>(other)) {}
 };
 
-template <usize L>
-struct tuple_impl_base<L, nil> {
-    tuple_impl_base() {}
+template <usize Index, typename T>
+struct tuple_impl<Index, T> : value_holder<Index, T> {
+    using holder = value_holder<Index, T>;
 
-    tuple_impl_base(tuple_impl_base &&other) = default;
-    tuple_impl_base(tuple_impl_base const &other) = default;
-    tuple_impl_base(allocator *alloc, tuple_impl_base const &other) {}
+    tuple_impl() = default;
+    tuple_impl(tuple_impl &&other) = default;
+    tuple_impl(tuple_impl const &other) = default;
+    tuple_impl &operator=(tuple_impl &&other) = default;
+    tuple_impl &operator=(tuple_impl const &other) = default;
 
-    template <typename F>
-    void each(F &&func) {}
+    template <typename U>
+    tuple_impl(U &&head) : holder(std::forward<U>(head)) {}
 
-    template <typename T, typename F>
-    T fold(T &&acc, F &func) {
-        return std::forward<T>(acc);
-    }
+    tuple_impl(copy_tag_t, allocator *alloc, tuple_impl const &other)
+        : holder(copy_tag, alloc, static_cast<holder const &>(other)) {}
 };
 
 // --------------------------------------------------------------------------------
 
-template <typename Ts>
-struct tuple_impl : tuple_impl_base<0, Ts> {
+template <typename... Ts>
+struct tuple : tuple_impl<0, Ts...> {
     template <typename... Us>
-    tuple_impl(Us &&...values) : tuple_impl_base<0, Ts>(std::forward<Us>(values)...) {}
-    tuple_impl() : tuple_impl_base<0, Ts>() {}
+    tuple(Us &&...values) : tuple_impl<0, Ts...>(std::forward<Us>(values)...) {}
 
-    tuple_impl(tuple_impl &&other) = default;
-    tuple_impl(tuple_impl const &other) = default;
-    tuple_impl(allocator *alloc, tuple_impl const &other)
-        : tuple_impl_base<0, Ts>(alloc, static_cast<tuple_impl_base<0, Ts> const &>(other)) {}
+    tuple() = default;
+    tuple(tuple &&) = default;
+    tuple(tuple const &) = default;
+    tuple &operator=(tuple &&) = default;
+    tuple &operator=(tuple const &) = default;
 
-    template <usize I>
-    select<I, Ts> &get() {
-        return value_holder<I, select<I, Ts>>::get();
-    }
+    tuple(copy_tag_t, allocator *alloc, tuple const &other)
+        : tuple_impl<0, Ts...>(copy_tag, alloc, static_cast<tuple_impl<0, Ts...> const &>(other)) {}
 
     template <usize I>
-    select<I, Ts> const &get() const {
-        return value_holder<I, select<I, Ts>>::get();
+    typename pack_select<I, Ts...>::type &get() {
+        return value_holder<I, typename pack_select<I, Ts...>::type>::value;
     }
 
-    template <typename F>
-    void each(F &&func) {
-        tuple_impl_base<0, Ts>::each(std::forward<F>(func));
+    template <usize I>
+    typename pack_select<I, Ts...>::type const &get() const {
+        return value_holder<I, typename pack_select<I, Ts...>::type>::value;
     }
 
-    template <typename T, typename F>
-    T fold(T &&acc, F &&func) {
-        return tuple_impl_base<0, Ts>::fold(std::forward<T>(acc), func);
-    }
+    // template <typename F>
+    // void each(F &&func) {
+    //     tuple_impl<0, Ts>::each(std::forward<F>(func));
+    // }
+
+    // template <typename T, typename F>
+    // T fold(T &&acc, F &&func) {
+    //     return tuple_impl<0, Ts>::fold(std::forward<T>(acc), func);
+    // }
 
     // tuple<A, B, C, D> -> remove<2>() -> tuple<C, tuple<A, B, D>>
     // template <usize I>
@@ -116,14 +123,47 @@ struct tuple_impl : tuple_impl_base<0, Ts> {
     // typename Insert<I, Ts...>::Type insert(const &value);
 };
 
-template <typename Ts>
-using cons_tuple = tuple_impl<Ts>;
+template <usize I, typename... Ts>
+typename pack_select<I, Ts...>::type &get(tuple<Ts...> &tup) {
+    return tup.template get<I>();
+}
+
+template <usize I, typename... Ts>
+typename pack_select<I, Ts...>::type &get(tuple<Ts...> const &tup) {
+    return tup.template get<I>();
+}
+
+template <usize... Ixs>
+struct index_sequence {};
+
+template <usize Len, usize... Ixs>
+auto make_index_sequence_impl() {
+    if constexpr (Len == 0) {
+        return index_sequence<Ixs...>{};
+    } else {
+        return make_index_sequence_impl<Len - 1, Len - 1, Ixs...>();
+    }
+}
+
+template <usize Len>
+using make_index_sequence = decltype(make_index_sequence_impl<Len>());
 
 template <typename... Ts>
-using tuple = tuple_impl<unpack<Ts...>>;
+tuple<std::remove_reference_t<Ts>...> make_tuple(Ts &&...values) {
+    return tuple<std::remove_reference_t<Ts>...>{std::forward<Ts>(values)...};
+}
 
-// template <typename... Ts>
-// void destruct(tuple<Ts...> &tup)
-// {}
+template <typename... Ts, typename... Us, usize... TIs, usize... UIs>
+auto concat_tuples_impl(
+    tuple<Ts...> &&head, tuple<Us...> &&tail, index_sequence<TIs...>, index_sequence<UIs...>) {
+    return tuple<Ts..., Us...>(mv(get<TIs>(head))..., mv(get<UIs>(tail))...);
+}
+
+template <typename... Ts, typename... Us>
+auto concat_tuples(tuple<Ts...> &&head, tuple<Us...> &&tail) {
+    using head_seq = make_index_sequence<sizeof...(Ts)>;
+    using tail_seq = make_index_sequence<sizeof...(Us)>;
+    return concat_tuples_impl(mv(head), mv(tail), head_seq{}, tail_seq{});
+}
 
 } // namespace vixen
