@@ -266,6 +266,11 @@ struct option<T &> {
         storage = nullptr;
     }
 
+    constexpr T &get() {
+        VIXEN_DEBUG_ASSERT(storage != nullptr);
+        return *storage;
+    }
+
     constexpr T const &get() const {
         VIXEN_DEBUG_ASSERT(storage != nullptr);
         return *storage;
