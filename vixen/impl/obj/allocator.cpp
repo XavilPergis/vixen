@@ -7,7 +7,7 @@
 namespace vixen::heap {
 
 allocator *global_allocator() {
-    static page_allocator g_global_allocator{};
+    static system_allocator g_global_allocator{};
     return &g_global_allocator;
 }
 

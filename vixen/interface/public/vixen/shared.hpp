@@ -54,6 +54,9 @@ struct shared {
     T &operator*() { return *data; }
     T *operator->() { return data; }
 
+    const T &get() const { return *data; }
+    T &get() { return *data; }
+
     explicit operator bool() const { return data; }
     operator const_pointer() const { return data; }
     operator pointer() { return data; }

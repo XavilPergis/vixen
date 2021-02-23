@@ -3,9 +3,10 @@
 namespace vixen {
 
 template <typename T>
-template <typename U>
-unique<T>::unique(allocator *alloc, U &&other)
-    : inner_pointer(heap::create_init<unique<T>::inner>(alloc, std::forward<U>(other), alloc)) {}
+template <typename... Args>
+unique<T>::unique(allocator *alloc, Args &&...args)
+    : inner_pointer(heap::create_init<unique<T>::inner>(
+        alloc, unique<T>::inner{alloc, std::forward<Args>(args)...})) {}
 
 template <typename T>
 unique<T>::unique(allocator *alloc, const unique<T> &other)

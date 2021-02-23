@@ -53,6 +53,9 @@ constexpr u64 fx_hasher::finish() {
     return detail::hash_finalize(current);
 }
 
+// @FIXME: this has bugs! i was getting inconsistent hash values for strings, even on the first
+// character, so i suspect a pointer value is getting mixed up in the hash somewhere. It could also
+// be the case that we dont handle alignment correctly.
 constexpr void fx_hasher::write_bytes(const_rawptr data, usize len) {
     const_rawptr aligned = util::align_pointer_up(data, alignof(u64));
     const_rawptr cur = data;
@@ -91,6 +94,7 @@ _VIXEN_FXHASHER_WRITE_OVERLOAD(i64)
 _VIXEN_FXHASHER_WRITE_OVERLOAD(i32)
 _VIXEN_FXHASHER_WRITE_OVERLOAD(i16)
 _VIXEN_FXHASHER_WRITE_OVERLOAD(i8)
+_VIXEN_FXHASHER_WRITE_OVERLOAD(char)
 
 template <typename T>
 constexpr void fx_hasher::write(const T &value) {

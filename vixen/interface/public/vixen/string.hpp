@@ -71,6 +71,7 @@ struct string_slice {
 
     string_slice();
     string_slice(const char *cstr);
+    string_slice(const char *str, usize len);
     string_slice(slice<const char> slice);
     string_slice(string const &str);
 

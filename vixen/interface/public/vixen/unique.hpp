@@ -13,12 +13,12 @@ struct unique {
 
     unique() = default;
 
-    template <typename U>
-    unique(allocator *alloc, U &&other);
-    unique(allocator *alloc, const unique<T> &other);
+    template <typename... Args>
+    unique(allocator *alloc, Args &&...args);
+    unique(allocator *alloc, const unique &other);
 
-    unique(unique<T> &&other);
-    unique<T> &operator=(unique<T> &&other);
+    unique(unique &&other);
+    unique &operator=(unique &&other);
 
     ~unique();
 
@@ -41,6 +41,9 @@ struct unique {
 
 private:
     struct inner {
+        template <typename... Args>
+        inner(allocator *alloc, Args &&...args) : data(std::forward<Args>(args)...), alloc(alloc) {}
+
         T data;
         allocator *alloc;
     };

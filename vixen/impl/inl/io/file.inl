@@ -8,15 +8,15 @@
 
 namespace vixen {
 
-bool open_mode::is_readonly() const {
+inline bool open_mode::is_readonly() const {
     return read && !write;
 }
 
-bool open_mode::is_writeonly() const {
+inline bool open_mode::is_writeonly() const {
     return write && !read;
 }
 
-bool open_mode::is_readwrite() const {
+inline bool open_mode::is_readwrite() const {
     return read && write;
 }
 

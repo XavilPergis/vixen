@@ -208,6 +208,7 @@ inline vector<char> to_null_terminated(allocator *alloc, string_slice str) {
 
 inline string_slice::string_slice() : raw({}) {}
 inline string_slice::string_slice(const char *cstr) : raw({cstr, std::strlen(cstr)}) {}
+inline string_slice::string_slice(const char *str, usize len) : raw({str, len}) {}
 inline string_slice::string_slice(slice<const char> slice) : raw(slice) {}
 inline string_slice::string_slice(string const &str) : raw({str.begin(), str.len()}) {}
 

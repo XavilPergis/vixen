@@ -197,4 +197,28 @@ constexpr isize rawptr_difference(rawptr lo, rawptr hi) {
     return reinterpret_cast<isize>(hi) - reinterpret_cast<isize>(lo);
 }
 
+/// @ingroup vixen_util
+template <typename T>
+constexpr T const &min(T const &a, T const &b) {
+    return a > b ? b : a;
+}
+
+/// @ingroup vixen_util
+template <typename T>
+constexpr T &min(T &a, T &b) {
+    return a > b ? b : a;
+}
+
+/// @ingroup vixen_util
+template <typename T>
+constexpr T const &max(T const &a, T const &b) {
+    return a > b ? a : b;
+}
+
+/// @ingroup vixen_util
+template <typename T>
+constexpr T &max(T &a, T &b) {
+    return a > b ? a : b;
+}
+
 } // namespace vixen::util

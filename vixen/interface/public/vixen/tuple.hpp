@@ -83,7 +83,7 @@ struct tuple_impl<Index, T> : value_holder<Index, T> {
 
 template <typename... Ts>
 struct tuple : tuple_impl<0, Ts...> {
-    template <typename... Us>
+    template <typename... Us, require<std::conjunction<std::is_constructible<Ts, Us>...>> = true>
     tuple(Us &&...values) : tuple_impl<0, Ts...>(std::forward<Us>(values)...) {}
 
     tuple() = default;
@@ -133,6 +133,11 @@ typename pack_select<I, Ts...>::type &get(tuple<Ts...> const &tup) {
     return tup.template get<I>();
 }
 
+template <typename... Ts>
+constexpr tuple<Ts &&...> forward_as_tuple(Ts &&...args) noexcept {
+    return tuple<Ts &&...>(std::forward<Ts>(args)...);
+}
+
 template <usize... Ixs>
 struct index_sequence {};
 
@@ -149,21 +154,26 @@ template <usize Len>
 using make_index_sequence = decltype(make_index_sequence_impl<Len>());
 
 template <typename... Ts>
-tuple<std::remove_reference_t<Ts>...> make_tuple(Ts &&...values) {
-    return tuple<std::remove_reference_t<Ts>...>{std::forward<Ts>(values)...};
+tuple<Ts...> make_tuple(Ts &&...values) {
+    return tuple<Ts...>{std::forward<Ts>(values)...};
 }
 
+// clang-format off
 template <typename... Ts, typename... Us, usize... TIs, usize... UIs>
-auto concat_tuples_impl(
-    tuple<Ts...> &&head, tuple<Us...> &&tail, index_sequence<TIs...>, index_sequence<UIs...>) {
-    return tuple<Ts..., Us...>(mv(get<TIs>(head))..., mv(get<UIs>(tail))...);
+tuple<Ts..., Us...> concat_tuples_seq(tuple<Ts...> first, tuple<Us...> last, index_sequence<TIs...>, index_sequence<UIs...>) {
+    return tuple<Ts..., Us...>{
+        static_cast<Ts&&>(get<TIs>(first))...,
+        static_cast<Us&&>(get<UIs>(last))...
+    };
 }
+// clang-format on
 
 template <typename... Ts, typename... Us>
-auto concat_tuples(tuple<Ts...> &&head, tuple<Us...> &&tail) {
-    using head_seq = make_index_sequence<sizeof...(Ts)>;
-    using tail_seq = make_index_sequence<sizeof...(Us)>;
-    return concat_tuples_impl(mv(head), mv(tail), head_seq{}, tail_seq{});
+tuple<Ts..., Us...> concat_tuples(tuple<Ts...> first, tuple<Us...> last) {
+    return concat_tuples_seq(first,
+        last,
+        make_index_sequence<sizeof...(Ts)>{},
+        make_index_sequence<sizeof...(Us)>{});
 }
 
 } // namespace vixen

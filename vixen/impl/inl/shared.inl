@@ -7,10 +7,10 @@ namespace vixen {
 template <typename T>
 template <typename... Args>
 inline shared_repr<T>::shared_repr(allocator *alloc, Args &&...args)
-    : alloc(alloc)
-    , data(heap::create_init<T>(alloc, std::forward<Args>(args)...))
-    , strong_count(1)
-    , weak_count(1) {}
+    : strong_count(1)
+    , weak_count(1)
+    , alloc(alloc)
+    , data(heap::create_init<T>(alloc, std::forward<Args>(args)...)) {}
 
 template <typename T>
 inline void shared_repr<T>::acquire_strong() {
