@@ -15,16 +15,19 @@ const char *default_log_pattern_verbose
 const char *default_log_pattern_simple
     = "\x1b[1m%@\x1b[0m \x1b[1m~\x1b[0m %^%n/%l%$ \x1b[1m>\x1b[0m %v";
 
-logger_id default_logger = create_logger("default", [](logger_id id) {
+logger_id get_default_logger() {
+    static logger_id g_default_logger = create_logger("default", [](logger_id id) {
 #ifdef VIXEN_IS_DEBUG
-    set_logger_format_string(id, default_log_pattern_simple);
-    // set_logger_format_string(id, default_log_pattern_simple);
-    set_logger_verbosity(id, spdlog::level::debug);
+        set_logger_format_string(id, default_log_pattern_simple);
+        // set_logger_format_string(id, default_log_pattern_simple);
+        set_logger_verbosity(id, spdlog::level::debug);
 #else
-    set_logger_format_string(id, default_log_pattern_simple);
-    set_logger_verbosity(id, spdlog::level::warn);
+        set_logger_format_string(id, default_log_pattern_simple);
+        set_logger_verbosity(id, spdlog::level::warn);
 #endif
-});
+    });
+    return g_default_logger;
+}
 
 std::shared_ptr<spdlog::logger> create_raw_logger(const char *name) noexcept {
     std::shared_ptr<spdlog::logger> logger = spdlog::stdout_color_mt(name);

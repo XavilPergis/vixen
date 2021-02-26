@@ -4,6 +4,8 @@
 
 #include <unistd.h>
 
+#include "Tracy.hpp"
+
 namespace vixen::heap {
 
 allocator *global_allocator() {
@@ -27,9 +29,6 @@ usize page_size() {
 }
 
 void *allocator::alloc(const layout &layout) {
-    VIXEN_ASSERT_EXT(this != nullptr,
-        "Tried to allocate {}, but the allocator pointer was null.",
-        layout);
     begin_transaction(id);
     void *ptr = this->internal_alloc(layout);
     record_alloc(id, layout, ptr);
@@ -39,10 +38,6 @@ void *allocator::alloc(const layout &layout) {
 }
 
 void allocator::dealloc(const layout &layout, void *ptr) {
-    VIXEN_ASSERT_EXT(this != nullptr,
-        "Tried to deallocate {} ({}), but the allocator pointer was null.",
-        ptr,
-        layout);
     VIXEN_ASSERT(ptr != nullptr);
     std::memset(ptr, DEALLOCATION_PATTERN, layout.size);
     begin_transaction(id);
@@ -52,12 +47,6 @@ void allocator::dealloc(const layout &layout, void *ptr) {
 }
 
 void *allocator::realloc(const layout &old_layout, const layout &new_layout, void *old_ptr) {
-    VIXEN_ASSERT_EXT(this != nullptr,
-        "Tried to reallocate {} ({}) -> {}, but the allocator pointer was null.",
-        old_ptr,
-        old_layout,
-        new_layout);
-
     begin_transaction(id);
     void *ptr = this->internal_realloc(old_layout, new_layout, old_ptr);
     record_realloc(id, old_layout, old_ptr, new_layout, ptr);

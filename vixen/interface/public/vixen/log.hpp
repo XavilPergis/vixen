@@ -29,8 +29,11 @@
         ::vixen::util::strip_file_path(__FILE__), __LINE__, VIXEN_PRETTY_FUNCTION \
     }
 
-#define VIXEN_LOG(level, ...) \
-    ::vixen::log(::vixen::default_logger, _VIXEN_CAPTURE_SOURCE_LOCATION(), level, __VA_ARGS__);
+#define VIXEN_LOG(level, ...)                   \
+    ::vixen::log(::vixen::get_default_logger(), \
+        _VIXEN_CAPTURE_SOURCE_LOCATION(),       \
+        level,                                  \
+        __VA_ARGS__);
 #define VIXEN_TRACE(...) VIXEN_LOG(::vixen::logger_level::trace, __VA_ARGS__);
 #define VIXEN_DEBUG(...) VIXEN_LOG(::vixen::logger_level::debug, __VA_ARGS__);
 #define VIXEN_INFO(...) VIXEN_LOG(::vixen::logger_level::info, __VA_ARGS__);
@@ -78,7 +81,7 @@ void log(logger_id logger, source_location loc, logger_level lvl, const char *fm
     get_raw_logger(logger).log(loc, lvl, fmt, std::forward<Args>(args)...);
 }
 
-extern logger_id default_logger;
+logger_id get_default_logger();
 
 namespace util {
 constexpr const char *strip_file_path(const char *path) {

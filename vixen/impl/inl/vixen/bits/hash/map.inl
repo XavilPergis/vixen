@@ -8,11 +8,11 @@ template <typename K, typename V, typename H, typename C>
 constexpr hash_map<K, V, H, C>::hash_map(allocator *alloc) : table(alloc) {}
 
 template <typename K, typename V, typename H, typename C>
-hash_map<K, V, H, C>::hash_map(allocator *alloc, usize default_capacity)
+inline hash_map<K, V, H, C>::hash_map(allocator *alloc, usize default_capacity)
     : table(alloc, default_capacity) {}
 
 template <typename K, typename V, typename H, typename C>
-hash_map<K, V, H, C>::hash_map(copy_tag_t, allocator *alloc, const hash_map &other)
+inline hash_map<K, V, H, C>::hash_map(copy_tag_t, allocator *alloc, const hash_map &other)
     : table(other.table.clone(alloc)) {}
 
 template <typename K, typename V, typename H, typename C>
@@ -43,7 +43,7 @@ constexpr option<V> hash_map<K, V, H, C>::remove(const K &key) {
 
 template <typename K, typename V, typename H, typename C>
 template <typename OK, typename OV>
-option<V> hash_map<K, V, H, C>::insert(OK &&key, OV &&value) {
+inline option<V> hash_map<K, V, H, C>::insert(OK &&key, OV &&value) {
     table.grow();
 
     auto hash = make_hash<H>(key);
@@ -58,6 +58,22 @@ option<V> hash_map<K, V, H, C>::insert(OK &&key, OV &&value) {
     tuple<K, V> entry{std::forward<OK>(key), std::forward<OV>(value)};
     table.insert(slot, hash, mv(entry));
     return old;
+}
+
+template <typename K, typename V, typename H, typename C>
+template <typename OK, typename... Args>
+inline V &hash_map<K, V, H, C>::get_or_insert(OK &&key, Args &&...value) {
+    auto hash = make_hash<H>(key);
+    if (auto existing_slot = table.find_slot(hash, key)) {
+        return table.get(existing_slot.get()).template get<1>();
+    }
+
+    table.grow();
+
+    auto slot = table.find_insert_slot(hash, key);
+    tuple<K, V> entry{std::forward<OK>(key), V{std::forward<Args>(value)...}};
+    table.insert(slot, hash, mv(entry));
+    return table.get(slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>

@@ -138,6 +138,17 @@ constexpr tuple<Ts &&...> forward_as_tuple(Ts &&...args) noexcept {
     return tuple<Ts &&...>(std::forward<Ts>(args)...);
 }
 
+template <typename... Ts>
+struct type_sequence {};
+
+template <typename... Ts, typename... Us>
+type_sequence<Ts..., Us...> concat_type_seq_impl(type_sequence<Ts...>, type_sequence<Us...>) {
+    return type_sequence<Ts..., Us...>{};
+}
+
+template <typename A, typename B>
+using concat_type_sequence = decltype(concat_type_seq_impl(A{}, B{}));
+
 template <usize... Ixs>
 struct index_sequence {};
 

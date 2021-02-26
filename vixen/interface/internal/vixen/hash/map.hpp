@@ -86,6 +86,9 @@ struct hash_map {
     template <typename OK, typename OV>
     option<V> insert(OK &&key, OV &&value);
 
+    template <typename OK, typename... Args>
+    V &get_or_insert(OK &&key, Args &&...value);
+
     constexpr bool contains_key(K const &key) const;
 
     /// @brief Removes all entries from the map.
