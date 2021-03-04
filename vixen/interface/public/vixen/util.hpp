@@ -221,4 +221,16 @@ constexpr T &max(T &a, T &b) {
     return a > b ? a : b;
 }
 
+/// @ingroup vixen_util
+template <typename T>
+constexpr T const &clamp(T const &value, T const &lo, T const &hi) {
+    return value < lo ? lo : (value > hi ? hi : value);
+}
+
+/// @ingroup vixen_util
+template <typename T>
+constexpr T &clamp(T &value, T &lo, T &hi) {
+    return value < lo ? lo : (value > hi ? hi : value);
+}
+
 } // namespace vixen::util
