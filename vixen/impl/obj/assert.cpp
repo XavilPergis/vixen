@@ -7,12 +7,12 @@
 
 namespace vixen {
 
-logger_id panic_logger = create_logger("vixen-panic", [](logger_id id) {
+LoggerId panic_logger = create_logger("vixen-panic", [](LoggerId id) {
     set_logger_format_string(id,
         "\n%^panic:%$ in `%!` at %g:%# ~ %P/%t ~ %n/%l\n\n\x1b[31;1m# Panic Message\x1b[0m\n%v\n");
 });
 
-logger_id panic_stacktrace_logger = create_logger("vixen-panic-stacktrace", [](logger_id id) {
+LoggerId panic_stacktrace_logger = create_logger("vixen-panic-stacktrace", [](LoggerId id) {
     set_logger_format_string(id, "%^=>%$ %v");
 });
 
@@ -24,13 +24,13 @@ usize get_base_offset(void *trace_addr) {
 }
 
 void default_handler() {
-    translation_cache cache(heap::debug_allocator());
-    vector<void *> raw_trace = capture_stack_trace(heap::debug_allocator());
+    TranslationCache cache(heap::debug_allocator());
+    Vector<void *> raw_trace = capture_stack_trace(heap::debug_allocator());
 
     void *barrier_base = (void *)detail::invoke_panic_handler;
 
-    vector<address_info> translated_barrier = translate_stack_trace(&cache, {&barrier_base, 1});
-    vector<address_info> trace = translate_stack_trace(&cache, raw_trace);
+    Vector<AddressInfo> translated_barrier = translate_stack_trace(&cache, {&barrier_base, 1});
+    Vector<AddressInfo> trace = translate_stack_trace(&cache, raw_trace);
 
     usize barrier_idx = 0;
     for (usize i = 0; i < trace.len(); ++i) {

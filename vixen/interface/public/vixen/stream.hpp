@@ -52,22 +52,22 @@ namespace vixen::stream {
 /// @ingroup vixen_streams
 /// @brief Lifts a conforming stream component and makes it usable with generic stream utilities.
 template <typename T, typename C>
-pipeline<T, C> make_pipeline(C &&component) {
-    return pipeline<T, C>{mv(component)};
+StreamPipeline<T, C> make_pipeline(C &&component) {
+    return StreamPipeline<T, C>{mv(component)};
 }
 
 /// @ingroup vixen_streams
 /// @brief Creates an adapter that takes an input `n` and pushes an lvalue reference of `n` to each
 /// child sink.
 template <typename T, typename... Pipelines>
-inline pipeline<T, detail::split_sink<Pipelines...>> broadcast(Pipelines &&...pipelines) {
-    return make_pipeline<T>(detail::split_sink<Pipelines...>{tuple<Pipelines...>(pipelines...)});
+inline StreamPipeline<T, detail::split_sink<Pipelines...>> broadcast(Pipelines &&...pipelines) {
+    return make_pipeline<T>(detail::split_sink<Pipelines...>{Tuple<Pipelines...>(pipelines...)});
 }
 
 /// @ingroup vixen_streams
 /// @brief Creates a sink that takes an input `n` and calls `coll.push(n)`.
 template <typename Coll>
-inline pipeline<typename collection_types<Coll>::value_type, detail::back_inserter_sink<Coll>>
+inline StreamPipeline<typename collection_types<Coll>::value_type, detail::back_inserter_sink<Coll>>
     back_inserter(Coll &collection) {
     return make_pipeline<typename collection_types<Coll>::value_type>(
         detail::back_inserter_sink<Coll>{std::addressof(collection)});
@@ -76,7 +76,7 @@ inline pipeline<typename collection_types<Coll>::value_type, detail::back_insert
 /// @ingroup vixen_streams
 /// @brief Creates an adapter that takes an input `n` and pushes `n` if `predicate(n)` returns true.
 template <typename F>
-inline pipeline<typename function_traits<F>::argument<0>, detail::filter_adapter<F>> filter(
+inline StreamPipeline<typename function_traits<F>::argument<0>, detail::filter_adapter<F>> filter(
     F &&predicate) {
     return make_pipeline<typename function_traits<F>::argument<0>>(
         detail::filter_adapter<F>{predicate});
@@ -97,7 +97,8 @@ inline pipeline<typename function_traits<F>::argument<0>, detail::filter_adapter
 /// // `output` should now contain the values [6, 7, 8]
 /// @endcode
 template <typename F>
-inline pipeline<typename function_traits<F>::argument<0>, detail::map_adapter<F>> map(F &&mapper) {
+inline StreamPipeline<typename function_traits<F>::argument<0>, detail::map_adapter<F>> map(
+    F &&mapper) {
     return make_pipeline<typename function_traits<F>::argument<0>>(detail::map_adapter<F>{mapper});
 }
 
@@ -105,7 +106,7 @@ inline pipeline<typename function_traits<F>::argument<0>, detail::map_adapter<F>
 /// @brief Creates an output iterator that pushes all writes to the passed-in stream.
 template <typename T, typename CA, typename... Cs>
 inline detail::output_iterator_source<T, CA, Cs...> make_stream_output_iterator(
-    pipeline<T, CA, Cs...> &stream) {
+    StreamPipeline<T, CA, Cs...> &stream) {
     return detail::output_iterator_source(stream);
 }
 
@@ -115,7 +116,8 @@ inline detail::output_iterator_source<T, CA, Cs...> make_stream_output_iterator(
 /// Creates a new pipeline that contains all of the components from `first`, followed by all the
 /// components from `last`.
 template <typename T, typename U, typename... As, typename... Bs>
-inline pipeline<T, As..., Bs...> operator|(pipeline<T, As...> &&first, pipeline<U, Bs...> &&last) {
+inline StreamPipeline<T, As..., Bs...> operator|(
+    StreamPipeline<T, As...> &&first, StreamPipeline<U, Bs...> &&last) {
     return first.append_pipeline(mv(last));
 }
 

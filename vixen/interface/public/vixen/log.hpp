@@ -58,30 +58,30 @@
 
 namespace vixen {
 
-struct logger_id {
+struct LoggerId {
     usize id;
 };
 
 // Sorta weird API is due to wanting to be able to register loggers automatically during static
 // initialization.
-using logger_initializer = void (*)(logger_id);
+using logger_initializer = void (*)(LoggerId);
 
 using logger_level = ::spdlog::level::level_enum;
 using source_location = ::spdlog::source_loc;
 
-logger_id create_logger(const char *name, logger_initializer initializer);
+LoggerId create_logger(const char *name, logger_initializer initializer);
 
-void set_logger_format_string(logger_id id, const char *fmt);
-void set_logger_verbosity(logger_id id, logger_level level);
+void set_logger_format_string(LoggerId id, const char *fmt);
+void set_logger_verbosity(LoggerId id, logger_level level);
 
-spdlog::logger &get_raw_logger(logger_id id);
+spdlog::logger &get_raw_logger(LoggerId id);
 
 template <typename... Args>
-void log(logger_id logger, source_location loc, logger_level lvl, const char *fmt, Args &&...args) {
+void log(LoggerId logger, source_location loc, logger_level lvl, const char *fmt, Args &&...args) {
     get_raw_logger(logger).log(loc, lvl, fmt, std::forward<Args>(args)...);
 }
 
-logger_id get_default_logger();
+LoggerId get_default_logger();
 
 namespace util {
 constexpr const char *strip_file_path(const char *path) {

@@ -32,7 +32,7 @@ void encode(u32 codepoint, char *buf) {
     }
 }
 
-static option<usize> get_seq_length(char octet) {
+static Option<usize> get_seq_length(char octet) {
     // clang-format off
     if      ((octet & 0x80) == 0)    { return 1;  }
     else if ((octet & 0xe0) == 0xc0) { return 2;  }
@@ -42,13 +42,13 @@ static option<usize> get_seq_length(char octet) {
     // clang-format on
 }
 
-option<u32> decode(slice<const char> buf) {
-    if (buf.len == 0) {
+Option<u32> decode(Slice<const char> buf) {
+    if (buf.len() == 0) {
         return {};
     }
 
     if (auto len = get_seq_length(buf[0])) {
-        if (*len > buf.len) {
+        if (*len > buf.len()) {
             return {};
         }
 
@@ -84,12 +84,12 @@ option<u32> decode(slice<const char> buf) {
     ++current;
 #define IN_RANGE(s, e) \
     (static_cast<u8>(data[current]) >= (s) && static_cast<u8>(data[current]) <= (e))
-#define IN_BOUNDS(l) ((current + (l)-1) < data.len)
+#define IN_BOUNDS(l) ((current + (l)-1) < data.len())
 
-bool is_valid(slice<const char> data) {
+bool is_valid(Slice<const char> data) {
     usize current = 0;
 
-    while (current < data.len) {
+    while (current < data.len()) {
         bool valid = true;
 
         // The valid range for a sinle byte encoding is 0 through 0x7f inclusive, which exactly

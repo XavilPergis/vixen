@@ -84,8 +84,8 @@ struct result_impl {
 
     bool ok_flag;
     union {
-        uninitialized_storage<T> ok_storage;
-        uninitialized_storage<E> err_storage;
+        UninitializedStorage<T> ok_storage;
+        UninitializedStorage<E> err_storage;
     };
 };
 
@@ -139,14 +139,14 @@ struct result {
         return impl.get_err();
     }
 
-    option<T> to_ok() {
+    Option<T> to_ok() {
         if (impl.is_ok()) {
             return mv(impl.get_ok());
         } else {
             return empty_opt;
         }
     }
-    option<T> to_err() {
+    Option<T> to_err() {
         if (!impl.is_ok()) {
             return mv(impl.get_err());
         } else {
@@ -154,28 +154,28 @@ struct result {
         }
     }
 
-    option<T &> ok() {
+    Option<T &> ok() {
         if (impl.is_ok()) {
             return impl.get_ok();
         } else {
             return empty_opt;
         }
     }
-    option<T &> err() {
+    Option<T &> err() {
         if (!impl.is_ok()) {
             return impl.get_err();
         } else {
             return empty_opt;
         }
     }
-    option<const T &> ok() const {
+    Option<const T &> ok() const {
         if (impl.is_ok()) {
             return impl.get_ok();
         } else {
             return empty_opt;
         }
     }
-    option<const T &> err() const {
+    Option<const T &> err() const {
         if (!impl.is_ok()) {
             return impl.get_err();
         } else {

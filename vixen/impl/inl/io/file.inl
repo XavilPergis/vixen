@@ -8,20 +8,20 @@
 
 namespace vixen {
 
-inline bool open_mode::is_readonly() const {
+inline bool OpenMode::is_readonly() const {
     return read && !write;
 }
 
-inline bool open_mode::is_writeonly() const {
+inline bool OpenMode::is_writeonly() const {
     return write && !read;
 }
 
-inline bool open_mode::is_readwrite() const {
+inline bool OpenMode::is_readwrite() const {
     return read && write;
 }
 
 // detail
-inline int get_open_mode_flags(open_mode mode) {
+inline int get_open_mode_flags(OpenMode mode) {
     int flags;
 
     if (mode.is_readonly()) {
@@ -47,24 +47,24 @@ inline int get_open_mode_flags(open_mode mode) {
     return flags;
 }
 
-inline file::file(char const *path, open_mode mode) {
+inline File::File(char const *path, OpenMode mode) {
     int flags = get_open_mode_flags(mode);
     fd = mode.create ? ::open(path, flags, mode.create_mode) : ::open(path, flags);
 }
 
-inline file::~file() {
+inline File::~File() {
     ::close(fd);
 }
 
-inline usize file::read_chunk(slice<char> buf) {
-    return ::read(fd, buf.ptr, buf.len);
+inline usize File::read_chunk(Slice<char> buf) {
+    return ::read(fd, buf.begin(), buf.len());
 }
 
-inline vector<char> file::read_all(allocator *alloc, usize chunk_size) {
-    vector<char> buf(alloc);
+inline Vector<char> File::read_all(Allocator *alloc, usize chunk_size) {
+    Vector<char> buf(alloc);
 
     loop {
-        slice<char> tmp{buf.reserve(chunk_size), chunk_size};
+        Slice<char> tmp{buf.reserve(chunk_size), chunk_size};
         usize bytes_read = read_chunk(tmp);
 
         if (bytes_read != chunk_size) {
@@ -80,10 +80,10 @@ inline vector<char> file::read_all(allocator *alloc, usize chunk_size) {
 
 } // namespace vixen
 
-vixen::open_mode operator|(vixen::open_mode const &a, vixen::open_mode const &b) {
+vixen::OpenMode operator|(vixen::OpenMode const &a, vixen::OpenMode const &b) {
     VIXEN_ASSERT(a.create_mode == b.create_mode);
 
-    vixen::open_mode n = a;
+    vixen::OpenMode n = a;
     n.read |= b.read;
     n.write |= b.write;
     n.append |= b.append;

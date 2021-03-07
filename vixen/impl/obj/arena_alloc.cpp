@@ -2,7 +2,7 @@
 #include "vixen/allocator/profile.hpp"
 
 namespace vixen::heap {
-void *arena_allocator::try_allocate_in(const layout &layout, block_descriptor &block) {
+void *ArenaAllocator::try_allocate_in(const Layout &layout, BlockDescriptor &block) {
     void *aligned_ptr = util::align_pointer_up(block.current, layout.align);
     void *next_ptr = (void *)((usize)aligned_ptr + layout.size);
     // Bail if the allocation won't fit in this block.
@@ -15,8 +15,8 @@ void *arena_allocator::try_allocate_in(const layout &layout, block_descriptor &b
     return aligned_ptr;
 }
 
-void *arena_allocator::try_allocate_in_chain(const layout &layout, block_descriptor &block) {
-    arena_allocator::block_descriptor *current_block = &block;
+void *ArenaAllocator::try_allocate_in_chain(const Layout &layout, BlockDescriptor &block) {
+    ArenaAllocator::BlockDescriptor *current_block = &block;
     while (current_block) {
         void *allocated = try_allocate_in(layout, *current_block);
         if (allocated) {
@@ -28,16 +28,15 @@ void *arena_allocator::try_allocate_in_chain(const layout &layout, block_descrip
     return nullptr;
 }
 
-arena_allocator::block_descriptor *arena_allocator::allocate_block(const layout &required_layout) {
-    block_descriptor *block
-        = (block_descriptor *)this->parent->alloc(layout::of<block_descriptor>());
+ArenaAllocator::BlockDescriptor *ArenaAllocator::allocate_block(const Layout &required_layout) {
+    BlockDescriptor *block = (BlockDescriptor *)this->parent->alloc(Layout::of<BlockDescriptor>());
     if (!block) {
         return nullptr;
     }
     usize new_size = std::max(this->last_size * 2, required_layout.size);
     void *ptr = this->parent->alloc(required_layout.with_size(new_size));
     if (!ptr) {
-        this->parent->dealloc(layout::of<block_descriptor>(), (void *)block);
+        this->parent->dealloc(Layout::of<BlockDescriptor>(), (void *)block);
         return nullptr;
     }
 
@@ -50,36 +49,36 @@ arena_allocator::block_descriptor *arena_allocator::allocate_block(const layout 
     return block;
 }
 
-void arena_allocator::internal_reset() {
+void ArenaAllocator::internal_reset() {
     this->current_block = this->blocks;
-    block_descriptor *current_block = this->blocks;
+    BlockDescriptor *current_block = this->blocks;
     while (current_block) {
         current_block->current = current_block->start;
         current_block = current_block->next;
     }
 }
 
-arena_allocator::arena_allocator(allocator *alloc) : resettable_allocator() {
+ArenaAllocator::ArenaAllocator(Allocator *alloc) : ResettableAllocator() {
     this->last_size = 32;
     this->blocks = nullptr;
     this->current_block = nullptr;
     this->parent = alloc;
 }
 
-arena_allocator::~arena_allocator() {
+ArenaAllocator::~ArenaAllocator() {
     reset();
 
-    block_descriptor *current_block = this->blocks;
+    BlockDescriptor *current_block = this->blocks;
     while (current_block) {
-        block_descriptor *next_block = current_block->next;
+        BlockDescriptor *next_block = current_block->next;
         this->parent->dealloc(current_block->block_layout, current_block->start);
-        this->parent->dealloc(layout::of<block_descriptor>(), current_block);
+        this->parent->dealloc(Layout::of<BlockDescriptor>(), current_block);
         current_block = next_block;
     }
 }
 
-void *arena_allocator::internal_realloc(
-    const layout &old_layout, const layout &new_layout, void *old_ptr) {
+void *ArenaAllocator::internal_realloc(
+    const Layout &old_layout, const Layout &new_layout, void *old_ptr) {
     _VIXEN_REALLOC_PROLOGUE(old_layout, new_layout, old_ptr)
 
     // Differing alignments probably won't happen, or will be exceedingly rare, so we shouldn't
@@ -111,7 +110,7 @@ void *arena_allocator::internal_realloc(
     return general_realloc(this, old_layout, new_layout, old_ptr);
 }
 
-void arena_allocator::internal_dealloc(const layout &layout, void *ptr) {
+void ArenaAllocator::internal_dealloc(const Layout &layout, void *ptr) {
     _VIXEN_DEALLOC_PROLOGUE(layout, ptr)
 
     // Don't grow if we can rewind the last allocation. Very good for loops that push a bunch of
@@ -121,7 +120,7 @@ void arena_allocator::internal_dealloc(const layout &layout, void *ptr) {
     }
 }
 
-void *arena_allocator::internal_alloc(const layout &layout) {
+void *ArenaAllocator::internal_alloc(const Layout &layout) {
     _VIXEN_ALLOC_PROLOGUE(layout)
 
     void *ptr = this->current_block == nullptr
@@ -129,7 +128,7 @@ void *arena_allocator::internal_alloc(const layout &layout) {
         : try_allocate_in_chain(layout, *this->current_block);
 
     if (!ptr) {
-        block_descriptor *new_block = allocate_block(layout);
+        BlockDescriptor *new_block = allocate_block(layout);
         this->last_size = (usize)new_block->end - (usize)new_block->start;
         // Note that the call to `try_allocate_in_chain` changes `this->current_block`, so
         // if we get to this point, then `this->current_block` is the last block.
@@ -145,7 +144,7 @@ void *arena_allocator::internal_alloc(const layout &layout) {
     }
 
     if (ptr == nullptr) {
-        throw allocation_exception{};
+        throw AllocationException{};
     }
     return ptr;
 }

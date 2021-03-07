@@ -7,7 +7,7 @@
 
 namespace vixen {
 
-struct open_mode {
+struct OpenMode {
     bool read, write, create, append, truncate;
     u16 create_mode;
 
@@ -17,32 +17,32 @@ struct open_mode {
 };
 
 namespace mode {
-constexpr open_mode read = {true, false, false, false, false, 0};
-constexpr open_mode write = {false, true, false, false, false, 0};
-constexpr open_mode append = {false, false, false, true, false, 0};
-constexpr open_mode truncate = {false, false, false, false, true, 0};
-constexpr open_mode create(u16 mode) {
+constexpr OpenMode read = {true, false, false, false, false, 0};
+constexpr OpenMode write = {false, true, false, false, false, 0};
+constexpr OpenMode append = {false, false, false, true, false, 0};
+constexpr OpenMode truncate = {false, false, false, false, true, 0};
+constexpr OpenMode create(u16 mode) {
     return {false, false, true, false, false, mode};
 }
 } // namespace mode
 
-struct file {
+struct File {
     int fd;
 
-    explicit file(char const *path, open_mode mode);
-    ~file();
+    explicit File(char const *path, OpenMode mode);
+    ~File();
 
-    usize read_chunk(slice<char> buf);
-    vector<char> read_all(allocator *alloc, usize chunk_size = 512);
+    usize read_chunk(Slice<char> buf);
+    Vector<char> read_all(Allocator *alloc, usize chunk_size = 512);
 
-    usize write_chunk(slice<char> buf);
-    void write_all(slice<char> buf);
+    usize write_chunk(Slice<char> buf);
+    void write_all(Slice<char> buf);
 
     void flush();
 };
 
 } // namespace vixen
 
-inline vixen::open_mode operator|(vixen::open_mode const &a, vixen::open_mode const &b);
+inline vixen::OpenMode operator|(vixen::OpenMode const &a, vixen::OpenMode const &b);
 
 #include "io/file.inl"

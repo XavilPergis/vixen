@@ -12,39 +12,39 @@
 
 namespace vixen::heap {
 
-inline bool layout::operator==(const layout &rhs) const {
+inline bool Layout::operator==(const Layout &rhs) const {
     return size == rhs.size && align == rhs.align;
 }
-inline bool layout::operator!=(const layout &rhs) const {
+inline bool Layout::operator!=(const Layout &rhs) const {
     return !(*this == rhs);
 }
 
 template <typename T>
-constexpr layout layout::of() {
+constexpr Layout Layout::of() {
     return {sizeof(T), alignof(T)};
 }
 
 template <typename T>
-constexpr layout layout::array_of(usize len) {
+constexpr Layout Layout::array_of(usize len) {
     return {len * sizeof(T), alignof(T)};
 }
 
-constexpr layout layout::array(usize len) const {
+constexpr Layout Layout::array(usize len) const {
     return {len * size, align};
 }
-constexpr layout layout::with_size(usize size) const {
+constexpr Layout Layout::with_size(usize size) const {
     return {size, align};
 }
-constexpr layout layout::with_align(usize align) const {
+constexpr Layout Layout::with_align(usize align) const {
     return {size, align};
 }
 
-constexpr layout layout::add_alignment(usize align) const {
+constexpr Layout Layout::add_alignment(usize align) const {
     return {size, align > this->align ? this->align : align};
 }
 
 inline void *general_realloc(
-    allocator *alloc, const layout &old_layout, const layout &new_layout, void *old_ptr) {
+    Allocator *alloc, const Layout &old_layout, const Layout &new_layout, void *old_ptr) {
     void *new_ptr = alloc->alloc(new_layout);
     if (old_ptr) {
         util::copy_nonoverlapping((u8 *)old_ptr,
@@ -61,65 +61,65 @@ inline void *general_realloc(
     return new_ptr;
 }
 
-inline void *allocator::internal_realloc(
-    const layout &old_layout, const layout &new_layout, void *old_ptr) {
+inline void *Allocator::internal_realloc(
+    const Layout &old_layout, const Layout &new_layout, void *old_ptr) {
     return general_realloc(this, old_layout, new_layout, old_ptr);
 }
 
 template <typename T>
-inline T *create_uninit(allocator *alloc) {
-    return (T *)alloc->alloc(layout::of<T>());
+inline T *create_uninit(Allocator *alloc) {
+    return (T *)alloc->alloc(Layout::of<T>());
 }
 
 template <typename T>
-inline T *create_array_uninit(allocator *alloc, usize len) {
-    return (T *)alloc->alloc(layout::array_of<T>(len));
+inline T *create_array_uninit(Allocator *alloc, usize len) {
+    return (T *)alloc->alloc(Layout::array_of<T>(len));
 }
 
 template <typename T>
-inline T *create_array_init(allocator *alloc, usize len, T const &pattern) {
-    T *ptr = (T *)alloc->alloc(layout::array_of<T>(len));
+inline T *create_array_init(Allocator *alloc, usize len, T const &pattern) {
+    T *ptr = (T *)alloc->alloc(Layout::array_of<T>(len));
     util::fill(pattern, ptr, len);
     return ptr;
 }
 
 template <typename T, typename... Args>
-inline T *create_init(allocator *alloc, Args &&...args) {
-    return new (alloc->alloc(layout::of<T>())) T{std::forward<Args>(args)...};
+inline T *create_init(Allocator *alloc, Args &&...args) {
+    return new (alloc->alloc(Layout::of<T>())) T{std::forward<Args>(args)...};
 }
 
 template <typename T>
-inline void destroy_uninit(allocator *alloc, T *ptr) {
-    alloc->dealloc(layout::of<T>(), ptr);
+inline void destroy_uninit(Allocator *alloc, T *ptr) {
+    alloc->dealloc(Layout::of<T>(), ptr);
 }
 
 template <typename T>
-inline void destroy_init(allocator *alloc, T *ptr) {
+inline void destroy_init(Allocator *alloc, T *ptr) {
     ptr->~T();
-    alloc->dealloc(layout::of<T>(), ptr);
+    alloc->dealloc(Layout::of<T>(), ptr);
 }
 
 template <typename T>
-inline void destroy_array_uninit(allocator *alloc, T *ptr, usize len) {
-    alloc->dealloc(layout::array_of<T>(len), ptr);
+inline void destroy_array_uninit(Allocator *alloc, T *ptr, usize len) {
+    alloc->dealloc(Layout::array_of<T>(len), ptr);
 }
 
 template <typename T>
-inline void *resize_array(allocator *alloc, T *old_ptr, usize old_len, usize new_len) {
-    return alloc->realloc(layout::array_of<T>(old_len), layout::array_of<T>(new_len), old_ptr);
+inline void *resize_array(Allocator *alloc, T *old_ptr, usize old_len, usize new_len) {
+    return alloc->realloc(Layout::array_of<T>(old_len), Layout::array_of<T>(new_len), old_ptr);
 }
 
 // --- PARALLEL DEALLOC ---
 
 template <typename H>
-inline void dealloc_parallel(allocator *alloc, usize len, H *&head) {
-    alloc->dealloc(layout::array_of<H>(len), static_cast<void *>(head));
+inline void dealloc_parallel(Allocator *alloc, usize len, H *&head) {
+    alloc->dealloc(Layout::array_of<H>(len), static_cast<void *>(head));
     head = nullptr;
 }
 
 template <typename H, typename... Args>
-inline void dealloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args) {
-    alloc->dealloc(layout::array_of<H>(len), static_cast<void *>(head));
+inline void dealloc_parallel(Allocator *alloc, usize len, H *&head, Args *&...args) {
+    alloc->dealloc(Layout::array_of<H>(len), static_cast<void *>(head));
     dealloc_parallel(alloc, len, args...);
     head = nullptr;
 }
@@ -127,18 +127,18 @@ inline void dealloc_parallel(allocator *alloc, usize len, H *&head, Args *&...ar
 // --- PARALLEL ALLOC ---
 
 template <typename H>
-inline void alloc_parallel(allocator *alloc, usize len, H *&head) {
-    head = (H *)alloc->alloc(layout::array_of<H>(len));
+inline void alloc_parallel(Allocator *alloc, usize len, H *&head) {
+    head = (H *)alloc->alloc(Layout::array_of<H>(len));
 }
 
 template <typename H, typename... Args>
-inline void alloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args) {
-    layout layout = layout::array_of<H>(len);
+inline void alloc_parallel(Allocator *alloc, usize len, H *&head, Args *&...args) {
+    Layout layout = Layout::array_of<H>(len);
     auto *allocated = (H *)alloc->alloc(layout);
 
     try {
         alloc_parallel(alloc, len, args...);
-    } catch (allocation_exception &ex) {
+    } catch (AllocationException &ex) {
         alloc->dealloc(layout, static_cast<void *>(allocated));
         throw;
     }
@@ -149,26 +149,26 @@ inline void alloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args
 // --- PARALLEL REALLOC ---
 
 template <typename H>
-inline void realloc_parallel(allocator *alloc, usize old_len, usize new_len, H *&head) {
+inline void realloc_parallel(Allocator *alloc, usize old_len, usize new_len, H *&head) {
     // Since this is the lasy layer called, we don't need to worry about any of the other
     // reallocations throwing.
-    head = reinterpret_cast<H *>(alloc->realloc(layout::array_of<H>(old_len),
-        layout::array_of<H>(new_len),
+    head = reinterpret_cast<H *>(alloc->realloc(Layout::array_of<H>(old_len),
+        Layout::array_of<H>(new_len),
         static_cast<void *>(head)));
 }
 
 template <typename H, typename... Args>
 inline void realloc_parallel(
-    allocator *alloc, usize old_len, usize new_len, H *&head, Args *&...args) {
-    layout old_layout = layout::array_of<H>(old_len);
-    layout new_layout = layout::array_of<H>(new_len);
+    Allocator *alloc, usize old_len, usize new_len, H *&head, Args *&...args) {
+    Layout old_layout = Layout::array_of<H>(old_len);
+    Layout new_layout = Layout::array_of<H>(new_len);
     H *new_head = reinterpret_cast<H *>(alloc->alloc(new_layout));
 
     // Split off the list and realloc the rest of the items. If one of the reallocs throw, then
     // we undo the tentative allocation and rethrow so the next layer up can do the same.
     try {
         realloc_parallel(alloc, old_len, new_len, args...);
-    } catch (allocation_exception &ex) {
+    } catch (AllocationException &ex) {
         alloc->dealloc(new_layout, new_head);
         throw;
     }

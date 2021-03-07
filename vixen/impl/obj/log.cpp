@@ -15,8 +15,8 @@ const char *default_log_pattern_verbose
 const char *default_log_pattern_simple
     = "\x1b[1m%@\x1b[0m \x1b[1m~\x1b[0m %^%n/%l%$ \x1b[1m>\x1b[0m %v";
 
-logger_id get_default_logger() {
-    static logger_id g_default_logger = create_logger("default", [](logger_id id) {
+LoggerId get_default_logger() {
+    static LoggerId g_default_logger = create_logger("default", [](LoggerId id) {
 #ifdef VIXEN_IS_DEBUG
         set_logger_format_string(id, default_log_pattern_simple);
         // set_logger_format_string(id, default_log_pattern_simple);
@@ -41,27 +41,27 @@ std::shared_ptr<spdlog::logger> create_raw_logger(const char *name) noexcept {
     return logger;
 }
 
-static vector<std::shared_ptr<spdlog::logger>> &get_logger_legistry() {
-    static vector<std::shared_ptr<spdlog::logger>> g_loggers(heap::debug_allocator());
+static Vector<std::shared_ptr<spdlog::logger>> &get_logger_legistry() {
+    static Vector<std::shared_ptr<spdlog::logger>> g_loggers(heap::debug_allocator());
     return g_loggers;
 }
 
-logger_id create_logger(const char *name, logger_initializer initializer) {
+LoggerId create_logger(const char *name, logger_initializer initializer) {
     get_logger_legistry().push(create_raw_logger(name));
-    logger_id id{get_logger_legistry().len() - 1};
+    LoggerId id{get_logger_legistry().len() - 1};
     initializer(id);
     return id;
 }
 
-void set_logger_format_string(logger_id id, const char *fmt) {
+void set_logger_format_string(LoggerId id, const char *fmt) {
     get_logger_legistry()[id.id]->set_pattern(fmt);
 }
 
-void set_logger_verbosity(logger_id id, logger_level level) {
+void set_logger_verbosity(LoggerId id, logger_level level) {
     get_logger_legistry()[id.id]->set_level(level);
 }
 
-spdlog::logger &get_raw_logger(logger_id id) {
+spdlog::logger &get_raw_logger(LoggerId id) {
     return *get_logger_legistry()[id.id];
 }
 

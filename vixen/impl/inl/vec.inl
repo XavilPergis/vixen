@@ -16,41 +16,23 @@ namespace vixen {
 // +------------------------------------------------------------------------------+
 
 template <typename T>
-inline vector<T>::vector() {
-    alloc = nullptr;
-    data = nullptr;
-    length = 0;
-    capacity = 0;
-}
-
-template <typename T>
-inline vector<T>::vector(allocator *alloc) : alloc(alloc) {
-    this->alloc = alloc;
-}
-
-template <typename T>
-inline vector<T>::vector(allocator *alloc, usize default_capacity) : vector(alloc) {
-    set_capacity(default_capacity);
-}
-
-template <typename T>
-inline vector<T>::vector(copy_tag_t, allocator *alloc, const vector<T> &other) : vector(alloc) {
+inline Vector<T>::Vector(copy_tag_t, Allocator *alloc, const Vector<T> &other) : Vector(alloc) {
     set_capacity(other.capacity);
 
-    for (usize i = 0; i < other.len(); ++i) {
+    for (usize i = 0; i < other.length; ++i) {
         push(copy_construct_maybe_allocator_aware(alloc, other[i]));
     }
 }
 
 template <typename T>
-inline vector<T>::vector(vector<T> &&other)
+inline Vector<T>::Vector(Vector<T> &&other)
     : alloc(util::exchange(other.alloc, nullptr))
     , data(util::exchange(other.data, nullptr))
     , length(util::exchange(other.length, 0))
     , capacity(util::exchange(other.capacity, 0)) {}
 
 template <typename T>
-inline vector<T> &vector<T>::operator=(vector<T> &&other) {
+inline Vector<T> &Vector<T>::operator=(Vector<T> &&other) {
     if (std::addressof(other) == this)
         return *this;
 
@@ -62,14 +44,9 @@ inline vector<T> &vector<T>::operator=(vector<T> &&other) {
 }
 
 template <typename T>
-inline vector<T> vector<T>::clone(allocator *alloc) const {
-    return vector(copy_tag, alloc, *this);
-}
-
-template <typename T>
-inline vector<T>::~vector() {
+inline Vector<T>::~Vector() {
     if (capacity > 0) {
-        alloc->dealloc(heap::layout::array_of<T>(capacity), data);
+        alloc->dealloc(heap::Layout::array_of<T>(capacity), data);
     }
 }
 
@@ -80,20 +57,20 @@ inline vector<T>::~vector() {
 // +------------------------------------------------------------------------------+
 
 template <typename T>
-template <typename U>
-inline void vector<T>::push(U &&value) {
+template <typename... Args>
+inline void Vector<T>::push(Args &&...values) {
     try_grow(1);
-    util::construct_in_place(&data[length++], std::forward<U>(value));
+    util::construct_in_place(&data[length++], std::forward<Args>(values)...);
 }
 
 // template <typename T>
-// inline void Vec<T>::extend(slice<const T> elements) {
+// inline void Vec<T>::extend(Slice<const T> elements) {
 //     T *new_elems = reserve(elements.len);
 //     util::copy(elements.ptr, new_elems, elements.len);
 // }
 
 template <typename T>
-inline T *vector<T>::reserve(usize elements) {
+inline T *Vector<T>::reserve(usize elements) {
     try_grow(elements);
     T *start = data + length;
     length += elements;
@@ -101,7 +78,7 @@ inline T *vector<T>::reserve(usize elements) {
 }
 
 template <typename T>
-inline void vector<T>::truncate(usize len) {
+inline void Vector<T>::truncate(usize len) {
     VIXEN_DEBUG_ASSERT_EXT(len <= length,
         "tried to truncate vector to {} items, but the current length was {}",
         len,
@@ -113,12 +90,12 @@ inline void vector<T>::truncate(usize len) {
 }
 
 template <typename T>
-inline option<T> vector<T>::pop() {
-    return length == 0 ? option<T>() : data[--length];
+inline Option<T> Vector<T>::pop() {
+    return length == 0 ? Option<T>() : data[--length];
 }
 
 template <typename T>
-inline T vector<T>::remove(usize idx) {
+inline T Vector<T>::remove(usize idx) {
     VIXEN_DEBUG_ASSERT_EXT(length > idx,
         "tried to remove element {} from a {}-element vector",
         idx,
@@ -129,7 +106,7 @@ inline T vector<T>::remove(usize idx) {
 }
 
 template <typename T>
-inline T vector<T>::shift_remove(usize idx) {
+inline T Vector<T>::shift_remove(usize idx) {
     VIXEN_DEBUG_ASSERT_EXT(length > idx,
         "tried to remove element {} from a {}-element vector",
         idx,
@@ -142,13 +119,13 @@ inline T vector<T>::shift_remove(usize idx) {
 }
 
 template <typename T>
-inline void vector<T>::clear() {
+inline void Vector<T>::clear() {
     truncate(0);
 }
 
 template <typename T>
 template <typename U>
-T &vector<T>::shift_insert(usize idx, U &&val) {
+T &Vector<T>::shift_insert(usize idx, U &&val) {
     VIXEN_DEBUG_ASSERT_EXT(idx <= length,
         "tried to insert element at {}, but the length was {}",
         idx,
@@ -180,9 +157,9 @@ T &vector<T>::shift_insert(usize idx, U &&val) {
 // +------------------------------------------------------------------------------+
 
 template <typename T>
-inline void vector<T>::dedup_unstable() {
-    for (usize i = 0; i < len(); ++i) {
-        for (usize j = i + 1; j < len(); ++j) {
+inline void Vector<T>::dedup_unstable() {
+    for (usize i = 0; i < length; ++i) {
+        for (usize j = i + 1; j < length; ++j) {
             if (data[i] == data[j]) {
                 remove(j);
             }
@@ -191,9 +168,9 @@ inline void vector<T>::dedup_unstable() {
 }
 
 template <typename T>
-inline void vector<T>::dedup() {
-    for (usize i = 0; i < len(); ++i) {
-        for (usize j = i + 1; j < len(); ++j) {
+inline void Vector<T>::dedup() {
+    for (usize i = 0; i < length; ++i) {
+        for (usize j = i + 1; j < length; ++j) {
             if (data[i] == data[j]) {
                 shift_remove(j);
             }
@@ -202,8 +179,8 @@ inline void vector<T>::dedup() {
 }
 
 template <typename T>
-inline option<usize> vector<T>::index_of(const T &value) {
-    for (usize i = 0; i < len(); ++i) {
+inline Option<usize> Vector<T>::index_of(const T &value) {
+    for (usize i = 0; i < length; ++i) {
         if (data[i] == value) {
             return i;
         }
@@ -212,7 +189,7 @@ inline option<usize> vector<T>::index_of(const T &value) {
 }
 
 template <typename T>
-inline void vector<T>::swap(usize a, usize b) {
+inline void Vector<T>::swap(usize a, usize b) {
     VIXEN_DEBUG_ASSERT_EXT((length > a) && (length > b),
         "Tried swapping elements {} and {} in a(n) {}-element vector.",
         a,
@@ -229,60 +206,55 @@ inline void vector<T>::swap(usize a, usize b) {
 // +------------------------------------------------------------------------------+
 
 template <typename T>
-inline option<T &> vector<T>::first() {
-    return length == 0 ? option<T &>() : data[0];
+inline Option<T &> Vector<T>::first() {
+    return length == 0 ? Option<T &>() : data[0];
 }
 
 template <typename T>
-inline option<T &> vector<T>::last() {
-    return length == 0 ? option<T &>() : data[length - 1];
+inline Option<T &> Vector<T>::last() {
+    return length == 0 ? Option<T &>() : data[length - 1];
 }
 
 template <typename T>
-inline option<const T &> vector<T>::first() const {
-    return length == 0 ? option<const T &>() : data[0];
+inline Option<const T &> Vector<T>::first() const {
+    return length == 0 ? Option<const T &>() : data[0];
 }
 
 template <typename T>
-inline option<const T &> vector<T>::last() const {
-    return length == 0 ? option<const T &>() : data[length - 1];
+inline Option<const T &> Vector<T>::last() const {
+    return length == 0 ? Option<const T &>() : data[length - 1];
 }
 
 template <typename T>
-inline T *vector<T>::begin() {
+inline T *Vector<T>::begin() {
     return data;
 }
 
 template <typename T>
-inline T *vector<T>::end() {
+inline T *Vector<T>::end() {
     return &data[length];
 }
 
 template <typename T>
-inline const T *vector<T>::begin() const {
+inline const T *Vector<T>::begin() const {
     return data;
 }
 
 template <typename T>
-inline const T *vector<T>::end() const {
+inline const T *Vector<T>::end() const {
     return &data[length];
 }
 
 template <typename T>
-inline const T &vector<T>::operator[](usize i) const {
+inline const T &Vector<T>::operator[](usize i) const {
     _VIXEN_BOUNDS_CHECK(i, length);
     return data[i];
 }
 
 template <typename T>
-inline T &vector<T>::operator[](usize i) {
+inline T &Vector<T>::operator[](usize i) {
     _VIXEN_BOUNDS_CHECK(i, length);
     return data[i];
-}
-
-template <typename T>
-inline usize vector<T>::len() const {
-    return length;
 }
 
 #pragma endregion
@@ -290,24 +262,20 @@ inline usize vector<T>::len() const {
 // +------------------------------------------------------------------------------+
 // | Conversions                                                                  |
 // +------------------------------------------------------------------------------+
-template <typename T>
-inline const vector<T> &vector<T>::as_const() const {
-    return *this;
-}
 
 template <typename T>
-inline vector<T>::operator slice<const T>() const {
+inline Vector<T>::operator Slice<const T>() const {
     return {data, length};
 }
 
 template <typename T>
-inline vector<T>::operator slice<T>() {
+inline Vector<T>::operator Slice<T>() {
     return {data, length};
 }
 
 template <typename T>
 template <typename S>
-S &vector<T>::operator<<(S &s) {
+S &Vector<T>::operator<<(S &s) {
     s << "[";
     if (length > 0) {
         s << data[0];
@@ -326,12 +294,12 @@ S &vector<T>::operator<<(S &s) {
 // +------------------------------------------------------------------------------+
 
 template <typename T>
-inline usize vector<T>::next_capacity() {
+inline usize Vector<T>::next_capacity() {
     return capacity == 0 ? default_vec_capacity : 2 * capacity;
 }
 
 template <typename T>
-inline void vector<T>::try_grow(usize elements_needed) {
+inline void Vector<T>::try_grow(usize elements_needed) {
     usize minimum_cap_needed = length + elements_needed;
     if (minimum_cap_needed >= capacity) {
         set_capacity(std::max(next_capacity(), minimum_cap_needed));
@@ -339,12 +307,12 @@ inline void vector<T>::try_grow(usize elements_needed) {
 }
 
 template <typename T>
-inline void vector<T>::set_capacity(usize cap) {
+inline void Vector<T>::set_capacity(usize cap) {
     VIXEN_ASSERT_EXT(alloc != nullptr, "Tried to grow a vector with no allocator.");
 
     if (cap > 0) {
-        data = (T *)alloc->realloc(heap::layout::array_of<T>(capacity),
-            heap::layout::array_of<T>(cap),
+        data = (T *)alloc->realloc(heap::Layout::array_of<T>(capacity),
+            heap::Layout::array_of<T>(cap),
             (void *)data);
         capacity = cap;
     }
@@ -357,7 +325,7 @@ inline void vector<T>::set_capacity(usize cap) {
 // +------------------------------------------------------------------------------+
 
 template <typename T, typename H>
-inline void hash(const vector<T> &values, H &hasher) {
+inline void hash(const Vector<T> &values, H &hasher) {
     for (const T &value : values) {
         hash(value, hasher);
     }

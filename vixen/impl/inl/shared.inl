@@ -6,20 +6,20 @@ namespace vixen {
 
 template <typename T>
 template <typename... Args>
-inline shared_repr<T>::shared_repr(allocator *alloc, Args &&...args)
+inline SharedRepr<T>::SharedRepr(Allocator *alloc, Args &&...args)
     : strong_count(1)
     , weak_count(1)
     , alloc(alloc)
     , data(heap::create_init<T>(alloc, std::forward<Args>(args)...)) {}
 
 template <typename T>
-inline void shared_repr<T>::acquire_strong() {
+inline void SharedRepr<T>::acquire_strong() {
     strong_count += 1;
     weak_count += 1;
 }
 
 template <typename T>
-inline void shared_repr<T>::release_strong() {
+inline void SharedRepr<T>::release_strong() {
     if (strong_count.fetch_sub(1) == 1) {
         heap::destroy_init(alloc, data);
     }
@@ -29,19 +29,19 @@ inline void shared_repr<T>::release_strong() {
 }
 
 template <typename T>
-inline void shared_repr<T>::acquire_weak() {
+inline void SharedRepr<T>::acquire_weak() {
     weak_count += 1;
 }
 
 template <typename T>
-inline void shared_repr<T>::release_weak() {
+inline void SharedRepr<T>::release_weak() {
     if (weak_count.fetch_sub(1) == 1) {
         heap::destroy_init(alloc, this);
     }
 }
 
 template <typename T>
-inline bool shared_repr<T>::upgrade_weak() {
+inline bool SharedRepr<T>::upgrade_weak() {
     usize count = strong_count.load();
     do {
         if (count == 0) {
@@ -54,17 +54,17 @@ inline bool shared_repr<T>::upgrade_weak() {
 
 template <typename T>
 template <typename... Args>
-inline shared<T>::shared(allocator *alloc, Args &&...args)
-    : repr(heap::create_init<shared_repr<T>>(alloc, alloc, std::forward<Args>(args)...)) {
+inline Shared<T>::Shared(Allocator *alloc, Args &&...args)
+    : repr(heap::create_init<SharedRepr<T>>(alloc, alloc, std::forward<Args>(args)...)) {
     data = repr->data;
 }
 
 template <typename T>
-inline shared<T>::shared(shared<T> &&other)
+inline Shared<T>::Shared(Shared<T> &&other)
     : repr(std::exchange(other.repr, nullptr)), data(std::exchange(other.data, nullptr)) {}
 
 template <typename T>
-inline shared<T> &shared<T>::operator=(shared<T> &&other) {
+inline Shared<T> &Shared<T>::operator=(Shared<T> &&other) {
     if (std::addressof(other) == this)
         return *this;
 
@@ -75,12 +75,12 @@ inline shared<T> &shared<T>::operator=(shared<T> &&other) {
 }
 
 template <typename T>
-inline shared<T>::~shared() {
+inline Shared<T>::~Shared() {
     clear();
 }
 
 template <typename T>
-inline void shared<T>::clear() {
+inline void Shared<T>::clear() {
     if (repr) {
         repr->release_strong();
         repr = nullptr;
@@ -89,22 +89,22 @@ inline void shared<T>::clear() {
 }
 
 template <typename T>
-inline shared<T> shared<T>::copy() {
+inline Shared<T> Shared<T>::copy() {
     repr->acquire_strong();
-    return shared{repr};
+    return Shared{repr};
 }
 
 template <typename T>
-inline weak<T> shared<T>::downgrade() {
+inline Weak<T> Shared<T>::downgrade() {
     repr->acquire_weak();
-    return weak{repr};
+    return Weak{repr};
 }
 
 template <typename T>
-weak<T>::weak(weak<T> &&other) : repr(std::exchange(other.repr, nullptr)) {}
+Weak<T>::Weak(Weak<T> &&other) : repr(std::exchange(other.repr, nullptr)) {}
 
 template <typename T>
-weak<T> &weak<T>::operator=(weak<T> &&other) {
+Weak<T> &Weak<T>::operator=(Weak<T> &&other) {
     if (std::addressof(other) == this)
         return *this;
     repr = std::exchange(other.repr, nullptr);
@@ -112,22 +112,22 @@ weak<T> &weak<T>::operator=(weak<T> &&other) {
 }
 
 template <typename T>
-inline weak<T>::~weak() {
+inline Weak<T>::~Weak() {
     if (repr) {
         repr->release_weak();
     }
 }
 
 template <typename T>
-inline weak<T> weak<T>::copy() {
+inline Weak<T> Weak<T>::copy() {
     repr->acquire_weak();
-    return weak{repr};
+    return Weak{repr};
 }
 
 template <typename T>
-inline option<shared<T>> weak<T>::upgrade() {
+inline Option<Shared<T>> Weak<T>::upgrade() {
     if (repr->upgrade_weak()) {
-        return shared{repr};
+        return Shared{repr};
     } else {
         return {};
     }

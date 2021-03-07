@@ -8,89 +8,147 @@
 
 #pragma region "slice Operator Macro"
 #define _VIXEN_IMPL_SLICE_OPERATORS(Ty, ptr, len)                           \
-    slice<const Ty> operator[](range range) const {                         \
+    Slice<const Ty> operator[](Range range) const {                         \
         _VIXEN_BOUNDS_CHECK(range.start, len);                              \
         _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
-        return slice<const Ty>{ptr + range.start, range.end - range.start}; \
+        return Slice<const Ty>{ptr + range.start, range.end - range.start}; \
     }                                                                       \
-    slice<const Ty> operator[](range_from range) const {                    \
+    Slice<const Ty> operator[](RangeFrom range) const {                     \
         _VIXEN_BOUNDS_CHECK(range.start, len);                              \
-        return slice<const Ty>{ptr + range.start, len - range.start};       \
+        return Slice<const Ty>{ptr + range.start, len - range.start};       \
     }                                                                       \
-    slice<const Ty> operator[](range_to range) const {                      \
+    Slice<const Ty> operator[](RangeTo range) const {                       \
         _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
-        return slice<const Ty>{ptr, range.end};                             \
+        return Slice<const Ty>{ptr, range.end};                             \
     }                                                                       \
-    slice<T> operator[](range range) {                                      \
+    Slice<T> operator[](Range range) {                                      \
         _VIXEN_BOUNDS_CHECK(range.start, len);                              \
         _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
-        return slice<Ty>{ptr + range.start, range.end - range.start};       \
+        return Slice<Ty>{ptr + range.start, range.end - range.start};       \
     }                                                                       \
-    slice<T> operator[](range_from range) {                                 \
+    Slice<T> operator[](RangeFrom range) {                                  \
         _VIXEN_BOUNDS_CHECK(range.start, len);                              \
-        return slice<Ty>{ptr + range.start, len - range.start};             \
+        return Slice<Ty>{ptr + range.start, len - range.start};             \
     }                                                                       \
-    slice<T> operator[](range_to range) {                                   \
+    Slice<T> operator[](RangeTo range) {                                    \
         _VIXEN_BOUNDS_CHECK_EXCLUSIVE(range.end, len);                      \
-        return slice<Ty>{ptr, range.end};                                   \
+        return Slice<Ty>{ptr, range.end};                                   \
     }
 #pragma endregion
 
 namespace vixen {
-struct range {
+struct Range {
     usize start, end;
-
-    range(usize start, usize end) : start(start), end(end) {}
 };
 
-struct range_from {
+constexpr Range range(usize start, usize end) {
+    return {start, end};
+}
+
+struct RangeFrom {
     usize start;
-
-    range_from(usize start) : start(start) {}
 };
 
-struct range_to {
+constexpr RangeFrom range_from(usize start) {
+    return {start};
+}
+
+struct RangeTo {
     usize end;
-
-    range_to(usize end) : end(end) {}
 };
 
+constexpr RangeTo range_to(usize end) {
+    return {end};
+}
+
 template <typename T>
-struct slice {
-    T *ptr;
-    usize len;
+struct Slice {
+    Slice() = default;
+    Slice(Slice const &) = default;
+    Slice &operator=(Slice const &) = default;
+    Slice(Slice &&) = default;
+    Slice &operator=(Slice &&) = default;
 
-    slice() = default;
+    constexpr Slice(T *start, T *end) : ptr(start), length(end - start) {}
+    constexpr Slice(T *start, usize len) : ptr(start), length(len) {}
 
-    operator slice<const T>() const;
-    const slice<T> &as_const() const;
+    constexpr operator Slice<const T>() const {
+        return Slice<const T>{ptr, length};
+    }
 
-    _VIXEN_IMPL_SLICE_OPERATORS(T, ptr, len)
-    T &operator[](usize i);
-    const T &operator[](usize i) const;
+    _VIXEN_IMPL_SLICE_OPERATORS(T, ptr, length)
+    constexpr T &operator[](usize i) {
+        _VIXEN_BOUNDS_CHECK(i, length);
+        return ptr[i];
+    }
+    constexpr const T &operator[](usize i) const {
+        _VIXEN_BOUNDS_CHECK(i, length);
+        return ptr[i];
+    }
 
-    option<T &> first();
-    option<T &> last();
-    option<const T &> first() const;
-    option<const T &> last() const;
+    constexpr Option<T &> first() {
+        return length == 0 ? empty_opt : ptr[0];
+    }
+    constexpr Option<T &> last() {
+        return length == 0 ? empty_opt : ptr[length - 1];
+    }
+    constexpr Option<const T &> first() const {
+        return length == 0 ? empty_opt : ptr[0];
+    }
+    constexpr Option<const T &> last() const {
+        return length == 0 ? empty_opt : ptr[length - 1];
+    }
 
-    T *begin();
-    T *end();
-    const T *begin() const;
-    const T *end() const;
+    // clang-format off
+    constexpr T *begin() { return ptr; }
+    constexpr T *end() { return ptr + length; }
+    constexpr const T *begin() const { return ptr; }
+    constexpr const T *end() const { return ptr + length; }
+    constexpr usize len() const { return length; }
+    // clang-format on
+
+private:
+    T *ptr = nullptr;
+    usize length = 0;
 };
 
-template <typename T>
-inline bool operator==(slice<const T> const &lhs, slice<const T> const &rhs);
+template <typename T, typename U>
+inline bool operator==(Slice<const T> const &lhs, Slice<const U> const &rhs) {
+    if (lhs.len() != rhs.len()) {
+        return false;
+    }
+    for (usize i = 0; i < lhs.len(); ++i) {
+        if (!(lhs[i] == rhs[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename T, typename U>
+inline bool operator!=(Slice<const T> const &lhs, Slice<const U> const &rhs) {
+    if (lhs.len() != rhs.len()) {
+        return true;
+    }
+    for (usize i = 0; i < lhs.len(); ++i) {
+        if (!(lhs[i] != rhs[i])) {
+            return false;
+        }
+    }
+    return true;
+}
 
 template <typename T, typename H>
-inline void hash(const slice<T> &values, H &hasher);
+inline void hash(Slice<T> const &values, H &hasher) {
+    for (T const &value : values) {
+        hash(value, hasher);
+    }
+}
+template <typename T>
+struct is_collection<Slice<T>> : std::true_type {};
 
 template <typename T>
-struct is_collection<slice<T>> : std::true_type {};
-
-template <typename T>
-struct collection_types<slice<T>> : standard_collection_types<T> {};
+struct collection_types<Slice<T>> : standard_collection_types<T> {};
 
 // clang-format off
 template <typename T, typename Map>
@@ -121,7 +179,7 @@ result<usize, usize> binary_search(
     return err(search_for > mapper(start[mid]) ? mid + 1 : mid);
 }
 
-inline option<usize> get_previous_from_binary_search_results(const result<usize, usize> &res) {
+inline Option<usize> get_previous_from_binary_search_results(const result<usize, usize> &res) {
     if (res.is_ok()) {
         return res.unwrap_ok();
     } else {
@@ -134,7 +192,7 @@ inline option<usize> get_previous_from_binary_search_results(const result<usize,
 
 // clang-format off
 template <typename T, typename Map>
-option<usize> binary_find_previous_index(
+Option<usize> binary_find_previous_index(
     const T *start,
     const T *end,
     const decltype(std::declval<const Map &>()(std::declval<const T &>())) &search_for,
@@ -145,5 +203,3 @@ option<usize> binary_find_previous_index(
 }
 
 } // namespace vixen
-
-#include "slice.inl"

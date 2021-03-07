@@ -11,15 +11,15 @@ namespace vixen {
 // SAFETY: this struct should only be used behind a pointer that was allocated via the allocator
 // referred to by `alloc`.
 template <typename T>
-struct shared_repr {
+struct SharedRepr {
     std::atomic<usize> strong_count;
     std::atomic<usize> weak_count;
 
-    allocator *alloc;
+    Allocator *alloc;
     T *data;
 
     template <typename... Args>
-    shared_repr(allocator *alloc, Args &&...args);
+    SharedRepr(Allocator *alloc, Args &&...args);
 
     void acquire_strong();
     void release_strong();
@@ -30,23 +30,23 @@ struct shared_repr {
 };
 
 template <typename T>
-struct weak;
+struct Weak;
 
 /// @ingroup vixen_data_structures
 /// @brief Managed pointer that destroys its allocation when all other shared pointers to the same
 /// object are destroyed.
 template <typename T>
-struct shared {
+struct Shared {
     using pointer = T *;
     using const_pointer = const T *;
 
     template <typename... Args>
-    shared(allocator *alloc, Args &&...args);
+    Shared(Allocator *alloc, Args &&...args);
 
-    shared() = default;
-    shared(shared<T> &&other);
-    shared<T> &operator=(shared<T> &&other);
-    ~shared();
+    Shared() = default;
+    Shared(Shared<T> &&other);
+    Shared<T> &operator=(Shared<T> &&other);
+    ~Shared();
 
     // clang-format off
     const T &operator*() const { return *data; }
@@ -63,8 +63,8 @@ struct shared {
     // clang-format on
 
     void clear();
-    shared<T> copy();
-    weak<T> downgrade();
+    Shared<T> copy();
+    Weak<T> downgrade();
 
     template <typename S>
     S &operator<<(S &s) const {
@@ -73,34 +73,34 @@ struct shared {
     }
 
 private:
-    friend class weak<T>;
-    explicit shared(shared_repr<T> *repr) : data(repr->data), repr(repr) {}
+    friend class Weak<T>;
+    explicit Shared(SharedRepr<T> *repr) : data(repr->data), repr(repr) {}
 
     T *data = nullptr;
-    shared_repr<T> *repr = nullptr;
+    SharedRepr<T> *repr = nullptr;
 };
 
 /// @ingroup vixen_data_structures
 /// @brief Weak reference to a shared pointer's data that does not interfere with the destruction of
 /// the shared pointer.
 template <typename T>
-struct weak {
+struct Weak {
     using pointer = T *;
     using const_pointer = const T *;
 
-    weak() = default;
-    weak(weak<T> &&other);
-    weak<T> &operator=(weak<T> &&other);
-    ~weak();
+    Weak() = default;
+    Weak(Weak<T> &&other);
+    Weak<T> &operator=(Weak<T> &&other);
+    ~Weak();
 
-    weak<T> copy();
-    option<shared<T>> upgrade();
+    Weak<T> copy();
+    Option<Shared<T>> upgrade();
 
 private:
-    friend class shared<T>;
-    explicit weak(shared_repr<T> *repr) : repr(repr) {}
+    friend class Shared<T>;
+    explicit Weak(SharedRepr<T> *repr) : repr(repr) {}
 
-    shared_repr<T> *repr = nullptr;
+    SharedRepr<T> *repr = nullptr;
 };
 
 } // namespace vixen

@@ -7,49 +7,49 @@
 namespace vixen::heap {
 
 template <typename T>
-struct pool_allocator {
-    pool_allocator(allocator *alloc) : parent_alloc(alloc) {}
+struct PoolAllocator {
+    PoolAllocator(Allocator *alloc) : parent_alloc(alloc) {}
 
-    ~pool_allocator() {
-        block *current = block_list_head;
+    ~PoolAllocator() {
+        Block *current = block_list_head;
         while (current != nullptr) {
-            block *next = current->next_block;
-            parent_alloc->dealloc(layout::array_of<cell>(block_cell_count + 1), current);
+            Block *next = current->next_block;
+            parent_alloc->dealloc(Layout::array_of<Cell>(block_cell_count + 1), current);
             current = next;
         }
     }
 
-    union block {
-        block *next_block;
+    union Block {
+        Block *next_block;
     };
 
-    union cell {
-        uninitialized_storage<T> storage;
-        block *next_free_cell;
+    union Cell {
+        UninitializedStorage<T> storage;
+        Block *next_free_cell;
     };
 
-    static_assert(sizeof(cell) >= sizeof(block));
+    static_assert(sizeof(Cell) >= sizeof(Block));
     static_assert((sizeof(T) & (alignof(T) - 1)) == 0);
 
     usize block_cell_count = 1024;
-    allocator *parent_alloc;
-    block *block_list_head = nullptr;
-    block *block_list_current = nullptr;
-    cell *free_cell_head = nullptr;
+    Allocator *parent_alloc;
+    Block *block_list_head = nullptr;
+    Block *block_list_current = nullptr;
+    Cell *free_cell_head = nullptr;
 
     T *acquire() {
         if (unlikely(free_cell_head == nullptr)) {
-            void *new_block = parent_alloc->alloc(layout::array_of<cell>(block_cell_count + 1));
-            block_list_current->next_block = static_cast<block *>(new_block);
-            block_list_current = static_cast<block *>(new_block);
+            void *new_block = parent_alloc->alloc(Layout::array_of<Cell>(block_cell_count + 1));
+            block_list_current->next_block = static_cast<Block *>(new_block);
+            block_list_current = static_cast<Block *>(new_block);
             block_list_current->next_block = nullptr;
 
-            usize align_mask = alignof(cell) - 1;
-            usize stride = (sizeof(cell) + align_mask) & ~align_mask;
+            usize align_mask = alignof(Cell) - 1;
+            usize stride = (sizeof(Cell) + align_mask) & ~align_mask;
 
-            cell *current = static_cast<cell *>(new_block) + 1;
-            cell *end = current + block_cell_count;
-            cell *next = nullptr;
+            Cell *current = static_cast<Cell *>(new_block) + 1;
+            Cell *end = current + block_cell_count;
+            Cell *next = nullptr;
             for (; current != end; ++current) {
                 current->next_free_cell = next;
                 next = current;
@@ -64,7 +64,7 @@ struct pool_allocator {
     }
 
     void release(T *ptr) {
-        cell *cell_ptr = reinterpret_cast<cell *>(ptr);
+        Cell *cell_ptr = reinterpret_cast<Cell *>(ptr);
         cell_ptr->next_free_cell = free_cell_head;
         free_cell_head = cell_ptr;
     }

@@ -7,20 +7,20 @@ namespace vixen {
 /// @ingroup vixen_data_structures
 /// @brief Managed pointer that destroys its allocation at the end of its lifetime.
 template <typename T>
-struct unique {
+struct Unique {
     using pointer = T *;
     using const_pointer = const T *;
 
-    unique() = default;
+    Unique() = default;
 
     template <typename... Args>
-    unique(allocator *alloc, Args &&...args);
-    unique(allocator *alloc, const unique &other);
+    Unique(Allocator *alloc, Args &&...args);
+    Unique(Allocator *alloc, const Unique &other);
 
-    unique(unique &&other);
-    unique &operator=(unique &&other);
+    Unique(Unique &&other);
+    Unique &operator=(Unique &&other);
 
-    ~unique();
+    ~Unique();
 
     const T &operator*() const;
     const T *operator->() const;
@@ -42,17 +42,17 @@ struct unique {
 private:
     struct inner {
         template <typename... Args>
-        inner(allocator *alloc, Args &&...args) : data(std::forward<Args>(args)...), alloc(alloc) {}
+        inner(Allocator *alloc, Args &&...args) : data(std::forward<Args>(args)...), alloc(alloc) {}
 
         T data;
-        allocator *alloc;
+        Allocator *alloc;
     };
 
     inner *inner_pointer = nullptr;
 };
 
 template <typename T, typename H>
-inline void hash(const unique<T> &option, H &hasher);
+inline void hash(const Unique<T> &option, H &hasher);
 
 } // namespace vixen
 

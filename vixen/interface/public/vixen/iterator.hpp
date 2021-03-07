@@ -147,7 +147,7 @@ struct filter_iterator {
 
         F predicate;
         Iter downstream;
-        option<output> last_output;
+        Option<output> last_output;
 
         bool has_next() {
             if (last_output)
@@ -268,10 +268,10 @@ struct iter_to_std : public std::iterator<std::input_iterator_tag, typename Iter
     }
 
     // only empty if this iterator is an end iterator.
-    option<value_type> prev;
+    Option<value_type> prev;
     // only empty if this is a post-increment iterator, in which case it is no longer
     // dereferencable.
-    option<Iter> iter;
+    Option<Iter> iter;
 
 private:
     explicit iter_to_std(value_type &&value) : iter(nullptr), prev(mv(value)) {}

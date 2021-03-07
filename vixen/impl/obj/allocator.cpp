@@ -8,18 +8,18 @@
 
 namespace vixen::heap {
 
-allocator *global_allocator() {
-    static system_allocator g_global_allocator{};
+Allocator *global_allocator() {
+    static SystemAllocator g_global_allocator{};
     return &g_global_allocator;
 }
 
-legacy_allocator *legacy_global_allocator() {
-    static legacy_adapter_allocator g_global_adapter{global_allocator()};
+LegacyAllocator *legacy_global_allocator() {
+    static LegacyAdapterAllocator g_global_adapter{global_allocator()};
     return &g_global_adapter;
 }
 
-allocator *debug_allocator() {
-    static system_allocator g_debug_allocator{};
+Allocator *debug_allocator() {
+    static SystemAllocator g_debug_allocator{};
     return &g_debug_allocator;
 }
 
@@ -28,25 +28,25 @@ usize page_size() {
     return g_page_size;
 }
 
-void *allocator::alloc(const layout &layout) {
+void *Allocator::alloc(const Layout &layout) {
     begin_transaction(id);
     void *ptr = this->internal_alloc(layout);
     record_alloc(id, layout, ptr);
     end_transaction(id);
-    std::memset(ptr, ALLOCATION_PATTERN, layout.size);
+    util::fill(ALLOCATION_PATTERN, static_cast<u8 *>(ptr), layout.size);
     return ptr;
 }
 
-void allocator::dealloc(const layout &layout, void *ptr) {
+void Allocator::dealloc(const Layout &layout, void *ptr) {
     VIXEN_ASSERT(ptr != nullptr);
-    std::memset(ptr, DEALLOCATION_PATTERN, layout.size);
+    util::fill(DEALLOCATION_PATTERN, static_cast<u8 *>(ptr), layout.size);
     begin_transaction(id);
     this->internal_dealloc(layout, ptr);
     record_dealloc(id, layout, ptr);
     end_transaction(id);
 }
 
-void *allocator::realloc(const layout &old_layout, const layout &new_layout, void *old_ptr) {
+void *Allocator::realloc(const Layout &old_layout, const Layout &new_layout, void *old_ptr) {
     begin_transaction(id);
     void *ptr = this->internal_realloc(old_layout, new_layout, old_ptr);
     record_realloc(id, old_layout, old_ptr, new_layout, ptr);
@@ -56,33 +56,33 @@ void *allocator::realloc(const layout &old_layout, const layout &new_layout, voi
     return ptr;
 }
 
-void resettable_allocator::reset() {
+void ResettableAllocator::reset() {
     begin_transaction(id);
     internal_reset();
     record_reset(id);
     end_transaction(id);
 }
 
-void *legacy_allocator::internal_alloc(const layout &layout) {
+void *LegacyAllocator::internal_alloc(const Layout &layout) {
     _VIXEN_ALLOC_PROLOGUE(layout)
 
     if (layout.align <= MAX_LEGACY_ALIGNMENT) {
         return internal_legacy_alloc(layout.size);
     } else {
         VIXEN_PANIC(
-            "Tried to allocate {} on legacy_allocator, which does not support alignments above {}.",
+            "Tried to allocate {} on LegacyAllocator, which does not support alignments above {}.",
             layout,
             MAX_LEGACY_ALIGNMENT);
     }
 }
 
-void legacy_allocator::internal_dealloc(const layout &layout, void *ptr) {
+void LegacyAllocator::internal_dealloc(const Layout &layout, void *ptr) {
     _VIXEN_DEALLOC_PROLOGUE(layout, ptr)
 
     internal_legacy_dealloc(ptr);
 }
 
-void *legacy_allocator::legacy_alloc(usize size) {
+void *LegacyAllocator::legacy_alloc(usize size) {
     VIXEN_ASSERT_EXT(this != nullptr,
         "Tried to legacy allocate {} bytes, but the allocator pointer was null.",
         size);
@@ -90,11 +90,11 @@ void *legacy_allocator::legacy_alloc(usize size) {
     void *ptr = this->internal_legacy_alloc(size);
     record_legacy_alloc(id, size, ptr);
     end_transaction(id);
-    std::memset(ptr, ALLOCATION_PATTERN, size);
+    util::fill(ALLOCATION_PATTERN, static_cast<u8 *>(ptr), size);
     return ptr;
 }
 
-void legacy_allocator::legacy_dealloc(void *ptr) {
+void LegacyAllocator::legacy_dealloc(void *ptr) {
     VIXEN_ASSERT_EXT(this != nullptr,
         "Tried to legacy deallocate {}, but the allocator pointer was null.",
         ptr);
@@ -104,7 +104,7 @@ void legacy_allocator::legacy_dealloc(void *ptr) {
     end_transaction(id);
 }
 
-void *legacy_allocator::legacy_realloc(usize new_size, void *old_ptr) {
+void *LegacyAllocator::legacy_realloc(usize new_size, void *old_ptr) {
     VIXEN_ASSERT_EXT(this != nullptr,
         "Tried to legacy reallocate {} to new size of {} bytes, but the allocator pointer was null.",
         old_ptr,

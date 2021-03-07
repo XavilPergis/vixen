@@ -5,21 +5,8 @@
 
 namespace vixen {
 
-template <usize Size, usize Align>
-struct raw_uninitialized_storage {
-    static_assert(Size > 0);
-    static_assert(Align > 0);
-
-    struct type {
-        alignas(Align) u8 data[Size];
-    };
-};
-
-template <usize Size, usize Align>
-using raw_uninitialized_storage_type = typename raw_uninitialized_storage<Size, Align>::type;
-
 template <typename T>
-struct uninitialized_storage {
+struct UninitializedStorage {
     template <typename... Args>
     constexpr void construct_in_place(Args &&...args) {
         util::construct_in_place(reinterpret_cast<T *>(raw), std::forward<Args...>(args)...);

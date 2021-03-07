@@ -78,7 +78,7 @@ VIXEN_FORCE_ENABLE_DEBUG_ASSERT or VIXEN_FORCE_DISBLE_ASSERT.
 
 namespace vixen {
 
-extern logger_id panic_logger;
+extern LoggerId panic_logger;
 
 using panic_handler = void (*)();
 

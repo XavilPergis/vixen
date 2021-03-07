@@ -13,19 +13,19 @@ static void write_alloc_size(void *raw, usize size) {
     util::copy_nonoverlapping_to_raw(&size, raw, 1);
 }
 
-static layout legacy_layout(usize legacy_size) {
+static Layout legacy_layout(usize legacy_size) {
     return {legacy_size + MAX_LEGACY_ALIGNMENT, MAX_LEGACY_ALIGNMENT};
 }
 
 static_assert(MAX_LEGACY_ALIGNMENT >= sizeof(usize));
 
-void *legacy_adapter_allocator::internal_legacy_alloc(usize size) {
+void *LegacyAdapterAllocator::internal_legacy_alloc(usize size) {
     void *raw = adapted->alloc(legacy_layout(size));
     write_alloc_size(raw, size);
     return util::offset_rawptr(raw, MAX_LEGACY_ALIGNMENT);
 }
 
-void legacy_adapter_allocator::internal_legacy_dealloc(void *ptr) {
+void LegacyAdapterAllocator::internal_legacy_dealloc(void *ptr) {
     if (ptr == nullptr)
         return;
 
@@ -35,7 +35,7 @@ void legacy_adapter_allocator::internal_legacy_dealloc(void *ptr) {
     adapted->dealloc(legacy_layout(size), raw);
 }
 
-void *legacy_adapter_allocator::internal_legacy_realloc(usize new_size, void *old_ptr) {
+void *LegacyAdapterAllocator::internal_legacy_realloc(usize new_size, void *old_ptr) {
     if (old_ptr == nullptr) {
         return internal_legacy_alloc(new_size);
     } else if (new_size == 0) {

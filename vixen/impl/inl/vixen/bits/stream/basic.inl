@@ -12,12 +12,12 @@
 namespace vixen::stream {
 
 template <typename T, typename... Cs>
-struct pipeline;
+struct StreamPipeline;
 
 template <typename T, typename CA, typename CB, typename... Cs>
-struct pipeline<T, CA, CB, Cs...> {
+struct StreamPipeline<T, CA, CB, Cs...> {
     using component_output = typename CA::output<T>;
-    using child_pipeline = pipeline<component_output, CB, Cs...>;
+    using child_pipeline = StreamPipeline<component_output, CB, Cs...>;
     using pipeline_output = typename child_pipeline::pipeline_output;
 
     CA component;
@@ -29,13 +29,15 @@ struct pipeline<T, CA, CB, Cs...> {
     }
 
     template <typename... As>
-    pipeline<T, CA, CB, Cs..., As...> append_pipeline(pipeline<pipeline_output, As...> &&appended) {
-        return pipeline<T, CA, CB, Cs..., As...>{mv(component), rest.append_pipeline(mv(appended))};
+    StreamPipeline<T, CA, CB, Cs..., As...> append_pipeline(
+        StreamPipeline<pipeline_output, As...> &&appended) {
+        return StreamPipeline<T, CA, CB, Cs..., As...>{mv(component),
+            rest.append_pipeline(mv(appended))};
     }
 };
 
 template <typename T, typename C>
-struct pipeline<T, C> {
+struct StreamPipeline<T, C> {
     using pipeline_output = typename C::output<T>;
 
     C component;
@@ -48,8 +50,8 @@ struct pipeline<T, C> {
 
     // Assumes incomplete pipeline
     template <typename U, typename... As>
-    pipeline<T, C, As...> append_pipeline(pipeline<U, As...> &&appended) {
-        return pipeline<T, C, As...>{mv(component), mv(appended)};
+    StreamPipeline<T, C, As...> append_pipeline(StreamPipeline<U, As...> &&appended) {
+        return StreamPipeline<T, C, As...>{mv(component), mv(appended)};
     }
 };
 
@@ -99,7 +101,7 @@ struct map_adapter {
 // @note: this is a sink and not an adapter, because sources can only have one downstream sink.
 template <typename... Pipelines>
 struct split_sink {
-    tuple<Pipelines...> pipelines;
+    Tuple<Pipelines...> pipelines;
 
     template <typename I>
     using output = void;
@@ -115,7 +117,7 @@ struct split_sink {
 template <typename T, typename... Cs>
 struct output_iterator_source
     : public std::iterator<std::output_iterator_tag, void, void, void, void> {
-    explicit output_iterator_source(pipeline<T, Cs...> &adapted)
+    explicit output_iterator_source(StreamPipeline<T, Cs...> &adapted)
         : adapted(std::addressof(adapted)) {}
 
     output_iterator_source &operator=(T &&value) {
@@ -135,7 +137,7 @@ struct output_iterator_source
     // clang-format on
 
 private:
-    pipeline<T, Cs...> *adapted;
+    StreamPipeline<T, Cs...> *adapted;
 };
 
 } // namespace detail

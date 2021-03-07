@@ -17,23 +17,27 @@ constexpr const usize default_vec_capacity = 8;
 ///
 /// @warning Any reference into a vector is only valid until the vector's size changes.
 template <typename T>
-struct vector {
+struct Vector {
     /// Default construction of a vector results in a vector in the moved-from state.
-    vector();
+    Vector() = default;
+    Vector(Vector const &) = delete;
+    Vector &operator=(Vector const &) = delete;
+    Vector(Vector<T> &&other);
+    Vector<T> &operator=(Vector<T> &&other);
+    ~Vector();
 
-    explicit vector(allocator *alloc);
-    vector(allocator *alloc, usize default_capacity);
-    vector(copy_tag_t, allocator *alloc, const vector<T> &other);
-    vector(vector<T> &&other);
-    vector<T> &operator=(vector<T> &&other);
+    Vector(copy_tag_t, Allocator *alloc, const Vector<T> &other);
 
-    ~vector();
+    explicit Vector(Allocator *alloc) : alloc(alloc) {}
+    Vector(Allocator *alloc, usize default_capacity) : alloc(alloc) {
+        set_capacity(default_capacity);
+    }
 
-    vector<T> clone(allocator *alloc) const;
+    VIXEN_DEFINE_CLONE_METHOD(Vector);
 
     /// Appends a single item to the end of the vector.
-    template <typename U>
-    void push(U &&value);
+    template <typename... Args>
+    void push(Args &&...values);
 
     /// Extends the vector by `elements` elements, and returns a pointer to the start of the
     /// newly allocated elements.
@@ -46,7 +50,7 @@ struct vector {
 
     /// Removes the last item from the vector and returns it, or en empty option if there is nothing
     /// to pop.
-    option<T> pop();
+    Option<T> pop();
 
     /// Removes an item from the list efficiently by swapping it with the last element and
     /// popping. This operation does not preserve ordering. O(1)
@@ -58,7 +62,7 @@ struct vector {
     template <typename U>
     T &shift_insert(usize idx, U &&val);
 
-    option<usize> index_of(const T &value);
+    Option<usize> index_of(const T &value);
 
     void clear();
 
@@ -67,10 +71,10 @@ struct vector {
 
     void swap(usize a, usize b);
 
-    option<T &> first();
-    option<T &> last();
-    option<const T &> first() const;
-    option<const T &> last() const;
+    Option<T &> first();
+    Option<T &> last();
+    Option<const T &> first() const;
+    Option<const T &> last() const;
 
     T *begin();
     T *end();
@@ -81,11 +85,12 @@ struct vector {
 
     _VIXEN_IMPL_SLICE_OPERATORS(T, data, length)
 
-    usize len() const;
+    usize len() const {
+        return length;
+    }
 
-    const vector<T> &as_const() const;
-    operator slice<const T>() const;
-    operator slice<T>();
+    operator Slice<const T>() const;
+    operator Slice<T>();
 
     template <typename S>
     S &operator<<(S &s);
@@ -96,25 +101,25 @@ private:
     void set_capacity(usize cap);
 
 private:
-    allocator *alloc = nullptr;
+    Allocator *alloc = nullptr;
     T *data = nullptr;
     usize length = 0, capacity = 0;
 };
 
 template <typename T, typename H>
-inline void hash(const vector<T> &values, H &hasher);
+inline void hash(const Vector<T> &values, H &hasher);
 
 template <typename T>
-struct is_collection<vector<T>> : std::true_type {};
+struct is_collection<Vector<T>> : std::true_type {};
 
 template <typename T>
-struct collection_types<vector<T>> : standard_collection_types<T> {};
+struct collection_types<Vector<T>> : standard_collection_types<T> {};
 
 template <typename T,
     typename U,
     require<std::is_convertible<decltype(std::declval<T const &>() == std::declval<U const &>()),
         bool>> = true>
-constexpr bool operator==(vector<T> const &lhs, vector<U> const &rhs) {
+constexpr bool operator==(Vector<T> const &lhs, Vector<U> const &rhs) {
     if (lhs.len() != rhs.len())
         return false;
 
@@ -131,7 +136,7 @@ template <typename T,
     typename U,
     require<std::is_convertible<decltype(std::declval<T const &>() != std::declval<U const &>()),
         bool>> = true>
-constexpr bool operator!=(vector<T> const &lhs, vector<U> const &rhs) {
+constexpr bool operator!=(Vector<T> const &lhs, Vector<U> const &rhs) {
     if (lhs.len() != rhs.len())
         return true;
 

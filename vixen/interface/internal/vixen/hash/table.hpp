@@ -10,17 +10,17 @@ constexpr usize load_factor_denomenator = 10;
 constexpr usize default_hashmap_capacity = 16;
 
 template <typename T>
-struct collision {
+struct HashTableCollision {
     usize slot;
     T *current;
     u64 current_hash;
     bool collided_with_tombstone;
-    option<T *> collided;
-    option<u64> collided_hash;
+    Option<T *> collided;
+    Option<u64> collided_hash;
     usize probe_chain_length;
 };
 
-struct hash_table_stats {
+struct HashTableStats {
     usize length;
     usize occupied;
     usize items;
@@ -41,18 +41,18 @@ struct default_comparator {
 
 /// @ingroup vixen_data_structures
 template <typename T, typename Hasher = default_hasher, typename Cmp = default_comparator<T>>
-struct hash_table {
-    constexpr hash_table() = default;
+struct HashTable {
+    constexpr HashTable() = default;
 
-    constexpr explicit hash_table(allocator *alloc) : alloc(alloc) {}
-    hash_table(allocator *alloc, usize default_capacity);
-    hash_table(copy_tag_t, allocator *alloc, const hash_table &other);
-    constexpr hash_table(hash_table &&other);
-    constexpr hash_table &operator=(hash_table &&other);
+    constexpr explicit HashTable(Allocator *alloc) : alloc(alloc) {}
+    HashTable(Allocator *alloc, usize default_capacity);
+    HashTable(copy_tag_t, Allocator *alloc, const HashTable &other);
+    constexpr HashTable(HashTable &&other);
+    constexpr HashTable &operator=(HashTable &&other);
 
-    VIXEN_DEFINE_CLONE_METHOD(hash_table)
+    VIXEN_DEFINE_CLONE_METHOD(HashTable)
 
-    ~hash_table();
+    ~HashTable();
 
     void insert(usize slot, u64 hash, T &&value);
     constexpr void remove(usize slot);
@@ -66,7 +66,7 @@ struct hash_table {
     template <typename OT>
     constexpr usize find_insert_slot(u64 hash, const OT &value) const;
     template <typename OT>
-    constexpr option<usize> find_slot(u64 hash, const OT &value) const;
+    constexpr Option<usize> find_slot(u64 hash, const OT &value) const;
 
     constexpr bool does_table_need_resize() const;
     constexpr void insert_no_resize(usize slot, u64 hash, T &&value);
@@ -76,7 +76,7 @@ struct hash_table {
     constexpr usize len() const { return items; }
     // clang-format on
 
-    allocator *alloc;
+    Allocator *alloc;
 
     usize capacity = 0;
     usize occupied = 0;
@@ -89,7 +89,7 @@ struct hash_table {
 // template <typename T, typename H, typename C>
 // struct hash_table_iterator {
 //     hash_table_iterator(const hash_table_iterator &other) = default;
-//     hash_table_iterator(hash_table<T, H, C> &iterating) : iterating(iterating) {}
+//     hash_table_iterator(HashTable<T, H, C> &iterating) : iterating(iterating) {}
 
 //     struct reified {
 //         hash_table_iterator(hash_table_iterator &&desc) : iterating(desc.iterating) {}
@@ -104,10 +104,10 @@ struct hash_table {
 //         }
 
 //         usize current_slot = 0;
-//         hash_table<T, H, C> &iterating;
+//         HashTable<T, H, C> &iterating;
 //     };
 
-//     hash_table<T, H, C> &iterating;
+//     HashTable<T, H, C> &iterating;
 // };
 
 // template <typename T, typename H>
@@ -115,7 +115,7 @@ struct hash_table {
 //     hash_table_iterator() = default;
 //     hash_table_iterator(const hash_table_iterator &other) = default;
 
-//     hash_table_iterator(hash_table<T, H> &iterating)
+//     hash_table_iterator(HashTable<T, H> &iterating)
 //         : iterating(std::addressof(iterating)), index(0) {
 //         // We initialize with index 0, but the first slot might be unoccupied, so we have to
 //         point
@@ -151,7 +151,7 @@ struct hash_table {
 //     }
 
 //     usize index;
-//     hash_table<T, H> *iterating;
+//     HashTable<T, H> *iterating;
 // };
 
 } // namespace vixen

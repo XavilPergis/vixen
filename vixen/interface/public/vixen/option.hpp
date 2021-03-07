@@ -45,7 +45,7 @@ protected:
     }
 
     bool occupied;
-    uninitialized_storage<T> storage;
+    UninitializedStorage<T> storage;
 };
 
 template <typename T,
@@ -159,7 +159,7 @@ struct option_base<T, true, false, false> : option_storage<T> {
 // Also, std::optional suffers from the same problem, so I don't feel so bad about leaving this one
 // be.
 template <typename T>
-struct option
+struct Option
     : option_base<T>
     , mimic_copy_ctor<T>
     , mimic_move_ctor<T> {
@@ -170,7 +170,7 @@ struct option
 
     // Forwarding constructor/assignment operator from inner type
     template <typename U>
-    using is_not_self = std::negation<std::is_same<option<T>, remove_cvref_t<U>>>;
+    using is_not_self = std::negation<std::is_same<Option<T>, remove_cvref_t<U>>>;
     template <typename U>
     using is_not_empty_tag = std::negation<std::is_same<T, remove_cvref_t<U>>>;
 
@@ -178,13 +178,13 @@ struct option
 
     // Don't declare these for other `option<T>`s
     template <typename U, require<is_not_self<U>, std::is_constructible<T, U &&>> = true>
-    option(U &&value) {
+    Option(U &&value) {
         this->occupied = true;
         this->storage.construct_in_place(std::forward<U>(value));
     }
 
     template <typename U, require<is_not_self<U>, std::is_constructible<T, U &&>> = true>
-    option &operator=(U &&other) {
+    Option &operator=(U &&other) {
         if (this->occupied) {
             this->storage.get() = std::forward<U>(other);
         } else {
@@ -232,13 +232,13 @@ struct option
 };
 
 template <typename T>
-struct option<T &> {
-    constexpr option() : storage(nullptr) {}
-    constexpr option(empty_opt_type) : option() {}
+struct Option<T &> {
+    constexpr Option() : storage(nullptr) {}
+    constexpr Option(empty_opt_type) : Option() {}
 
-    constexpr option(T &value) : storage(std::addressof(value)) {}
+    constexpr Option(T &value) : storage(std::addressof(value)) {}
 
-    constexpr option &operator=(T &value) {
+    constexpr Option &operator=(T &value) {
         storage = std::addressof(value);
         return *this;
     }
@@ -246,10 +246,10 @@ struct option<T &> {
     // @NOTE: copies and moves are trivial, since these are references we are dealing with. We don't
     // have to invoke any nontrivial move/copy/destruct ops since we can just copy the reference
     // around.
-    constexpr option(option const &other) = default;
-    constexpr option &operator=(option const &other) = default;
-    constexpr option(option &&other) = default;
-    constexpr option &operator=(option &&other) = default;
+    constexpr Option(Option const &other) = default;
+    constexpr Option &operator=(Option const &other) = default;
+    constexpr Option(Option &&other) = default;
+    constexpr Option &operator=(Option &&other) = default;
 
     // clang-format off
     constexpr T const &operator*() const { return get(); }
@@ -281,26 +281,26 @@ private:
 };
 
 template <typename T>
-struct option<T const &> {
-    constexpr option() : storage(nullptr) {}
-    constexpr option(empty_opt_type) : option() {}
+struct Option<T const &> {
+    constexpr Option() : storage(nullptr) {}
+    constexpr Option(empty_opt_type) : Option() {}
 
-    constexpr option(T const &value) : storage(std::addressof(value)) {}
-    constexpr option(T &value) : storage(std::addressof(value)) {}
+    constexpr Option(T const &value) : storage(std::addressof(value)) {}
+    constexpr Option(T &value) : storage(std::addressof(value)) {}
 
-    constexpr option &operator=(T const &value) {
+    constexpr Option &operator=(T const &value) {
         storage = std::addressof(value);
         return *this;
     }
-    constexpr option &operator=(T &value) {
+    constexpr Option &operator=(T &value) {
         storage = std::addressof(value);
         return *this;
     }
 
-    constexpr option(option const &other) = default;
-    constexpr option &operator=(option const &other) = default;
-    constexpr option(option &&other) = default;
-    constexpr option &operator=(option &&other) = default;
+    constexpr Option(Option const &other) = default;
+    constexpr Option &operator=(Option const &other) = default;
+    constexpr Option(Option &&other) = default;
+    constexpr Option &operator=(Option &&other) = default;
 
     // clang-format off
     constexpr T const &operator*() const { return get(); }
@@ -325,33 +325,33 @@ private:
 };
 
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-bool operator==(const option<T> &lhs, const option<U> &rhs) {
+bool operator==(const Option<T> &lhs, const Option<U> &rhs) {
     return lhs.is_some() ? rhs.is_some() && lhs.get() == rhs.get() : rhs.is_none();
 }
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-bool operator==(const option<T> &lhs, const U &rhs) {
+bool operator==(const Option<T> &lhs, const U &rhs) {
     return lhs.is_some() && lhs.get() == rhs;
 }
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-bool operator==(const U &lhs, const option<T> &rhs) {
+bool operator==(const U &lhs, const Option<T> &rhs) {
     return rhs.is_some() && lhs == rhs.get();
 }
 
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-bool operator!=(const option<T> &lhs, const option<U> &rhs) {
+bool operator!=(const Option<T> &lhs, const Option<U> &rhs) {
     return !(lhs == rhs);
 }
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-bool operator!=(const option<T> &lhs, const U &rhs) {
+bool operator!=(const Option<T> &lhs, const U &rhs) {
     return !(lhs == rhs);
 }
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
-bool operator!=(const U &lhs, const option<T> &rhs) {
+bool operator!=(const U &lhs, const Option<T> &rhs) {
     return !(lhs == rhs);
 }
 
 template <typename T, typename H>
-inline void hash(const option<T> &option, H &hasher) {
+inline void hash(const Option<T> &option, H &hasher) {
     // TODO: idk what we should hash in the None branch
     if (option) {
         hash(*option, hasher);

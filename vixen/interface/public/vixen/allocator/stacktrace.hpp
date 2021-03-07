@@ -8,49 +8,49 @@
 #include "vixen/vec.hpp"
 
 namespace vixen {
-struct address_info {
-    string name;
-    string location;
-    string raw_symbol;
+struct AddressInfo {
+    String name;
+    String location;
+    String raw_symbol;
 
-    address_info() = default;
+    AddressInfo() = default;
 
-    address_info(address_info &&other) = default;
-    address_info &operator=(address_info &&other) = default;
+    AddressInfo(AddressInfo &&other) = default;
+    AddressInfo &operator=(AddressInfo &&other) = default;
 
-    explicit address_info(allocator *alloc);
-    address_info(copy_tag_t, allocator *alloc, const address_info &other);
+    explicit AddressInfo(Allocator *alloc);
+    AddressInfo(copy_tag_t, Allocator *alloc, const AddressInfo &other);
 
-    VIXEN_DEFINE_CLONE_METHOD(address_info)
+    VIXEN_DEFINE_CLONE_METHOD(AddressInfo)
 };
 
-struct translation_cache {
-    allocator *alloc;
-    vector<void *> translation_queue;
-    hash_map<void *, address_info> translated;
+struct TranslationCache {
+    Allocator *alloc;
+    Vector<void *> translation_queue;
+    HashMap<void *, AddressInfo> translated;
 
-    translation_cache(translation_cache &&other) = default;
-    translation_cache &operator=(translation_cache &&other) = default;
+    TranslationCache(TranslationCache &&other) = default;
+    TranslationCache &operator=(TranslationCache &&other) = default;
 
-    explicit translation_cache(allocator *alloc);
-    translation_cache(copy_tag_t, allocator *alloc, const translation_cache &other);
+    explicit TranslationCache(Allocator *alloc);
+    TranslationCache(copy_tag_t, Allocator *alloc, const TranslationCache &other);
 
-    VIXEN_DEFINE_CLONE_METHOD(translation_cache)
+    VIXEN_DEFINE_CLONE_METHOD(TranslationCache)
 
     void add_symbol(void *symbol);
     void translate();
-    address_info const &get_info(void *symbol) const;
+    AddressInfo const &get_info(void *symbol) const;
 };
 
-vector<void *> capture_stack_trace(allocator *alloc);
+Vector<void *> capture_stack_trace(Allocator *alloc);
 
-vector<address_info> translate_stack_trace(translation_cache *cache, slice<void *> trace);
-void print_stack_trace_capture(slice<const address_info> info);
+Vector<AddressInfo> translate_stack_trace(TranslationCache *cache, Slice<void *> trace);
+void print_stack_trace_capture(Slice<const AddressInfo> info);
 
 void print_stack_trace();
 
 template <typename Stream>
-void format_address_info(Stream &stream, const address_info &info, usize level) {
+void format_address_info(Stream &stream, const AddressInfo &info, usize level) {
     auto oi = stream::make_stream_output_iterator(stream);
     fmt::format_to(oi, "\x1b[36m{: >2}\x1b[0m :: \x1b[1m\x1b[32m{}\x1b[0m\n", level, info.name);
     fmt::format_to(oi, "   :: in {}\n", info.location);

@@ -17,14 +17,14 @@ namespace placeholder {
 
 struct file_chunks_source {
     char const *path;
-    slice<char> buffer;
+    Slice<char> buffer;
 };
 
 struct split_chunks_adapter {};
 
 } // namespace placeholder
 
-placeholder::file_chunks_source file_chunks_source(char const *path, slice<char> buffer) {
+placeholder::file_chunks_source file_chunks_source(char const *path, Slice<char> buffer) {
     return placeholder::file_chunks_source{path, buffer};
 }
 
@@ -37,7 +37,7 @@ struct split_chunks_adapter {
     Sink sink;
 
     template <typename I>
-    void push(slice<I> items) {
+    void push(Slice<I> items) {
         for (I &item : items) {
             sink.push(item);
         }
@@ -56,10 +56,10 @@ template <typename Sink>
 inline void operator>>=(vixen::stream::placeholder::file_chunks_source &&stream, Sink &&sink) {
     using namespace vixen;
 
-    vixen::file file(stream.path, vixen::mode::read);
+    vixen::File file(stream.path, vixen::mode::read);
 
     loop {
         usize len = file.read_chunk(stream.buffer);
-        sink.push(stream.buffer[vixen::range_to(len)]);
+        sink.push(stream.buffer[vixen::RangeTo(len)]);
     }
 }

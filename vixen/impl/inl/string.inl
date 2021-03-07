@@ -22,21 +22,20 @@ namespace vixen {
 #pragma region "String Initialization and Deinitialization"
 // + ----- String Initialization and Deinitialization --------------------------- +
 
-inline string::string(allocator *alloc) : data(vector<char>(alloc)) {}
+inline String::String(Allocator *alloc) : data(Vector<char>(alloc)) {}
 
-inline string::string(allocator *alloc, const char *cstr) : data(vector<char>(alloc)) {
+inline String::String(Allocator *alloc, const char *cstr) : data(Vector<char>(alloc)) {
     push({cstr});
 }
 
-inline string::string(allocator *alloc, string_slice slice)
-    : data(vector<char>(alloc, slice.len())) {
+inline String::String(Allocator *alloc, StringView slice) : data(Vector<char>(alloc, slice.len())) {
     push(slice);
 }
 
-inline string::string(allocator *alloc, usize default_capacity)
-    : data(vector<char>(alloc, default_capacity)) {}
+inline String::String(Allocator *alloc, usize default_capacity)
+    : data(Vector<char>(alloc, default_capacity)) {}
 
-inline string::string(vector<char> &&data) : data(mv(data)) {
+inline String::String(Vector<char> &&data) : data(mv(data)) {
     // VIXEN_ASSERT_EXT(utf8::is_valid(data), "String data was not valid UTF-8.")
 }
 
@@ -44,16 +43,16 @@ inline string::string(vector<char> &&data) : data(mv(data)) {
 #pragma region "String Mutation"
 // + ----- String Mutation ------------------------------------------------------ +
 
-inline void string::push(u32 codepoint) {
+inline void String::push(u32 codepoint) {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
     utf8::encode(codepoint, data.reserve(utf8::encoded_len(codepoint)));
 }
 
-inline void string::push(string_slice slice) {
+inline void String::push(StringView slice) {
     util::copy_nonoverlapping(slice.begin(), data.reserve(slice.len()), slice.len());
 }
 
-inline void string::clear() {
+inline void String::clear() {
     data.clear();
 }
 
@@ -61,39 +60,33 @@ inline void string::clear() {
 #pragma region "String Algorithms"
 // + ----- String Algorithms ---------------------------------------------------- +
 
-inline string string::clone(allocator *alloc) const {
-    string buf(alloc, data.len());
-    buf.push(slice<const char>(data));
-    return buf;
-}
-
-// TODO: code duplication with the methods on `string_slice`. I wish there way a way to
+// TODO: code duplication with the methods on `StringView`. I wish there way a way to
 // automatically convert types when using `.` or `->`... Like Rust's Deref trait.
-inline option<usize> string::index_of(string_slice needle) const {
+inline Option<usize> String::index_of(StringView needle) const {
     return as_slice().index_of(needle);
 }
 
-inline option<usize> string::last_index_of(string_slice needle) const {
+inline Option<usize> String::last_index_of(StringView needle) const {
     return as_slice().last_index_of(needle);
 }
 
-inline option<usize> string::index_of(u32 needle) const {
+inline Option<usize> String::index_of(u32 needle) const {
     return as_slice().index_of(needle);
 }
 
-inline option<usize> string::last_index_of(u32 needle) const {
+inline Option<usize> String::last_index_of(u32 needle) const {
     return as_slice().last_index_of(needle);
 }
 
-inline bool string::starts_with(string_slice slice) const {
+inline bool String::starts_with(StringView slice) const {
     return as_slice().starts_with(slice);
 }
 
-inline bool string::starts_with(u32 ch) const {
+inline bool String::starts_with(u32 ch) const {
     return as_slice().starts_with(ch);
 }
 
-inline bool string::operator==(string_slice rhs) const {
+inline bool String::operator==(StringView rhs) const {
     return as_slice() == rhs;
 }
 
@@ -101,35 +94,35 @@ inline bool string::operator==(string_slice rhs) const {
 #pragma region "String Accessors"
 // + ----- String Accessors ----------------------------------------------------- +
 
-inline string_slice string::operator[](range range) const {
+inline StringView String::operator[](Range range) const {
     return as_slice()[range];
 }
 
-inline string_slice string::operator[](range_from range) const {
+inline StringView String::operator[](RangeFrom range) const {
     return as_slice()[range];
 }
 
-inline string_slice string::operator[](range_to range) const {
+inline StringView String::operator[](RangeTo range) const {
     return as_slice()[range];
 }
 
-inline char *string::begin() {
+inline char *String::begin() {
     return data.begin();
 }
 
-inline char *string::end() {
+inline char *String::end() {
     return data.end();
 }
 
-inline const char *string::begin() const {
+inline const char *String::begin() const {
     return data.begin();
 }
 
-inline const char *string::end() const {
+inline const char *String::end() const {
     return data.end();
 }
 
-inline usize string::len() const {
+inline usize String::len() const {
     return data.len();
 }
 
@@ -137,15 +130,15 @@ inline usize string::len() const {
 #pragma region "String Conversion"
 // + ----- String Conversion ---------------------------------------------------- +
 
-inline string_slice string::as_slice() const {
-    return slice<const char>({data.begin(), data.len()});
+inline StringView String::as_slice() const {
+    return Slice<const char>(data.begin(), data.len());
 }
 
-inline string::operator slice<const char>() const {
+inline String::operator Slice<const char>() const {
     return data;
 }
 
-inline string::operator slice<char>() {
+inline String::operator Slice<char>() {
     return data;
 }
 
@@ -153,7 +146,7 @@ inline string::operator slice<char>() {
 #pragma region "String Misc"
 
 template <typename S>
-S &operator<<(S &stream, const string &str) {
+S &operator<<(S &stream, const String &str) {
     for (char ch : str.data) {
         stream << ch;
     }
@@ -161,13 +154,13 @@ S &operator<<(S &stream, const string &str) {
 }
 
 namespace detail {
-inline usize count_invalid_nuls(slice<char> data) {
-    if (data.len == 0) {
+inline usize count_invalid_nuls(Slice<char> data) {
+    if (data.len() == 0) {
         return 0;
     }
 
     usize nuls = 0;
-    for (usize i = 0; i < data.len - 1; ++i) {
+    for (usize i = 0; i < data.len() - 1; ++i) {
         if (data[i] == 0) {
             ++nuls;
         }
@@ -176,22 +169,22 @@ inline usize count_invalid_nuls(slice<char> data) {
 }
 } // namespace detail
 
-inline void null_terminate(vector<char> *data) {
-    usize invalid_nuls = detail::count_invalid_nuls(*data);
+inline void null_terminate(Vector<char> &data) {
+    usize invalid_nuls = detail::count_invalid_nuls(data);
     VIXEN_ASSERT_EXT(invalid_nuls == 0,
-        "Tried to create a nul-terminated string out of a buffer with {} internal nuls.",
+        "Tried to create a nul-terminated String out of a buffer with {} internal nuls.",
         invalid_nuls);
 
-    if (data->as_const().last() != 0) {
-        data->push(0);
+    if (const_cast<Vector<char> const &>(data).last() != 0) {
+        data.push(0);
     }
 }
 
-inline vector<char> to_null_terminated(allocator *alloc, string_slice str) {
-    vector<char> out(alloc, str.len() + 1);
+inline Vector<char> to_null_terminated(Allocator *alloc, StringView str) {
+    Vector<char> out(alloc, str.len() + 1);
     util::copy_nonoverlapping(str.begin(), out.reserve(str.len()), str.len());
 
-    null_terminate(&out);
+    null_terminate(out);
     return out;
 }
 
@@ -200,37 +193,37 @@ inline vector<char> to_null_terminated(allocator *alloc, string_slice str) {
 #pragma endregion
 #pragma region "string_slice"
 // +-------------------------------------------------------------------------------+
-// | string_slice                                                                  |
+// | StringView                                                                  |
 // +-------------------------------------------------------------------------------+
 
 #pragma region "string_slice Constructors"
-// + ----- string_slice Constructors --------------------------------------------- +
+// + ----- StringView Constructors --------------------------------------------- +
 
-inline string_slice::string_slice() : raw({}) {}
-inline string_slice::string_slice(const char *cstr) : raw({cstr, std::strlen(cstr)}) {}
-inline string_slice::string_slice(const char *str, usize len) : raw({str, len}) {}
-inline string_slice::string_slice(slice<const char> slice) : raw(slice) {}
-inline string_slice::string_slice(string const &str) : raw({str.begin(), str.len()}) {}
+inline StringView::StringView() : raw({}) {}
+inline StringView::StringView(const char *cstr) : raw({cstr, std::strlen(cstr)}) {}
+inline StringView::StringView(const char *str, usize len) : raw({str, len}) {}
+inline StringView::StringView(Slice<const char> slice) : raw(slice) {}
+inline StringView::StringView(String const &str) : raw({str.begin(), str.len()}) {}
 
 #pragma endregion
 #pragma region "string_slice Algorithms"
-// + ----- string_slice Algorithms ----------------------------------------------- +
+// + ----- StringView Algorithms ----------------------------------------------- +
 
-inline option<usize> string_slice::index_of(u32 codepoint) const {
+inline Option<usize> StringView::index_of(u32 codepoint) const {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     char buf[4];
     return index_of(utf8::encode_slice(codepoint, buf));
 }
 
-inline option<usize> string_slice::last_index_of(u32 codepoint) const {
+inline Option<usize> StringView::last_index_of(u32 codepoint) const {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     char buf[4];
     return last_index_of(utf8::encode_slice(codepoint, buf));
 }
 
-inline option<usize> string_slice::index_of(string_slice needle) const {
+inline Option<usize> StringView::index_of(StringView needle) const {
     // Can't find something that's bigger than the haystack!
     if (needle.len() > len()) {
         return {};
@@ -256,7 +249,7 @@ nomatch:;
     return {};
 }
 
-inline option<usize> string_slice::last_index_of(string_slice needle) const {
+inline Option<usize> StringView::last_index_of(StringView needle) const {
     if (needle.len() > len()) {
         return {};
     }
@@ -275,12 +268,12 @@ nomatch:;
     return {};
 }
 
-inline bool string_slice::starts_with(u32 codepoint) const {
+inline bool StringView::starts_with(u32 codepoint) const {
     char buf[4];
     return starts_with(utf8::encode_slice(codepoint, buf));
 }
 
-inline bool string_slice::starts_with(string_slice needle) const {
+inline bool StringView::starts_with(StringView needle) const {
     if (needle.len() > len()) {
         return false;
     }
@@ -292,21 +285,20 @@ inline bool string_slice::starts_with(string_slice needle) const {
     return true;
 }
 
-inline vector<string> string_slice::split(allocator *alloc, string_slice token) const {
-    vector<string> vec(alloc);
+inline Vector<String> StringView::split(Allocator *alloc, StringView token) const {
+    Vector<String> vec(alloc);
     split_to(alloc, token, vec);
     return vec;
 }
 
-inline void string_slice::split_to(
-    allocator *alloc, string_slice token, vector<string> &out) const {
-    string current_run(alloc);
+inline void StringView::split_to(Allocator *alloc, StringView token, Vector<String> &out) const {
+    String current_run(alloc);
 
     usize i = 0;
     while (i < len()) {
         if (raw[range(i, i + token.len())] == token.raw) {
             out.push(mv(current_run));
-            current_run = string(alloc);
+            current_run = String(alloc);
             i += token.len();
             continue;
         }
@@ -318,39 +310,39 @@ inline void string_slice::split_to(
 
 #pragma endregion
 #pragma region "string_slice Accessors"
-// + ----- string_slice Accessors ------------------------------------------------ +
+// + ----- StringView Accessors ------------------------------------------------ +
 
-inline string_slice string_slice::operator[](range r) const {
+inline StringView StringView::operator[](Range r) const {
     VIXEN_DEBUG_ASSERT_EXT(utf8::is_char_boundary(raw[r.start]),
-        "Tried to slice string, but start index {} was not on a char boundary.",
+        "Tried to slice String, but start index {} was not on a char boundary.",
         r.start);
-    return string_slice(raw[r]);
+    return StringView(raw[r]);
 }
 
-inline string_slice string_slice::operator[](range_from range) const {
+inline StringView StringView::operator[](RangeFrom range) const {
     VIXEN_DEBUG_ASSERT_EXT(utf8::is_char_boundary(raw[range.start]),
-        "Tried to slice string, but start index {} was not on a char boundary.",
+        "Tried to slice String, but start index {} was not on a char boundary.",
         range.start);
-    return string_slice(raw[range]);
+    return StringView(raw[range]);
 }
 
-inline string_slice string_slice::operator[](range_to range) const {
-    return string_slice(raw[range]);
+inline StringView StringView::operator[](RangeTo range) const {
+    return StringView(raw[range]);
 }
 
-inline const char *string_slice::begin() const {
+inline const char *StringView::begin() const {
     return raw.begin();
 }
 
-inline const char *string_slice::end() const {
+inline const char *StringView::end() const {
     return raw.end();
 }
 
-inline usize string_slice::len() const {
-    return raw.len;
+inline usize StringView::len() const {
+    return raw.len();
 }
 
-inline bool string_slice::operator==(string_slice rhs) const {
+inline bool StringView::operator==(StringView rhs) const {
     return raw == rhs.raw;
 }
 
@@ -358,7 +350,7 @@ inline bool string_slice::operator==(string_slice rhs) const {
 #pragma region "string_slice Misc"
 
 template <typename S>
-inline S &operator<<(S &stream, const string_slice &str) {
+inline S &operator<<(S &stream, const StringView &str) {
     for (char ch : str.raw) {
         stream << ch;
     }
@@ -374,7 +366,7 @@ inline S &operator<<(S &stream, const string_slice &str) {
 // +------------------------------------------------------------------------------+
 
 template <typename H>
-inline void hash(const string &value, H &hasher) {
+inline void hash(const String &value, H &hasher) {
     hash(value.data, hasher);
 }
 
@@ -388,7 +380,7 @@ inline bool is_char_boundary(char utf8_char) {
     return (utf8_char & 0xc0) != 0x80;
 }
 
-inline string_slice encode_slice(u32 codepoint, char *buf) {
+inline StringView encode_slice(u32 codepoint, char *buf) {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     encode(codepoint, buf);

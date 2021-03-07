@@ -47,16 +47,16 @@ constexpr u64 hash_finalize(u64 v) {
 
 } // namespace detail
 
-constexpr fx_hasher::fx_hasher(u64 seed) : current(seed) {}
+constexpr FxHasher::FxHasher(u64 seed) : current(seed) {}
 
-constexpr u64 fx_hasher::finish() {
+constexpr u64 FxHasher::finish() {
     return detail::hash_finalize(current);
 }
 
 // @FIXME: this has bugs! i was getting inconsistent hash values for strings, even on the first
 // character, so i suspect a pointer value is getting mixed up in the hash somewhere. It could also
 // be the case that we dont handle alignment correctly.
-constexpr void fx_hasher::write_bytes(const_rawptr data, usize len) {
+constexpr void FxHasher::write_bytes(const_rawptr data, usize len) {
     const_rawptr aligned = util::align_pointer_up(data, alignof(u64));
     const_rawptr cur = data;
     const_rawptr end = util::offset_rawptr(data, len);
@@ -79,7 +79,7 @@ constexpr void fx_hasher::write_bytes(const_rawptr data, usize len) {
 
 #define _VIXEN_FXHASHER_WRITE_OVERLOAD(T)                  \
     template <>                                            \
-    constexpr void fx_hasher::write<T>(const T &value) {   \
+    constexpr void FxHasher::write<T>(const T &value) {    \
         detail::fx_hasher_add_hash(current, (u64)(value)); \
     }
 
@@ -97,7 +97,7 @@ _VIXEN_FXHASHER_WRITE_OVERLOAD(i8)
 _VIXEN_FXHASHER_WRITE_OVERLOAD(char)
 
 template <typename T>
-constexpr void fx_hasher::write(const T &value) {
+constexpr void FxHasher::write(const T &value) {
     static_assert(std::is_trivial_v<T>,
         "default fxhasher write can only be used with trivial types (define a custom hash specialization for T that only uses trivial types)");
     write_bytes(std::addressof(value), sizeof(T));

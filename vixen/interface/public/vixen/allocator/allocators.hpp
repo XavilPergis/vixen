@@ -13,43 +13,43 @@
 namespace vixen::heap {
 // Requests blocks of memory directly from the OS with `mmap` and releases them with `munmap`.
 // This allocator is a "source" and doesn't have a parent allocator.
-struct page_allocator final : public allocator {
-    void *internal_alloc(const layout &layout) override;
-    void internal_dealloc(const layout &layout, void *ptr) override;
+struct PageAllocator final : public Allocator {
+    void *internal_alloc(const Layout &layout) override;
+    void internal_dealloc(const Layout &layout, void *ptr) override;
 };
 
-struct legacy_adapter_allocator final : public legacy_allocator {
+struct LegacyAdapterAllocator final : public LegacyAllocator {
     VIXEN_NODISCARD virtual void *internal_legacy_alloc(usize size) override;
     virtual void internal_legacy_dealloc(void *ptr) override;
     VIXEN_NODISCARD virtual void *internal_legacy_realloc(usize new_size, void *old_ptr) override;
 
-    legacy_adapter_allocator(allocator *adapted) : adapted(adapted) {}
+    LegacyAdapterAllocator(Allocator *adapted) : adapted(adapted) {}
 
-    allocator *adapted;
+    Allocator *adapted;
 };
 
 // Forwards alloctions to malloc/free
-struct system_allocator final : public legacy_allocator {
-    void *internal_alloc(const layout &layout) override;
-    void internal_dealloc(const layout &layout, void *ptr) override;
+struct SystemAllocator final : public LegacyAllocator {
+    void *internal_alloc(const Layout &layout) override;
+    void internal_dealloc(const Layout &layout, void *ptr) override;
 
     VIXEN_NODISCARD virtual void *internal_legacy_alloc(usize size) override;
     virtual void internal_legacy_dealloc(void *ptr) override;
     VIXEN_NODISCARD virtual void *internal_legacy_realloc(usize new_size, void *old_ptr) override;
 };
 
-// Blasts through memory like `arena_allocator` but doesn't page in more memory when
+// Blasts through memory like `ArenaAllocator` but doesn't page in more memory when
 // its current block runs out.
 // This allocator is a "source" and doesn't have a parent allocator.
-struct linear_allocator final : public resettable_allocator {
-    void *internal_alloc(const layout &layout) override;
-    void internal_dealloc(const layout &layout, void *ptr) override;
-    void *internal_realloc(const layout &old_layout, const layout &new_layout, void *ptr) override;
+struct LinearAllocator final : public ResettableAllocator {
+    void *internal_alloc(const Layout &layout) override;
+    void internal_dealloc(const Layout &layout, void *ptr) override;
+    void *internal_realloc(const Layout &old_layout, const Layout &new_layout, void *ptr) override;
 
     void internal_reset() override;
 
-    linear_allocator(void *block, usize len);
-    ~linear_allocator();
+    LinearAllocator(void *block, usize len);
+    ~LinearAllocator();
 
 private:
     void *cursor;
@@ -59,33 +59,33 @@ private:
 };
 
 // NOT THREADSAFE!!!
-struct arena_allocator final : public resettable_allocator {
-    void *internal_alloc(const layout &layout) override;
-    void internal_dealloc(const layout &layout, void *ptr) override;
-    void *internal_realloc(const layout &old_layout, const layout &new_layout, void *ptr) override;
+struct ArenaAllocator final : public ResettableAllocator {
+    void *internal_alloc(const Layout &layout) override;
+    void internal_dealloc(const Layout &layout, void *ptr) override;
+    void *internal_realloc(const Layout &old_layout, const Layout &new_layout, void *ptr) override;
     void internal_reset() override;
 
-    explicit arena_allocator(allocator *parent);
-    ~arena_allocator();
+    explicit ArenaAllocator(Allocator *parent);
+    ~ArenaAllocator();
 
-    struct block_descriptor {
+    struct BlockDescriptor {
         void *current;
         void *start;
         void *end;
         void *last;
-        block_descriptor *next;
-        layout block_layout;
+        BlockDescriptor *next;
+        Layout block_layout;
     };
 
 private:
-    void *try_allocate_in(const layout &layout, block_descriptor &block);
-    void *try_allocate_in_chain(const layout &layout, block_descriptor &block);
-    block_descriptor *allocate_block(const layout &required_layout);
+    void *try_allocate_in(const Layout &layout, BlockDescriptor &block);
+    void *try_allocate_in_chain(const Layout &layout, BlockDescriptor &block);
+    BlockDescriptor *allocate_block(const Layout &required_layout);
 
     usize last_size;
-    block_descriptor *blocks;
-    block_descriptor *current_block;
-    allocator *parent;
+    BlockDescriptor *blocks;
+    BlockDescriptor *current_block;
+    Allocator *parent;
 };
 
 } // namespace vixen::heap

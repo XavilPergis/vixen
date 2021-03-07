@@ -10,47 +10,51 @@
 
 namespace vixen {
 
-struct string_slice;
+struct StringView;
 
 /// @ingroup vixen_data_structures
 /// @brief UTF-8 String.
-struct string {
-    vector<char> data;
+struct String {
+    Vector<char> data;
 
-    string() = default;
+    String() = default;
+    String(String const &) = delete;
+    String &operator=(String const &) = delete;
+    String(String &&) = default;
+    String &operator=(String &&) = default;
 
-    explicit string(allocator *alloc);
-    string(allocator *alloc, const char *cstr);
-    string(allocator *alloc, string_slice slice);
-    string(allocator *alloc, usize default_capacity);
-    explicit string(vector<char> &&data);
+    String(copy_tag_t, Allocator *alloc, String const &other) : data(data.clone(alloc)) {}
+
+    explicit String(Allocator *alloc);
+    String(Allocator *alloc, const char *cstr);
+    String(Allocator *alloc, StringView slice);
+    String(Allocator *alloc, usize default_capacity);
+    explicit String(Vector<char> &&data);
 
     /// Encodes the Unicode codepoint `codepoint` into UTF-8 and appends the encoded bytes onto the
-    /// end of the string. `codepoint` MUST be a valid unicode codepoint, as
+    /// end of the String. `codepoint` MUST be a valid unicode codepoint, as
     /// `utf8::is_valid_for_encoding` can determine.
     void push(u32 codepoint);
 
-    void push(string_slice slice);
+    void push(StringView slice);
 
     void clear();
 
-    /// Creates a new distinct String with the same contents as the current one. It is the caller's
-    /// responsibility to free the returned string.
-    string clone(allocator *alloc) const;
+    VIXEN_DEFINE_CLONE_METHOD(String)
 
-    option<usize> index_of(string_slice needle) const;
-    option<usize> index_of(u32 needle) const;
-    option<usize> last_index_of(string_slice needle) const;
-    option<usize> last_index_of(u32 needle) const;
+    Option<usize> index_of(StringView needle) const;
+    Option<usize> index_of(u32 needle) const;
+    Option<usize> last_index_of(StringView needle) const;
+    Option<usize> last_index_of(u32 needle) const;
 
-    bool starts_with(string_slice slice) const;
+    bool starts_with(StringView slice) const;
     bool starts_with(u32 ch) const;
 
-    bool operator==(string_slice rhs) const;
+    bool operator==(StringView rhs) const;
 
-    string_slice operator[](range range) const;
-    string_slice operator[](range_from range) const;
-    string_slice operator[](range_to range) const;
+    StringView operator[](Range range) const;
+    StringView operator[](RangeFrom range) const;
+    StringView operator[](RangeTo range) const;
 
     char *begin();
     char *end();
@@ -58,63 +62,63 @@ struct string {
     const char *end() const;
     usize len() const;
 
-    string_slice as_slice() const;
-    operator slice<const char>() const;
-    operator slice<char>();
+    StringView as_slice() const;
+    operator Slice<const char>() const;
+    operator Slice<char>();
 
     template <typename S>
-    friend S &operator<<(S &stream, const string &str);
+    friend S &operator<<(S &stream, const String &str);
 };
 
-struct string_slice {
-    slice<const char> raw;
+struct StringView {
+    Slice<const char> raw;
 
-    string_slice();
-    string_slice(const char *cstr);
-    string_slice(const char *str, usize len);
-    string_slice(slice<const char> slice);
-    string_slice(string const &str);
+    StringView();
+    StringView(const char *cstr);
+    StringView(const char *str, usize len);
+    StringView(Slice<const char> slice);
+    StringView(String const &str);
 
-    option<usize> index_of(string_slice needle) const;
-    option<usize> index_of(u32 needle) const;
-    option<usize> last_index_of(string_slice needle) const;
-    option<usize> last_index_of(u32 needle) const;
+    Option<usize> index_of(StringView needle) const;
+    Option<usize> index_of(u32 needle) const;
+    Option<usize> last_index_of(StringView needle) const;
+    Option<usize> last_index_of(u32 needle) const;
 
-    bool starts_with(string_slice slice) const;
+    bool starts_with(StringView slice) const;
     bool starts_with(u32 codepoint) const;
 
-    void split_to(allocator *alloc, string_slice token, vector<string> &out) const;
+    void split_to(Allocator *alloc, StringView token, Vector<String> &out) const;
 
     /// Note that both the vector and the strings within the vector are allocated using `alloc`.
-    vector<string> split(allocator *alloc, string_slice token) const;
+    Vector<String> split(Allocator *alloc, StringView token) const;
 
-    string to_string(allocator *alloc) const;
+    String to_string(Allocator *alloc) const;
 
-    operator slice<const char>() const {
+    operator Slice<const char>() const {
         return raw;
     }
 
-    string_slice operator[](range range) const;
-    string_slice operator[](range_from range) const;
-    string_slice operator[](range_to range) const;
+    StringView operator[](Range range) const;
+    StringView operator[](RangeFrom range) const;
+    StringView operator[](RangeTo range) const;
     const char *begin() const;
     const char *end() const;
     usize len() const;
 
-    bool operator==(string_slice rhs) const;
+    bool operator==(StringView rhs) const;
 
     template <typename S>
-    friend S &operator<<(S &stream, const string_slice &str);
+    friend S &operator<<(S &stream, const StringView &str);
 };
 
 template <typename H>
-void hash(string const &value, H &hasher);
+void hash(String const &value, H &hasher);
 
 template <typename H>
-void hash(string_slice const &value, H &hasher);
+void hash(StringView const &value, H &hasher);
 
-inline void null_terminate(vector<char> *data);
-inline vector<char> to_null_terminated(allocator *alloc, string_slice str);
+inline void null_terminate(Vector<char> &data);
+inline Vector<char> to_null_terminated(Allocator *alloc, StringView str);
 
 namespace utf8 {
 
@@ -132,20 +136,23 @@ inline usize encoded_len(u32 codepoint);
 void encode(u32 codepoint, char *buf);
 
 /// Like `encode`, but returns a slice of the encoded UTF-8 whose lifetime is the same as `buf`'s.
-string_slice encode_slice(u32 codepoint, char *buf);
+StringView encode_slice(u32 codepoint, char *buf);
 
 /// Decodes the UTF-8 sequence at the start of the slice, or returns nothing if the encoding is
 /// wrong.
-option<u32> decode(slice<const char> buf);
+Option<u32> decode(Slice<const char> buf);
 
-bool is_valid(slice<const char> buf);
+bool is_valid(Slice<const char> buf);
 
 } // namespace utf8
 
 } // namespace vixen
 
-inline ::vixen::string_slice operator"" _s(const char *cstr, usize len) {
+inline ::vixen::StringView operator"" _s(const char *cstr, usize len) {
     return {{cstr, len}};
 }
 
 #include "string.inl"
+
+// String foo = "1234";
+// alloc(foo, myvar) = "1234";

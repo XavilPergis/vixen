@@ -3,8 +3,8 @@
 #include <vixen/unique.hpp>
 #include <vixen/vec.hpp>
 
-void print_weak_status(vixen::weak<vixen::vector<i32>> &weak) {
-    if (auto inner = weak.upgrade()) {
+void print_weak_status(vixen::Weak<vixen::Vector<i32>> &Weak) {
+    if (auto inner = Weak.upgrade()) {
         (*inner)->push(1917);
         VIXEN_INFO("upgrade successful! {}", *inner);
     } else {
@@ -13,13 +13,13 @@ void print_weak_status(vixen::weak<vixen::vector<i32>> &weak) {
 }
 
 int main() {
-    vixen::heap::arena_allocator tmp(vixen::heap::global_allocator());
+    vixen::heap::ArenaAllocator tmp(vixen::heap::global_allocator());
 
-    vixen::weak<vixen::vector<i32>> my_weak;
+    vixen::Weak<vixen::Vector<i32>> my_weak;
 
     {
         VIXEN_INFO("making foo");
-        vixen::vector<i32> foo(&tmp);
+        vixen::Vector<i32> foo(&tmp);
         foo.push(5);
         foo.push(4);
         foo.push(3);
@@ -27,8 +27,8 @@ int main() {
         foo.push(1);
 
         VIXEN_INFO("making bar");
-        vixen::shared<vixen::vector<i32>> bar(&tmp, mv(foo));
-        VIXEN_INFO("making weak");
+        vixen::shared<vixen::Vector<i32>> bar(&tmp, mv(foo));
+        VIXEN_INFO("making Weak");
         my_weak = bar.downgrade();
         bar->push(10);
         bar->push(9);
@@ -45,7 +45,7 @@ int main() {
             inner->push(12345678);
         }
 
-        VIXEN_INFO("upgrading weak inner");
+        VIXEN_INFO("upgrading Weak inner");
         print_weak_status(my_weak);
 
         VIXEN_INFO("bar = {}", bar);
@@ -55,8 +55,8 @@ int main() {
         }
     }
 
-    VIXEN_INFO("creating second weak");
-    vixen::weak<vixen::vector<i32>> my_weak_2 = my_weak.copy();
+    VIXEN_INFO("creating second Weak");
+    vixen::Weak<vixen::Vector<i32>> my_weak_2 = my_weak.copy();
 
     print_weak_status(my_weak);
     print_weak_status(my_weak_2);

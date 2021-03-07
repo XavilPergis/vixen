@@ -51,7 +51,7 @@
 
 namespace vixen::heap {
 
-struct allocation_exception {};
+struct AllocationException {};
 
 constexpr u8 ALLOCATION_PATTERN = 0xae;
 constexpr u8 DEALLOCATION_PATTERN = 0xfe;
@@ -83,37 +83,37 @@ constexpr usize MAX_LEGACY_ALIGNMENT = alignof(std::max_align_t);
 
 /// @ingroup vixen_allocator
 /// @brief Base allocator class.
-struct allocator {
-    virtual ~allocator() {}
+struct Allocator {
+    virtual ~Allocator() {}
 
-    VIXEN_NODISCARD void *alloc(const layout &layout);
-    void dealloc(const layout &layout, void *ptr);
+    VIXEN_NODISCARD void *alloc(const Layout &layout);
+    void dealloc(const Layout &layout, void *ptr);
     VIXEN_NODISCARD void *realloc(
-        const layout &old_layout, const layout &new_layout, void *old_ptr);
+        const Layout &old_layout, const Layout &new_layout, void *old_ptr);
 
     /// @brief Unique ID of this allocator, used for allocator tracking.
     /// @see profile.hpp
-    allocator_id id = NOT_TRACKED_ID;
+    AllocatorId id = NOT_TRACKED_ID;
 
 protected:
-    VIXEN_NODISCARD virtual void *internal_alloc(const layout &layout) = 0;
-    virtual void internal_dealloc(const layout &layout, void *ptr) = 0;
+    VIXEN_NODISCARD virtual void *internal_alloc(const Layout &layout) = 0;
+    virtual void internal_dealloc(const Layout &layout, void *ptr) = 0;
 
     VIXEN_NODISCARD virtual void *internal_realloc(
-        const layout &old_layout, const layout &new_layout, void *old_ptr);
+        const Layout &old_layout, const Layout &new_layout, void *old_ptr);
 };
 
 /// @ingroup vixen_allocator
-struct legacy_allocator : public allocator {
-    virtual ~legacy_allocator() {}
+struct LegacyAllocator : public Allocator {
+    virtual ~LegacyAllocator() {}
 
     VIXEN_NODISCARD void *legacy_alloc(usize size);
     void legacy_dealloc(void *ptr);
     VIXEN_NODISCARD void *legacy_realloc(usize new_size, void *old_ptr);
 
 protected:
-    VIXEN_NODISCARD virtual void *internal_alloc(const layout &layout) override;
-    virtual void internal_dealloc(const layout &layout, void *ptr) override;
+    VIXEN_NODISCARD virtual void *internal_alloc(const Layout &layout) override;
+    virtual void internal_dealloc(const Layout &layout, void *ptr) override;
 
     VIXEN_NODISCARD virtual void *internal_legacy_alloc(usize size) = 0;
     virtual void internal_legacy_dealloc(void *ptr) = 0;
@@ -121,13 +121,13 @@ protected:
 };
 
 // TODO: not happy about this inheritance hierarchy... I'd like something more like traits, so I
-// could say "struct my_allocator : public allocator, public resettable_allocator { ... }"
+// could say "struct my_allocator : public allocator, public ResettableAllocator { ... }"
 /// @ingroup vixen_allocator
 /// Allocators inheriting from this class are _resettable_, and may have all of their allocations
 /// discarded with a single call to `reset`.
-struct resettable_allocator : public allocator {
-    resettable_allocator() : allocator() {}
-    virtual ~resettable_allocator() {}
+struct ResettableAllocator : public Allocator {
+    ResettableAllocator() : Allocator() {}
+    virtual ~ResettableAllocator() {}
 
     void reset();
 
@@ -138,13 +138,13 @@ protected:
 // A non-specialized reallocation routine. It just allocates, copies, and then deallocates.
 /// @ingroup vixen_allocator
 VIXEN_NODISCARD inline void *general_realloc(
-    allocator *alloc, const layout &old_layout, const layout &new_layout, void *old_ptr);
+    Allocator *alloc, const Layout &old_layout, const Layout &new_layout, void *old_ptr);
 
 /// @ingroup vixen_allocator
 /// @brief Allocates `sizeof(T)` bytes with alignment of `alignof(T)` using `alloc`, and returns a
 /// pointer to the uninitialized data.
 template <typename T>
-VIXEN_NODISCARD inline T *create_uninit(allocator *alloc);
+VIXEN_NODISCARD inline T *create_uninit(Allocator *alloc);
 
 /// @ingroup vixen_allocator
 /// @brief Allocates `sizeof(T)` bytes with alignment of `alignof(T)` using `alloc`, constructs T
@@ -152,7 +152,7 @@ VIXEN_NODISCARD inline T *create_uninit(allocator *alloc);
 ///
 /// @note all `args` are _forwarded_ to `T`'s constructor.
 template <typename T, typename... Args>
-VIXEN_NODISCARD inline T *create_init(allocator *alloc, Args &&...args);
+VIXEN_NODISCARD inline T *create_init(Allocator *alloc, Args &&...args);
 
 /// @ingroup vixen_allocator
 /// @brief Deallocates `sizeof(T)` bytes with alignment of `alignof(T)` that was previously
@@ -160,25 +160,25 @@ VIXEN_NODISCARD inline T *create_init(allocator *alloc, Args &&...args);
 ///
 /// @note This is _not_ like `delete`, and does _not_ call `~T()`.
 template <typename T>
-inline void destroy_uninit(allocator *alloc, T *ptr);
+inline void destroy_uninit(Allocator *alloc, T *ptr);
 
 /// @ingroup vixen_allocator
 /// @brief Calls `~T()`, and deallocates `sizeof(T)` bytes with alignment of `alignof(T)` that was
 /// previously allocated with the same layout from `alloc`.
 template <typename T>
-inline void destroy_init(allocator *alloc, T *ptr);
+inline void destroy_init(Allocator *alloc, T *ptr);
 
 /// @ingroup vixen_allocator
 /// @brief Allocates `len * sizeof(T)` bytes with alignment of `alignof(T)` using `alloc`, and
 /// returns a pointer to the beginning of the uninitialized data.
 template <typename T>
-VIXEN_NODISCARD inline T *create_array_uninit(allocator *alloc, usize len);
+VIXEN_NODISCARD inline T *create_array_uninit(Allocator *alloc, usize len);
 
 /// @ingroup vixen_allocator
 /// @brief Dellocates `len * sizeof(T)` bytes with alignment of `alignof(T)` that was previously
 /// allocated with the same layout from `alloc`.
 template <typename T>
-inline void destroy_array_uninit(allocator *alloc, T *ptr, usize len);
+inline void destroy_array_uninit(Allocator *alloc, T *ptr, usize len);
 
 /// @ingroup vixen_allocator
 /// @brief Resizes an allocation of size `old_len * sizeof(T)` bytes that was previously allocated
@@ -186,31 +186,31 @@ inline void destroy_array_uninit(allocator *alloc, T *ptr, usize len);
 /// alignment and allocator.
 template <typename T>
 VIXEN_NODISCARD inline void *resize_array(
-    allocator *alloc, T *old_ptr, usize old_len, usize new_len);
+    Allocator *alloc, T *old_ptr, usize old_len, usize new_len);
 
 /// @ingroup vixen_allocator
 template <typename H, typename... Args>
-inline void dealloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args);
+inline void dealloc_parallel(Allocator *alloc, usize len, H *&head, Args *&...args);
 
 /// @ingroup vixen_allocator
 template <typename H, typename... Args>
-inline void alloc_parallel(allocator *alloc, usize len, H *&head, Args *&...args);
+inline void alloc_parallel(Allocator *alloc, usize len, H *&head, Args *&...args);
 
 /// @ingroup vixen_allocator
 template <typename H, typename... Args>
-inline void realloc_parallel(allocator *alloc, usize len, usize new_len, H *&head, Args *&...args);
+inline void realloc_parallel(Allocator *alloc, usize len, usize new_len, H *&head, Args *&...args);
 
 /// @ingroup vixen_allocator
-allocator *global_allocator();
+Allocator *global_allocator();
 
 /// @ingroup vixen_allocator
 /// Allocator that can be used like `malloc`/`free` would be, and forwards requests to
 /// `global_allocator()`.
-legacy_allocator *legacy_global_allocator();
+LegacyAllocator *legacy_global_allocator();
 
 /// @ingroup vixen_allocator
 /// allocator used for debug information, like storage for allocator profiles etc.
-allocator *debug_allocator();
+Allocator *debug_allocator();
 
 usize page_size();
 
@@ -219,7 +219,7 @@ usize page_size();
 /// @ingroup vixen_allocator
 /// allocator is such a commonly-used type that it makes sense not to have to refer to it by
 /// `heap::allocator` all the time.
-using allocator = vixen::heap::allocator;
+using Allocator = vixen::heap::Allocator;
 
 namespace vixen {
 
@@ -228,7 +228,7 @@ constexpr copy_tag_t copy_tag{};
 
 template <typename T>
 using has_allocator_aware_copy_ctor_type
-    = decltype(T{copy_tag, std::declval<allocator *>(), std::declval<const T &>()});
+    = decltype(T{copy_tag, std::declval<Allocator *>(), std::declval<const T &>()});
 
 template <typename T, typename = void>
 struct has_allocator_aware_copy_ctor : std::false_type {};
@@ -238,7 +238,7 @@ struct has_allocator_aware_copy_ctor<T, std::void_t<has_allocator_aware_copy_cto
     : std::true_type {};
 
 template <typename T>
-T copy_construct_maybe_allocator_aware(allocator *alloc, const T &original) {
+T copy_construct_maybe_allocator_aware(Allocator *alloc, const T &original) {
     if constexpr (has_allocator_aware_copy_ctor<T>::value) {
         return T(copy_tag, alloc, original);
     } else {

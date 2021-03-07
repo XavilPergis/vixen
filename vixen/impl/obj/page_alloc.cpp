@@ -3,7 +3,7 @@
 #include <sys/mman.h>
 
 namespace vixen::heap {
-static usize allocation_size(const layout &layout) {
+static usize allocation_size(const Layout &layout) {
     // If this layout's alignment is less the the page alignment, then we know that the alignment
     // requirements for layout will be satisfied in whatever is returned by mmap. However, if
     // layout's alignment is larger than the page alignment, we need an extra alignment's worth
@@ -15,14 +15,14 @@ static usize allocation_size(const layout &layout) {
     return allocation_size;
 }
 
-void *page_allocator::internal_alloc(const layout &layout) {
+void *PageAllocator::internal_alloc(const Layout &layout) {
     _VIXEN_ALLOC_PROLOGUE(layout);
 
     usize size = allocation_size(layout);
     void *base_ptr
         = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (base_ptr == MAP_FAILED) {
-        throw allocation_exception{};
+        throw AllocationException{};
     }
     void *aligned_ptr = util::align_pointer_up(base_ptr, layout.align);
 
@@ -35,7 +35,7 @@ void *page_allocator::internal_alloc(const layout &layout) {
     return aligned_ptr;
 }
 
-void page_allocator::internal_dealloc(const layout &layout, void *ptr) {
+void PageAllocator::internal_dealloc(const Layout &layout, void *ptr) {
     _VIXEN_DEALLOC_PROLOGUE(layout, ptr)
 
     // Note that munmap should never fail here because we will never split a mapped region, only
