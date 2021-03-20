@@ -145,11 +145,19 @@ constexpr void fill(T const &pattern, T *ptr, usize count) {
 }
 
 /// @ingroup vixen_util
-template <typename T, typename U = T>
+template <typename T, typename U>
 constexpr T exchange(T &old_val, U &&new_val) {
-    auto ret = std::move(old_val);
+    auto ret = move(old_val);
     old_val = std::forward<U>(new_val);
     return ret;
+}
+
+/// @ingroup vixen_util
+template <typename T>
+constexpr void swap(T &lhs, T &rhs) {
+    T tmp(mv(lhs));
+    lhs = mv(rhs);
+    rhs = mv(tmp);
 }
 
 /// @ingroup vixen_util

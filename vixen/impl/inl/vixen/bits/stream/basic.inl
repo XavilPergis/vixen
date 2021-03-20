@@ -71,6 +71,19 @@ struct back_inserter_sink {
 };
 
 template <typename F>
+struct functor_sink {
+    F functor;
+
+    template <typename I>
+    using output = void;
+
+    template <typename I>
+    void push(I &&item) {
+        functor(std::forward<I>(item));
+    }
+};
+
+template <typename F>
 struct filter_adapter {
     F predicate;
 

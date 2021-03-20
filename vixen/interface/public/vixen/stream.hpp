@@ -111,6 +111,15 @@ inline detail::output_iterator_source<T, CA, Cs...> make_stream_output_iterator(
 }
 
 /// @ingroup vixen_streams
+/// @brief Creates a sink that takes an input `n` and calls `func(n)`
+template <typename F>
+inline StreamPipeline<typename function_traits<F>::argument<0>, detail::functor_sink<F>> make_sink(
+    F &&functor) {
+    return make_pipeline<typename function_traits<F>::argument<0>>(
+        detail::functor_sink<F>{std::forward<F>(functor)});
+}
+
+/// @ingroup vixen_streams
 /// @brief Stream concatenation operator.
 ///
 /// Creates a new pipeline that contains all of the components from `first`, followed by all the

@@ -76,7 +76,7 @@ struct HashTable {
     constexpr usize len() const { return items; }
     // clang-format on
 
-    Allocator *alloc;
+    Allocator *alloc = nullptr;
 
     usize capacity = 0;
     usize occupied = 0;

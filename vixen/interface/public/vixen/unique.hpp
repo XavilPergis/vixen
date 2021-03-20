@@ -8,30 +8,63 @@ namespace vixen {
 /// @brief Managed pointer that destroys its allocation at the end of its lifetime.
 template <typename T>
 struct Unique {
-    using pointer = T *;
-    using const_pointer = const T *;
-
     Unique() = default;
 
     template <typename... Args>
-    Unique(Allocator *alloc, Args &&...args);
-    Unique(Allocator *alloc, const Unique &other);
+    Unique(Allocator *alloc, Args &&...args)
+        : data(heap::create_init<T>(alloc, std::forward<Args>(args)...)), alloc(alloc) {}
 
-    Unique(Unique &&other);
-    Unique &operator=(Unique &&other);
+    Unique(copy_tag_t, Allocator *alloc, const Unique &other)
+        : data(
+            heap::create_init<T>(alloc, copy_construct_maybe_allocator_aware(alloc, *other.data)))
+        , alloc(alloc) {}
 
-    ~Unique();
+    VIXEN_DEFINE_CLONE_METHOD(Unique);
 
-    const T &operator*() const;
-    const T *operator->() const;
-    T &operator*();
-    T *operator->();
+    Unique(Unique const &other) = delete;
+    Unique &operator=(Unique const &other) = delete;
 
-    explicit operator bool() const;
-    operator const_pointer() const;
-    operator pointer();
+    template <typename U, require<std::is_convertible<U *, T *>> = true>
+    Unique(Unique<U> &&other)
+        : data(util::exchange(other.data, nullptr)), alloc(util::exchange(other.alloc, nullptr)) {}
 
-    void clear();
+    template <typename U, require<std::is_convertible<U *, T *>> = true>
+    Unique &operator=(Unique<U> &&other) {
+        if (this == &other)
+            return *this;
+        if (data) {
+            heap::destroy_init(alloc, data);
+        }
+        data = util::exchange(other.data, nullptr);
+        alloc = util::exchange(other.alloc, nullptr);
+        return *this;
+    }
+
+    ~Unique() {
+        if (data) {
+            heap::destroy_init(alloc, data);
+        }
+    }
+
+    // clang-format off
+    const T &operator*() const { return *data; }
+    const T *operator->() const { return data; }
+    T &operator*() { return *data; }
+    T *operator->() { return data; }
+
+    explicit operator bool() const { return data != nullptr; }
+    operator T const *() const { return data; }
+    operator T *() { return data; }
+
+    T const &get() const { return *data; }
+    T &get() { return *data; }
+    // clang-format on
+
+    void clear() {
+        if (data) {
+            heap::destroy_init(alloc, data);
+        }
+    }
 
     template <typename S>
     S &operator<<(S &s) const {
@@ -40,20 +73,22 @@ struct Unique {
     }
 
 private:
-    struct inner {
-        template <typename... Args>
-        inner(Allocator *alloc, Args &&...args) : data(std::forward<Args>(args)...), alloc(alloc) {}
+    T *data = nullptr;
+    Allocator *alloc = nullptr;
 
-        T data;
-        Allocator *alloc;
-    };
-
-    inner *inner_pointer = nullptr;
+    // this is asinine.
+    template <typename U>
+    friend struct Unique;
 };
 
 template <typename T, typename H>
-inline void hash(const Unique<T> &option, H &hasher);
+inline void hash(const Unique<T> &unique, H &hasher) {
+    hash(unique.get(), hasher);
+}
+
+template <typename T, typename... Args>
+Unique<T> make_unique(Allocator *alloc, Args &&...args) {
+    return Unique<T>(alloc, std::forward<Args>(args)...);
+}
 
 } // namespace vixen
-
-#include "unique.inl"

@@ -23,7 +23,7 @@ struct String {
     String(String &&) = default;
     String &operator=(String &&) = default;
 
-    String(copy_tag_t, Allocator *alloc, String const &other) : data(data.clone(alloc)) {}
+    String(copy_tag_t, Allocator *alloc, String const &other) : data(other.data.clone(alloc)) {}
 
     explicit String(Allocator *alloc);
     String(Allocator *alloc, const char *cstr);

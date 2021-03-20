@@ -33,6 +33,9 @@ constexpr usize extract_h2(usize hash) {
 
 } // namespace impl
 
+#define _VIXEN_ASSERT_TABLE_ALLOC \
+    VIXEN_DEBUG_ASSERT_EXT(alloc != nullptr, "tried to operate on default hash table");
+
 template <typename T, typename H, typename C>
 HashTable<T, H, C>::HashTable(Allocator *alloc, usize default_capacity) : alloc(alloc) {
     heap::alloc_parallel<u8, T>(alloc, default_capacity, control, buckets);
@@ -85,6 +88,10 @@ constexpr HashTable<T, H, C> &HashTable<T, H, C>::operator=(HashTable<T, H, C> &
 
 template <typename T, typename H, typename C>
 HashTable<T, H, C>::~HashTable() {
+    if (alloc == nullptr) {
+        return;
+    }
+
     // not calling clear means we won't reset all of the control bytes, but that's okay since we're
     // not doing anything else with this table afterwards.
     if constexpr (!std::is_trivial_v<T>) {
@@ -98,6 +105,7 @@ HashTable<T, H, C>::~HashTable() {
 
 template <typename T, typename H, typename C>
 void HashTable<T, H, C>::grow() {
+    _VIXEN_ASSERT_TABLE_ALLOC
     if (does_table_need_resize()) {
         usize new_cap = capacity == 0 ? default_hashmap_capacity : capacity * 2;
         HashTable new_table(alloc, new_cap);
@@ -117,6 +125,7 @@ void HashTable<T, H, C>::grow() {
 
 template <typename T, typename H, typename C>
 void HashTable<T, H, C>::insert(usize slot, u64 hash, T &&value) {
+    _VIXEN_ASSERT_TABLE_ALLOC
     insert_no_resize(slot, hash, mv(value));
 }
 
@@ -124,6 +133,7 @@ void HashTable<T, H, C>::insert(usize slot, u64 hash, T &&value) {
 // Doesn't destruct old value
 template <typename T, typename H, typename C>
 constexpr void HashTable<T, H, C>::insert_no_resize(usize slot, u64 hash, T &&value) {
+    _VIXEN_ASSERT_TABLE_ALLOC
     util::construct_in_place(&buckets[slot], mv(value));
 
     items += impl::is_vacant(control[slot]);
@@ -133,6 +143,7 @@ constexpr void HashTable<T, H, C>::insert_no_resize(usize slot, u64 hash, T &&va
 
 template <typename T, typename H, typename C>
 constexpr void HashTable<T, H, C>::remove(usize slot) {
+    _VIXEN_ASSERT_TABLE_ALLOC
     items -= 1;
     bool is_next_free = impl::is_free(control[(slot + 1) % capacity]);
     occupied -= is_next_free;
@@ -142,21 +153,25 @@ constexpr void HashTable<T, H, C>::remove(usize slot) {
 
 template <typename T, typename H, typename C>
 constexpr T &HashTable<T, H, C>::get(usize slot) {
+    _VIXEN_ASSERT_TABLE_ALLOC
     return buckets[slot];
 }
 
 template <typename T, typename H, typename C>
 constexpr const T &HashTable<T, H, C>::get(usize slot) const {
+    _VIXEN_ASSERT_TABLE_ALLOC
     return buckets[slot];
 }
 
 template <typename T, typename H, typename C>
 constexpr bool HashTable<T, H, C>::is_occupied(usize slot) const {
+    _VIXEN_ASSERT_TABLE_ALLOC
     return !impl::is_vacant(control[slot]);
 }
 
 template <typename T, typename H, typename C>
 constexpr void HashTable<T, H, C>::clear() {
+    _VIXEN_ASSERT_TABLE_ALLOC
     for (usize i = 0; i < capacity; ++i) {
         if (!impl::is_vacant(control[i])) {
             buckets[i].~T();
@@ -168,6 +183,7 @@ constexpr void HashTable<T, H, C>::clear() {
 template <typename T, typename H, typename C>
 template <typename OT>
 constexpr Option<usize> HashTable<T, H, C>::find_slot(u64 hash, const OT &value) const {
+    _VIXEN_ASSERT_TABLE_ALLOC
     if (capacity == 0)
         return empty_opt;
 
@@ -190,6 +206,7 @@ constexpr Option<usize> HashTable<T, H, C>::find_slot(u64 hash, const OT &value)
 template <typename T, typename H, typename C>
 template <typename OT>
 constexpr usize HashTable<T, H, C>::find_insert_slot(u64 hash, const OT &value) const {
+    _VIXEN_ASSERT_TABLE_ALLOC
     VIXEN_DEBUG_ASSERT(capacity > 0);
 
     u64 hash1 = impl::extract_h1(hash) % capacity;
@@ -226,6 +243,7 @@ constexpr usize HashTable<T, H, C>::find_insert_slot(u64 hash, const OT &value) 
 
 template <typename T, typename H, typename C>
 constexpr bool HashTable<T, H, C>::does_table_need_resize() const {
+    _VIXEN_ASSERT_TABLE_ALLOC
     // integer-only check for `occupied / capacity >= 0.7`
     return load_factor_denomenator * occupied >= load_factor_numerator * capacity;
 }

@@ -370,6 +370,11 @@ inline void hash(const String &value, H &hasher) {
     hash(value.data, hasher);
 }
 
+template <typename H>
+void hash(StringView const &value, H &hasher) {
+    hash(value.raw, hasher);
+}
+
 #pragma endregion
 
 #pragma region "UTF-8"
