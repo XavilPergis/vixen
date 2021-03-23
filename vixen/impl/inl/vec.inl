@@ -46,6 +46,11 @@ inline Vector<T> &Vector<T>::operator=(Vector<T> &&other) {
 template <typename T>
 inline Vector<T>::~Vector() {
     if (capacity > 0) {
+        if constexpr (!std::is_trivially_destructible_v<T>) {
+            for (usize i = 0; i < length; ++i) {
+                data[i].~T();
+            }
+        }
         alloc->dealloc(heap::Layout::array_of<T>(capacity), data);
     }
 }

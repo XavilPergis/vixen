@@ -44,6 +44,11 @@ protected:
         }
     }
 
+    void destruct() {
+        if (occupied)
+            storage.destruct();
+    }
+
     bool occupied;
     UninitializedStorage<T> storage;
 };
@@ -64,6 +69,10 @@ struct option_base<T, false, C, M> : option_base<T, true, false, false> {
     option_base &operator=(option_base const &other) = default;
     option_base(option_base &&other) = default;
     option_base &operator=(option_base &&other) = default;
+
+    ~option_base() {
+        this->destruct();
+    }
 };
 
 template <typename T>
