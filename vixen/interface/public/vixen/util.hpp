@@ -11,6 +11,28 @@
 
 #define VIXEN_NODISCARD [[nodiscard]]
 
+#define VIXEN_DELETE_COPY(classname)       \
+    classname(classname const &) = delete; \
+    classname &operator=(classname const &) = delete;
+
+#define VIXEN_DELETE_MOVE(classname)  \
+    classname(classname &&) = delete; \
+    classname &operator=(classname &&) = delete;
+
+#define VIXEN_DEFAULT_COPY(classname)       \
+    classname(classname const &) = default; \
+    classname &operator=(classname const &) = default;
+
+#define VIXEN_DEFAULT_MOVE(classname)  \
+    classname(classname &&) = default; \
+    classname &operator=(classname &&) = default;
+
+#define VIXEN_DEFAULT_MOVE_DELETE_COPY(classname)     \
+    classname(classname const &) = delete;            \
+    classname &operator=(classname const &) = delete; \
+    classname(classname &&) = default;                \
+    classname &operator=(classname &&) = default;
+
 #define loop while (true)
 #define mv(x) ::vixen::util::move(x)
 
@@ -21,8 +43,8 @@
 
 #define RUN_AT_STATIC_INIT(...)                                            \
     static auto _STATIC_INIT_ID() = ::vixen::impl::run_at_static_init([] { \
-        __VA_ARGS__                                                        \
-    })
+        __VA_ARGS__;                                                       \
+    });
 
 namespace vixen::impl {
 template <typename F>

@@ -257,7 +257,7 @@ struct iter_to_std : public std::iterator<std::input_iterator_tag, typename Iter
     // clang-format on
 
     bool operator==(iter_to_std const &rhs) const {
-        auto matching_end_iterators = prev.is_none() && rhs.prev.is_none();
+        auto matching_end_iterators = prev.isNone() && rhs.prev.isNone();
         return matching_end_iterators || iter == rhs.iter && prev == rhs.prev;
     }
 

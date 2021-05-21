@@ -99,14 +99,14 @@ constexpr void HashMap<K, V, H, C>::clear() {
 template <typename K, typename V, typename H, typename C>
 constexpr V &HashMap<K, V, H, C>::operator[](K const &key) {
     auto slot = table.find_slot(make_hash<H>(key), key);
-    VIXEN_ASSERT_EXT(slot.is_some(), "Tried to access item that does not exist.");
+    VIXEN_ASSERT_EXT(slot.isSome(), "Tried to access item that does not exist.");
     return table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
 constexpr V const &HashMap<K, V, H, C>::operator[](K const &key) const {
     auto slot = table.find_slot(make_hash<H>(key), key);
-    VIXEN_ASSERT_EXT(slot.is_some(), "Tried to access item that does not exist.");
+    VIXEN_ASSERT_EXT(slot.isSome(), "Tried to access item that does not exist.");
     return table.get(*slot).template get<1>();
 }
 
@@ -194,25 +194,25 @@ constexpr HashMapEntryForwardIterator<K, V, H, C> HashMap<K, V, H, C>::end() {
 
 template <typename K, typename V, typename H, typename C>
 constexpr K const &HashMapEntry<K, V, H, C>::key() const {
-    VIXEN_DEBUG_ASSERT_EXT(slot.is_some(), "tried to access key of empty map entry.");
+    VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to access key of empty map entry.");
     return map_in->table.get(*slot).template get<0>();
 }
 
 template <typename K, typename V, typename H, typename C>
 constexpr V const &HashMapEntry<K, V, H, C>::value() const {
-    VIXEN_DEBUG_ASSERT_EXT(slot.is_some(), "tried to access const value of empty map entry.");
+    VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to access const value of empty map entry.");
     return map_in->table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
 constexpr V &HashMapEntry<K, V, H, C>::value() {
-    VIXEN_DEBUG_ASSERT_EXT(slot.is_some(), "tried to access value of empty map entry.");
+    VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to access value of empty map entry.");
     return map_in->table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
 constexpr Tuple<K, V> HashMapEntry<K, V, H, C>::remove() {
-    VIXEN_DEBUG_ASSERT_EXT(slot.is_some(), "tried to remove an already empty map entry.");
+    VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to remove an already empty map entry.");
     auto ret = mv(map_in->table.get(*slot));
     map_in->table.remove(*slot);
     slot.clear();

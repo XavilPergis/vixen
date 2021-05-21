@@ -45,7 +45,7 @@ AddressInfo translate_symbol(Allocator *alloc, StringView sym, void *reladdr) {
 
     AddressInfo info;
     info.raw_symbol = String(alloc, sym);
-    if (open_paren.is_none()) {
+    if (open_paren.isNone()) {
         info.name = String(alloc, "??"_s);
         info.location = String(alloc, "??"_s);
         return info;

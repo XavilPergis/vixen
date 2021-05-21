@@ -201,7 +201,7 @@ struct AllocationChecker {
 
     Option<AllocationRange> get_overlapping_range(AllocationRange range) const {
         auto prev_from_end = get_previous_range(range.end);
-        if (prev_from_end.is_none())
+        if (prev_from_end.isNone())
             return empty_opt;
 
         if (range.start < prev_from_end->end && prev_from_end->start < range.end) {
@@ -410,7 +410,7 @@ usize get_active_byte_max_count(AllocatorId id) {
 
 void set_allocator_name(AllocatorId id, StringView name) {
     AllocatorInfo &info = allocator_infos[id.id];
-    if (info.name.is_none()) {
+    if (info.name.isNone()) {
         info.name = String(debug_allocator(), name);
     } else {
         info.name->clear();
@@ -721,7 +721,7 @@ void record_realloc(
         }
 
         // option<AllocationInfo> prev = alloc_info->checker.infos.remove(old_ptr);
-        // VIXEN_ASSERT_EXT(prev.is_some(),
+        // VIXEN_ASSERT_EXT(prev.isSome(),
         //     "Tried to reallocate pointer {}, but it was not an active allocation.",
         //     old_ptr);
 
@@ -731,7 +731,7 @@ void record_realloc(
         // }
 
         // option<AllocationInfo> overlapping = alloc_info->checker.infos.insert(new_ptr,
-        // mv(info)); VIXEN_ASSERT_EXT(overlapping.is_none(),
+        // mv(info)); VIXEN_ASSERT_EXT(overlapping.isNone(),
         //     "Tried to reallocate pointer {} ({}) to {} ({}), but it overlaps with an active
         //     allocation with layout ({}).", old_ptr, old_layout, new_ptr, new_layout,
         //     overlapping->allocated_with);

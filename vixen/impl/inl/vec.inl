@@ -107,7 +107,7 @@ inline T Vector<T>::remove(usize idx) {
         length);
 
     swap(length - 1, idx);
-    return data[--length];
+    return mv(data[--length]);
 }
 
 template <typename T>

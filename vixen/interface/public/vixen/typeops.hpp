@@ -154,38 +154,6 @@ using remove = typename remove_impl<K, T>::type;
 
 // --------------------------------------------------------------------------------
 
-template <typename F>
-struct function_traits : function_traits<decltype(&F::operator())> {};
-
-template <typename R, typename... Args>
-struct function_traits<R(Args...)> {
-    using return_type = R;
-    static constexpr usize arity = sizeof...(Args);
-
-private:
-    template <usize I>
-    struct get_argument {
-        static_assert(I < arity, "invalid parameter index");
-        using type = select<I, unpack<Args...>>;
-    };
-
-public:
-    template <usize I>
-    using argument = typename get_argument<I>::type;
-};
-
-template <typename R, typename... Args>
-struct function_traits<R (*)(Args...)> : public function_traits<R(Args...)> {};
-
-template <typename R, typename... Args>
-struct function_traits<R (&)(Args...)> : public function_traits<R(Args...)> {};
-
-template <typename C, typename R, typename... Args>
-struct function_traits<R (C::*)(Args...)> : public function_traits<R(Args...)> {};
-
-template <typename C, typename R, typename... Args>
-struct function_traits<R (C::*)(Args...) const> : public function_traits<R(Args...)> {};
-
 } // namespace vixen
 
 #include "typeops.inl"

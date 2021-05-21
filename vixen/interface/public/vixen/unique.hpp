@@ -4,11 +4,18 @@
 
 namespace vixen {
 
+struct uninitialized_tag_t {};
+constexpr uninitialized_tag_t uninitialized_tag{};
+
 /// @ingroup vixen_data_structures
 /// @brief Managed pointer that destroys its allocation at the end of its lifetime.
 template <typename T>
 struct Unique {
     Unique() = default;
+
+    template <typename... Args>
+    Unique(uninitialized_tag_t, Allocator *alloc)
+        : data(heap::create_uninit<T>(alloc)), alloc(alloc) {}
 
     template <typename... Args>
     Unique(Allocator *alloc, Args &&...args)
@@ -63,6 +70,7 @@ struct Unique {
     void clear() {
         if (data) {
             heap::destroy_init(alloc, data);
+            data = nullptr;
         }
     }
 
@@ -87,8 +95,13 @@ inline void hash(const Unique<T> &unique, H &hasher) {
 }
 
 template <typename T, typename... Args>
-Unique<T> make_unique(Allocator *alloc, Args &&...args) {
+Unique<T> makeUnique(Allocator *alloc, Args &&...args) {
     return Unique<T>(alloc, std::forward<Args>(args)...);
+}
+
+template <typename T>
+Unique<T> makeUniqueUninitialized(Allocator *alloc) {
+    return Unique<T>(uninitialized_tag, alloc);
 }
 
 } // namespace vixen

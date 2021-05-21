@@ -219,9 +219,17 @@ struct Option
     pointer operator->() { return &get(); }
 
     explicit operator bool() const { return this->occupied; }
-    bool is_some() const { return this->occupied; }
-    bool is_none() const { return !this->occupied; }
+    bool isSome() const { return this->occupied; }
+    bool isNone() const { return !this->occupied; }
     // clang-format on
+
+    constexpr T *getNullablePointer() {
+        return isSome() ? &get() : nullptr;
+    }
+
+    constexpr T const *getNullablePointer() const {
+        return isSome() ? &get() : nullptr;
+    }
 
     void clear() {
         if (this->occupied) {
@@ -267,8 +275,8 @@ struct Option<T &> {
     constexpr T *operator->() { return &get(); }
 
     constexpr explicit operator bool() const { return storage != nullptr; }
-    constexpr bool is_some() const { return storage != nullptr; }
-    constexpr bool is_none() const { return storage == nullptr; }
+    constexpr bool isSome() const { return storage != nullptr; }
+    constexpr bool isNone() const { return storage == nullptr; }
     // clang-format on
 
     constexpr void clear() {
@@ -283,6 +291,14 @@ struct Option<T &> {
     constexpr T const &get() const {
         VIXEN_DEBUG_ASSERT(storage != nullptr);
         return *storage;
+    }
+
+    constexpr T *getNullablePointer() {
+        return storage;
+    }
+
+    constexpr T const *getNullablePointer() const {
+        return storage;
     }
 
 private:
@@ -316,8 +332,8 @@ struct Option<T const &> {
     constexpr T const *operator->() const { return &get(); }
 
     constexpr explicit operator bool() const { return storage != nullptr; }
-    constexpr bool is_some() const { return storage != nullptr; }
-    constexpr bool is_none() const { return storage == nullptr; }
+    constexpr bool isSome() const { return storage != nullptr; }
+    constexpr bool isNone() const { return storage == nullptr; }
     // clang-format on
 
     constexpr void clear() {
@@ -329,21 +345,25 @@ struct Option<T const &> {
         return *storage;
     }
 
+    constexpr T const *getNullablePointer() const {
+        return storage;
+    }
+
 private:
     T const *storage;
 };
 
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
 bool operator==(const Option<T> &lhs, const Option<U> &rhs) {
-    return lhs.is_some() ? rhs.is_some() && lhs.get() == rhs.get() : rhs.is_none();
+    return lhs.isSome() ? rhs.isSome() && lhs.get() == rhs.get() : rhs.isNone();
 }
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
 bool operator==(const Option<T> &lhs, const U &rhs) {
-    return lhs.is_some() && lhs.get() == rhs;
+    return lhs.isSome() && lhs.get() == rhs;
 }
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>
 bool operator==(const U &lhs, const Option<T> &rhs) {
-    return rhs.is_some() && lhs == rhs.get();
+    return rhs.isSome() && lhs == rhs.get();
 }
 
 template <typename T, typename U, require<std::is_convertible<U, T>> = true>

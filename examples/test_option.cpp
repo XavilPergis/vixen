@@ -19,28 +19,28 @@ int main() {
     {
         VIXEN_WARN("Default initialization");
         option<noisy> foo;
-        VIXEN_ASSERT(foo.is_none());
+        VIXEN_ASSERT(foo.isNone());
         // NOTE: should not print anything here
     }
 
     {
         VIXEN_WARN("Value move constructor");
         option<noisy> foo = noisy();
-        VIXEN_ASSERT(foo.is_some() && foo->foo == 1234);
+        VIXEN_ASSERT(foo.isSome() && foo->foo == 1234);
     }
 
     {
         VIXEN_WARN("Value copy constructor");
         noisy bar;
         option<noisy> foo = bar;
-        VIXEN_ASSERT(foo.is_some() && foo->foo == bar.foo);
+        VIXEN_ASSERT(foo.isSome() && foo->foo == bar.foo);
     }
 
     {
         VIXEN_WARN("Value move assignment operator");
         option<noisy> foo;
         foo = noisy();
-        VIXEN_ASSERT(foo.is_some() && foo->foo == 1234);
+        VIXEN_ASSERT(foo.isSome() && foo->foo == 1234);
     }
 
     {
@@ -48,6 +48,6 @@ int main() {
         noisy bar;
         option<noisy> foo;
         foo = bar;
-        VIXEN_ASSERT(foo.is_some() && foo->foo == bar.foo);
+        VIXEN_ASSERT(foo.isSome() && foo->foo == bar.foo);
     }
 }

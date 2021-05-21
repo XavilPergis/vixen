@@ -61,7 +61,7 @@ inline Shared<T>::Shared(Allocator *alloc, Args &&...args)
 
 template <typename T>
 inline Shared<T>::Shared(Shared<T> &&other)
-    : repr(std::exchange(other.repr, nullptr)), data(std::exchange(other.data, nullptr)) {}
+    : data(std::exchange(other.data, nullptr)), repr(std::exchange(other.repr, nullptr)) {}
 
 template <typename T>
 inline Shared<T> &Shared<T>::operator=(Shared<T> &&other) {

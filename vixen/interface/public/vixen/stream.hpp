@@ -2,10 +2,10 @@
 
 #include "vixen/allocator/allocator.hpp"
 #include "vixen/bits/stream/basic.inl"
+#include "vixen/function.hpp"
 #include "vixen/string.hpp"
 #include "vixen/traits.hpp"
 #include "vixen/tuple.hpp"
-#include "vixen/typeops.hpp"
 
 // dear god I'm so bad at documentation
 
