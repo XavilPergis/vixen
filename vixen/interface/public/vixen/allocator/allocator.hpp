@@ -242,6 +242,7 @@ T copy_construct_maybe_allocator_aware(Allocator *alloc, const T &original) {
     if constexpr (has_allocator_aware_copy_ctor<T>::value) {
         return T(copy_tag, alloc, original);
     } else {
+        (void)alloc;
         return T(original);
     }
 }

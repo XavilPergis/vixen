@@ -17,7 +17,7 @@ namespace vixen {
 
 template <typename T>
 inline Vector<T>::Vector(copy_tag_t, Allocator *alloc, const Vector<T> &other) : Vector(alloc) {
-    set_capacity(other.capacity);
+    setCapacity(other.capacity);
 
     for (usize i = 0; i < other.length; ++i) {
         push(copy_construct_maybe_allocator_aware(alloc, other[i]));
@@ -61,22 +61,35 @@ inline Vector<T>::~Vector() {
 // | Insertion and Removal                                                        |
 // +------------------------------------------------------------------------------+
 
-template <typename T>
-template <typename... Args>
-inline void Vector<T>::push(Args &&...values) {
-    try_grow(1);
-    util::construct_in_place(&data[length++], std::forward<Args>(values)...);
+template <typename T, typename U, typename... Us>
+constexpr void unpackToArray(T *location, U &&head, Us &&...tail) {
+    util::construct_in_place(location, std::forward<U>(head));
+    if constexpr (sizeof...(Us) > 0) {
+        unpackToArray(location + 1, std::forward<Us>(tail)...);
+    }
 }
 
-// template <typename T>
-// inline void Vec<T>::extend(Slice<const T> elements) {
-//     T *new_elems = reserve(elements.len);
-//     util::copy(elements.ptr, new_elems, elements.len);
-// }
+template <typename T>
+template <typename... Us>
+inline void Vector<T>::push(Us &&...values) {
+    static_assert(sizeof...(Us) > 0, "cannot push zero elements to a vector");
+
+    ensureCapacity(sizeof...(Us));
+    unpackToArray<T, Us...>(&data[length], values);
+    length += sizeof...(Us);
+}
+
+template <typename T>
+template <typename... Args>
+inline void Vector<T>::emplace(Args &&...args) {
+    ensureCapacity(1);
+    util::construct_in_place(&data[length], std::forward<Args>(args)...);
+    ++length;
+}
 
 template <typename T>
 inline T *Vector<T>::reserve(usize elements) {
-    try_grow(elements);
+    ensureCapacity(elements);
     T *start = data + length;
     length += elements;
     return start;
@@ -88,9 +101,22 @@ inline void Vector<T>::truncate(usize len) {
         "tried to truncate vector to {} items, but the current length was {}",
         len,
         length);
-    for (usize i = len; i < length; ++i) {
-        data[i].~T();
+
+    if (noexcept(std::declval<T>().~T())) {
+        for (usize i = len; i < length; ++i) {
+            data[i].~T();
+        }
+    } else {
+        for (usize i = 0; i < length - len; ++i) {
+            try {
+                data[length - i - 1].~T();
+            } catch (...) {
+                length = i;
+                throw;
+            }
+        }
     }
+
     length = len;
 }
 
@@ -111,7 +137,7 @@ inline T Vector<T>::remove(usize idx) {
 }
 
 template <typename T>
-inline T Vector<T>::shift_remove(usize idx) {
+inline T Vector<T>::shiftRemove(usize idx) {
     VIXEN_DEBUG_ASSERT_EXT(length > idx,
         "tried to remove element {} from a {}-element vector",
         idx,
@@ -128,31 +154,104 @@ inline void Vector<T>::clear() {
     truncate(0);
 }
 
+/**
+ * @brief constructs a `T` in-place, calling `cleanup` if the constructor throws
+ *
+ * @note the try/catch is not compiled if T's constructor does not throw
+ *
+ * @tparam T the type being constructed
+ * @tparam Args the arguments T's constructor is being called with
+ * @tparam F
+ * @param location the memory location that is being initialized
+ * @param args the arguments to T's constructor
+ * @param cleanup the cleanup function called if/when T's constructor throws
+ */
+template <typename T, typename... Args, typename F>
+constexpr void guarded_construct_in_place(T *location, Args &&...args, F &&cleanup) {
+    if (noexcept(T(std::forward<Args>(args)...))) {
+        util::construct_in_place<T, Args...>(location, std::forward<Args>(args)...);
+    } else {
+        try {
+            util::construct_in_place<T, Args...>(location, std::forward<Args>(args)...);
+        } catch (...) {
+            cleanup();
+            throw;
+        }
+    }
+}
+
 template <typename T>
-template <typename U>
-T &Vector<T>::shift_insert(usize idx, U &&val) {
+template <typename... Us>
+T *Vector<T>::insert(usize idx, Us &&...values) {
     VIXEN_DEBUG_ASSERT_EXT(idx <= length,
         "tried to insert element at {}, but the length was {}",
         idx,
         length);
+    ensureCapacity(sizeof...(Us));
 
-    try_grow(1);
-    util::copy_move(&data[idx], &data[idx + 1], length - idx);
-
-    // exception safety!
-    if constexpr (noexcept(T(std::forward<U>(val)))) {
-        util::construct_in_place(&data[idx], std::forward<U>(val));
+    if (idx == length) {
+        // we don't need to guard exceptions here because we only grow the length *after* we unpack
+        // all the new elements, so there's no possibility of accidentally including uninitialized
+        // elements
+        unpackToArray(&data[length], std::forward<Args>(values)...);
+        length += sizeof...(Us);
     } else {
-        try {
-            util::construct_in_place(&data[idx], std::forward<U>(val));
-        } catch (...) {
-            util::copy_move(&data[idx + 1], &data[idx], length - idx + 1);
-            --length;
-            throw;
+        // guard anything that we may have uninitialized at any point, so that if an exception is
+        // thrown, no uninitialized data will be included in the vector. this satisfies the basic
+        // exception safety guarntees.
+        usize prevLength = length;
+        length = idx;
+
+        for (usize i = 0; i < sizeof...(Us); ++i) {
+            util::construct_in_place(&data[prevLength + i], mv(data[idx + i]));
+            data[idx + i].~T();
         }
+        unpackToArray(&data[idx], std::forward<Args>(values)...);
+
+        length = prevLength + sizeof...(Us);
     }
-    ++length;
-    return data[idx];
+
+    return &data[idx];
+}
+
+template <typename T>
+template <typename... Us>
+T *Vector<T>::shiftInsert(usize idx, Us &&...values) {
+    VIXEN_DEBUG_ASSERT_EXT(idx <= length,
+        "tried to insert element at {}, but the length was {}",
+        idx,
+        length);
+    ensureCapacity(sizeof...(Us));
+
+    if (idx == length) {
+        // we don't need to guard exceptions here because we only grow the length *after* we unpack
+        // all the new elements, so there's no possibility of accidentally including uninitialized
+        // elements
+        unpackToArray(&data[length], std::forward<Args>(values)...);
+        length += sizeof...(Us);
+    } else {
+        // guard anything that we may have uninitialized at any point, so that if an exception is
+        // thrown, no uninitialized data will be included in the vector. this satisfies the basic
+        // exception safety guarntees.
+        usize prevLength = length;
+        length = idx;
+
+        // shift everything down by the size of the parameter pack so we have enough room to
+        // construct in-place at `idx`. since the source and destination of the move may overlap,
+        // and we're expanding downwards, we have to copy from back to front.
+        usize shiftLength = prevLength - idx;
+        for (usize i = shiftLength; i-- > 0;) {
+            util::construct_in_place(&data[idx + sizeof...(Us) + i], mv(data[idx + i]));
+            data[idx + i].~T();
+        }
+
+        // in-place construction
+        unpackToArray(&data[prevLength], std::forward<Args>(values)...);
+
+        length = prevLength + sizeof...(Us);
+    }
+
+    return &data[idx];
 }
 
 #pragma endregion
@@ -162,7 +261,7 @@ T &Vector<T>::shift_insert(usize idx, U &&val) {
 // +------------------------------------------------------------------------------+
 
 template <typename T>
-inline void Vector<T>::dedup_unstable() {
+inline void Vector<T>::dedupUnstable() {
     for (usize i = 0; i < length; ++i) {
         for (usize j = i + 1; j < length; ++j) {
             if (data[i] == data[j]) {
@@ -177,19 +276,31 @@ inline void Vector<T>::dedup() {
     for (usize i = 0; i < length; ++i) {
         for (usize j = i + 1; j < length; ++j) {
             if (data[i] == data[j]) {
-                shift_remove(j);
+                shiftRemove(j);
             }
         }
     }
 }
 
 template <typename T>
-inline Option<usize> Vector<T>::index_of(const T &value) {
+inline Option<usize> Vector<T>::firstIndexOf(const T &value) {
     for (usize i = 0; i < length; ++i) {
         if (data[i] == value) {
             return i;
         }
     }
+
+    return {};
+}
+
+template <typename T>
+inline Option<usize> Vector<T>::lastIndexOf(const T &value) {
+    for (usize i = 0; i < length; ++i) {
+        if (data[length - i - 1] == value) {
+            return length - i - 1;
+        }
+    }
+
     return {};
 }
 
@@ -299,20 +410,20 @@ S &Vector<T>::operator<<(S &s) {
 // +------------------------------------------------------------------------------+
 
 template <typename T>
-inline usize Vector<T>::next_capacity() {
+inline usize Vector<T>::nextCapacity() {
     return capacity == 0 ? default_vec_capacity : 2 * capacity;
 }
 
 template <typename T>
-inline void Vector<T>::try_grow(usize elements_needed) {
+inline void Vector<T>::ensureCapacity(usize elements_needed) {
     usize minimum_cap_needed = length + elements_needed;
     if (minimum_cap_needed >= capacity) {
-        set_capacity(std::max(next_capacity(), minimum_cap_needed));
+        setCapacity(std::max(nextCapacity(), minimum_cap_needed));
     }
 }
 
 template <typename T>
-inline void Vector<T>::set_capacity(usize cap) {
+inline void Vector<T>::setCapacity(usize cap) {
     VIXEN_ASSERT_EXT(alloc != nullptr, "Tried to grow a vector with no allocator.");
 
     if (cap > 0) {

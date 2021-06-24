@@ -19,12 +19,12 @@ template <typename... Conds>
 using require = std::enable_if_t<std::conjunction_v<Conds...>, bool>;
 
 template <typename T>
-struct option_storage {
+struct OptionStorage {
 protected:
-    option_storage() = default;
-    option_storage(bool occupied) : occupied(occupied) {}
+    OptionStorage() = default;
+    OptionStorage(bool occupied) : occupied(occupied) {}
 
-    void copy_assign(option_storage const &other) {
+    void copy_assign(OptionStorage const &other) {
         if (this->occupied && other.occupied) {
             this->storage.get() = other.storage.get();
         } else if (this->occupied) {
@@ -34,7 +34,7 @@ protected:
         }
     }
 
-    void move_assign(option_storage &&other) {
+    void move_assign(OptionStorage &&other) {
         if (this->occupied && other.occupied) {
             this->storage.get() = mv(other.storage.get());
         } else if (this->occupied) {
@@ -57,52 +57,52 @@ template <typename T,
     bool = has_trivial_destructor<T>,
     bool = has_trivial_copy_ops<T>,
     bool = has_trivial_move_ops<T>>
-struct option_base;
+struct OptionBase;
 
 template <typename T, bool C, bool M>
-struct option_base<T, false, C, M> : option_base<T, true, false, false> {
+struct OptionBase<T, false, C, M> : OptionBase<T, true, false, false> {
     // Default constructor, initializes to unoccupied option.
-    option_base() : option_base<T, true, false, false>() {}
-    option_base(empty_opt_type) : option_base<T, true, false, false>() {}
+    OptionBase() : OptionBase<T, true, false, false>() {}
+    OptionBase(empty_opt_type) : OptionBase<T, true, false, false>() {}
 
-    option_base(option_base const &other) = default;
-    option_base &operator=(option_base const &other) = default;
-    option_base(option_base &&other) = default;
-    option_base &operator=(option_base &&other) = default;
+    OptionBase(OptionBase const &other) = default;
+    OptionBase &operator=(OptionBase const &other) = default;
+    OptionBase(OptionBase &&other) = default;
+    OptionBase &operator=(OptionBase &&other) = default;
 
-    ~option_base() {
+    ~OptionBase() {
         this->destruct();
     }
 };
 
 template <typename T>
-struct option_base<T, true, true, true> : option_storage<T> {
+struct OptionBase<T, true, true, true> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    option_base() : option_storage<T>(false) {}
-    option_base(empty_opt_type) : option_storage<T>(false) {}
+    OptionBase() : OptionStorage<T>(false) {}
+    OptionBase(empty_opt_type) : OptionStorage<T>(false) {}
 
-    option_base(option_base const &other) = default;
-    option_base &operator=(option_base const &other) = default;
+    OptionBase(OptionBase const &other) = default;
+    OptionBase &operator=(OptionBase const &other) = default;
 
-    option_base(option_base &&other) = default;
-    option_base &operator=(option_base &&other) = default;
+    OptionBase(OptionBase &&other) = default;
+    OptionBase &operator=(OptionBase &&other) = default;
 };
 
 template <typename T>
-struct option_base<T, true, true, false> : option_storage<T> {
+struct OptionBase<T, true, true, false> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    option_base() : option_storage<T>(false) {}
-    option_base(empty_opt_type) : option_storage<T>(false) {}
+    OptionBase() : OptionStorage<T>(false) {}
+    OptionBase(empty_opt_type) : OptionStorage<T>(false) {}
 
-    option_base(option_base const &other) = default;
-    option_base &operator=(option_base const &other) = default;
+    OptionBase(OptionBase const &other) = default;
+    OptionBase &operator=(OptionBase const &other) = default;
 
-    option_base(option_base &&other) : option_storage<T>(other.occupied) {
+    OptionBase(OptionBase &&other) : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
             this->storage.construct_in_place(mv(other.storage.get()));
         }
     }
-    option_base &operator=(option_base &&other) {
+    OptionBase &operator=(OptionBase &&other) {
         this->move_assign(mv(other));
         return *this;
     }
@@ -110,37 +110,37 @@ struct option_base<T, true, true, false> : option_storage<T> {
 
 // why would anyone do this? trivially movable but not trivially copyable??
 template <typename T>
-struct option_base<T, true, false, true> : option_storage<T> {
+struct OptionBase<T, true, false, true> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    option_base() : option_storage<T>(false) {}
-    option_base(empty_opt_type) : option_storage<T>(false) {}
+    OptionBase() : OptionStorage<T>(false) {}
+    OptionBase(empty_opt_type) : OptionStorage<T>(false) {}
 
-    option_base(option_base const &other) : option_storage<T>(other.occupied) {
+    OptionBase(OptionBase const &other) : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
             this->storage.construct_in_place(other.storage.get());
         }
     }
-    option_base &operator=(option_base const &other) {
+    OptionBase &operator=(OptionBase const &other) {
         this->copy_assign(other);
         return *this;
     }
 
-    option_base(option_base &&other) = default;
-    option_base &operator=(option_base &&other) = default;
+    OptionBase(OptionBase &&other) = default;
+    OptionBase &operator=(OptionBase &&other) = default;
 };
 
 template <typename T>
-struct option_base<T, true, false, false> : option_storage<T> {
+struct OptionBase<T, true, false, false> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    option_base() : option_storage<T>(false) {}
-    option_base(empty_opt_type) : option_storage<T>(false) {}
+    OptionBase() : OptionStorage<T>(false) {}
+    OptionBase(empty_opt_type) : OptionStorage<T>(false) {}
 
-    option_base(option_base const &other) : option_storage<T>(other.occupied) {
+    OptionBase(OptionBase const &other) : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
             this->storage.construct_in_place(other.storage.get());
         }
     }
-    option_base &operator=(option_base const &other) {
+    OptionBase &operator=(OptionBase const &other) {
         this->copy_assign(other);
         return *this;
     }
@@ -150,12 +150,12 @@ struct option_base<T, true, false, false> : option_storage<T> {
     // consistency with trivially movable inner types, which wouldn't set the old option to empty,
     // or we'd sacrifice the ability to have trivial move operators entirely for the sake of being
     // consistent. The least bad option is to be consistent and fast!
-    option_base(option_base &&other) : option_storage<T>(other.occupied) {
+    OptionBase(OptionBase &&other) : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
             this->storage.construct_in_place(mv(other.storage.get()));
         }
     }
-    option_base &operator=(option_base &&other) {
+    OptionBase &operator=(OptionBase &&other) {
         this->move_assign(mv(other));
         return *this;
     }
@@ -169,7 +169,7 @@ struct option_base<T, true, false, false> : option_storage<T> {
 // be.
 template <typename T>
 struct Option
-    : option_base<T>
+    : OptionBase<T>
     , mimic_copy_ctor<T>
     , mimic_move_ctor<T> {
     using pointer = std::remove_reference_t<T> *;
@@ -183,7 +183,7 @@ struct Option
     template <typename U>
     using is_not_empty_tag = std::negation<std::is_same<T, remove_cvref_t<U>>>;
 
-    using option_base<T>::option_base;
+    using OptionBase<T>::OptionBase;
 
     // Don't declare these for other `option<T>`s
     template <typename U, require<is_not_self<U>, std::is_constructible<T, U &&>> = true>

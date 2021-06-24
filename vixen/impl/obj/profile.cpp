@@ -68,7 +68,7 @@ struct AllocationChecker {
             = binary_search(buckets.begin(), buckets.end(), get_bucket_id(addr), bucket_start);
         if (bucket_idx.is_err()) {
             allocation_bucket bucket_to_add(alloc, addr, util::offset_rawptr(addr, BUCKET_SIZE));
-            buckets.shift_insert(bucket_idx.unwrap_err(), mv(bucket_to_add));
+            buckets.shiftInsert(bucket_idx.unwrap_err(), mv(bucket_to_add));
         }
 
         auto &bucket = buckets[unify_result(mv(bucket_idx))];
@@ -77,7 +77,7 @@ struct AllocationChecker {
             range.start,
             range_start);
         VIXEN_ASSERT_EXT(range_idx.is_err(), "tried to insert already-existent range");
-        bucket.allocations.shift_insert(range_idx.unwrap_err(), range);
+        bucket.allocations.shiftInsert(range_idx.unwrap_err(), range);
     }
 
     Option<const AllocationInfo &> add(rawptr ptr, AllocationInfo &&info) {
@@ -120,12 +120,12 @@ struct AllocationChecker {
             if (range.start == overlapping_range->start && range.end == overlapping_range->end) {
                 auto start_bucket_idx = get_bucket_index(range.start);
                 auto start_range_idx = get_range_index(*start_bucket_idx, range.start);
-                buckets[*start_bucket_idx].allocations.shift_remove(*start_range_idx);
+                buckets[*start_bucket_idx].allocations.shiftRemove(*start_range_idx);
 
                 auto end_bucket_idx = get_bucket_index(range.end);
                 if (start_bucket_idx != end_bucket_idx) {
                     auto end_range_idx = get_range_index(*end_bucket_idx, range.start);
-                    buckets[*end_bucket_idx].allocations.shift_remove(*end_range_idx);
+                    buckets[*end_bucket_idx].allocations.shiftRemove(*end_range_idx);
                 }
 
                 return {infos.remove(overlapping_range->start), false, false};
@@ -180,8 +180,8 @@ struct AllocationChecker {
                     return false;
                 }
 
-                start_bucket.allocations.shift_remove(start_range_index.unwrap_ok());
-                end_bucket.allocations.shift_remove(end_range_index.unwrap_ok());
+                start_bucket.allocations.shiftRemove(start_range_index.unwrap_ok());
+                end_bucket.allocations.shiftRemove(end_range_index.unwrap_ok());
 
                 return true;
             }
@@ -302,7 +302,7 @@ void delete_memory_performace_query(QueryId id) {
     InternalQueryInfo *query_info = &queries[id.id];
     AllocatorInfo *affected_alloc_info = &allocator_infos[query_info->attached_to.id];
 
-    if (auto idx = affected_alloc_info->listening_queries.index_of(id)) {
+    if (auto idx = affected_alloc_info->listening_queries.firstIndexOf(id)) {
         affected_alloc_info->listening_queries.remove(*idx);
     }
 

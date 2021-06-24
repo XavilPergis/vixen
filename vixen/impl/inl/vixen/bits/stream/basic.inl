@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma once
-
 #include "vixen/allocator/allocator.hpp"
 #include "vixen/string.hpp"
 #include "vixen/traits.hpp"
@@ -16,12 +14,12 @@ struct StreamPipeline;
 
 template <typename T, typename CA, typename CB, typename... Cs>
 struct StreamPipeline<T, CA, CB, Cs...> {
-    using component_output = typename CA::output<T>;
-    using child_pipeline = StreamPipeline<component_output, CB, Cs...>;
-    using pipeline_output = typename child_pipeline::pipeline_output;
+    using ComponentOutput = typename CA::template Output<T>;
+    using ChildPipeline = StreamPipeline<ComponentOutput, CB, Cs...>;
+    using PipelineOutput = typename ChildPipeline::PipelineOutput;
 
     CA component;
-    child_pipeline rest;
+    ChildPipeline rest;
 
     template <typename I>
     void push(I &&item) {
@@ -30,7 +28,7 @@ struct StreamPipeline<T, CA, CB, Cs...> {
 
     template <typename... As>
     StreamPipeline<T, CA, CB, Cs..., As...> append_pipeline(
-        StreamPipeline<pipeline_output, As...> &&appended) {
+        StreamPipeline<PipelineOutput, As...> &&appended) {
         return StreamPipeline<T, CA, CB, Cs..., As...>{mv(component),
             rest.append_pipeline(mv(appended))};
     }
@@ -38,7 +36,7 @@ struct StreamPipeline<T, CA, CB, Cs...> {
 
 template <typename T, typename C>
 struct StreamPipeline<T, C> {
-    using pipeline_output = typename C::output<T>;
+    using PipelineOutput = typename C::template Output<T>;
 
     C component;
 
@@ -58,11 +56,11 @@ struct StreamPipeline<T, C> {
 namespace detail {
 
 template <typename Coll>
-struct back_inserter_sink {
+struct BackInserterSink {
     Coll *collection;
 
     template <typename I>
-    using output = void;
+    using Output = void;
 
     template <typename I>
     void push(I &&item) {
@@ -71,11 +69,11 @@ struct back_inserter_sink {
 };
 
 template <typename F>
-struct functor_sink {
+struct FunctorSink {
     F functor;
 
     template <typename I>
-    using output = void;
+    using Output = void;
 
     template <typename I>
     void push(I &&item) {
@@ -84,11 +82,11 @@ struct functor_sink {
 };
 
 template <typename F>
-struct filter_adapter {
+struct FilterAdapter {
     F predicate;
 
     template <typename I>
-    using output = I;
+    using Output = I;
 
     template <typename S, typename I>
     void push(S &sink, I &&item) {
@@ -99,11 +97,11 @@ struct filter_adapter {
 };
 
 template <typename F>
-struct map_adapter {
+struct MapAdapter {
     F mapper;
 
     template <typename I>
-    using output = decltype(std::declval<F>()(std::declval<I>()));
+    using Output = decltype(std::declval<F>()(std::declval<I>()));
 
     template <typename S, typename I>
     void push(S &sink, I item) {
@@ -113,11 +111,11 @@ struct map_adapter {
 
 // @note: this is a sink and not an adapter, because sources can only have one downstream sink.
 template <typename... Pipelines>
-struct split_sink {
+struct SplitSink {
     Tuple<Pipelines...> pipelines;
 
     template <typename I>
-    using output = void;
+    using Output = void;
 
     template <typename... Is>
     void push(Is... items) {
@@ -128,25 +126,25 @@ struct split_sink {
 };
 
 template <typename T, typename... Cs>
-struct output_iterator_source
+struct OutputIteratorSource
     : public std::iterator<std::output_iterator_tag, void, void, void, void> {
-    explicit output_iterator_source(StreamPipeline<T, Cs...> &adapted)
+    explicit OutputIteratorSource(StreamPipeline<T, Cs...> &adapted)
         : adapted(std::addressof(adapted)) {}
 
-    output_iterator_source &operator=(T &&value) {
+    OutputIteratorSource &operator=(T &&value) {
         adapted->push(std::forward<T>(value));
         return *this;
     }
 
-    output_iterator_source &operator=(const T &value) {
+    OutputIteratorSource &operator=(const T &value) {
         adapted->push(value);
         return *this;
     }
 
     // clang-format off
-    output_iterator_source &operator*() { return *this; }
-    output_iterator_source &operator++() { return *this; }
-    output_iterator_source &operator++(int) { return *this; }
+    OutputIteratorSource &operator*() { return *this; }
+    OutputIteratorSource &operator++() { return *this; }
+    OutputIteratorSource &operator++(int) { return *this; }
     // clang-format on
 
 private:

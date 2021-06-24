@@ -30,43 +30,106 @@ struct Vector {
 
     explicit Vector(Allocator *alloc) : alloc(alloc) {}
     Vector(Allocator *alloc, usize default_capacity) : alloc(alloc) {
-        set_capacity(default_capacity);
+        setCapacity(default_capacity);
     }
 
     VIXEN_DEFINE_CLONE_METHOD(Vector);
 
-    /// Appends a single item to the end of the vector.
-    template <typename... Args>
-    void push(Args &&...values);
+    /**
+     * @brief inserts each value to the end of the vector
+     *
+     * @tparam Us the argument types
+     * @param values a pack of items to be added to the vector. earlier values get inserted first
+     */
+    template <typename... Us>
+    void push(Us &&...values);
 
-    /// Extends the vector by `elements` elements, and returns a pointer to the start of the
-    /// newly allocated elements.
-    ///
-    /// @warning This method does _not_ initialize any elements.
+    /**
+     * @brief reserves one new slot and constructs a new element in-place, forwarding `values` to
+     * the element's constructor
+     *
+     * @tparam Args the constructor's argument types
+     * @param values the arguments to be forwarded to the constructor
+     */
+    template <typename... Args>
+    void emplace(Args &&...args);
+
+    /**
+     * @brief reserves `elements` new slots
+     * @warning this method does _not_ initialize any of the elements, so great care must be taken
+     * to initialize them all before any exception can be thrown
+     *
+     * @param elements the number of new slots to reserve at the end of the vector
+     * @return T* a pointer to to the newly allocated slots
+     */
     T *reserve(usize elements = 1);
 
-    /// Sets the length of the vector to `len` items long.
+    /**
+     * @brief truncates the vector to `len` elements
+     * @note it is a logic error to truncate a vector to a length greater than its current length
+     *
+     * @param len the new length of the vector
+     */
     void truncate(usize len);
 
-    /// Removes the last item from the vector and returns it, or en empty option if there is nothing
-    /// to pop.
+    /**
+     * @brief removes an element from the end of the vector
+     *
+     * @return Option<T> the removed element, or an empty option if the vector was empty
+     */
     Option<T> pop();
 
-    /// Removes an item from the list efficiently by swapping it with the last element and
-    /// popping. This operation does not preserve ordering. O(1)
+    /**
+     * @brief removes the element at index `idx`
+     * @warning this operation does not preserve ordering
+     *
+     * this method removes elements by swapping the last element and the element at `idx`, and then
+     * popping the last element. this does not preserve the order of the elements in the vector, but
+     * allows the removal to be constant time.
+     *
+     * @param idx the index of the element to remove
+     * @return T the removed element
+     */
     T remove(usize idx);
 
-    /// Removes an item for the list by shifting all elements past `idx` back one. O(n)
-    T shift_remove(usize idx);
+    /**
+     * @brief removes the element at index `idx`
+     *
+     * this method removes elements by shifting all the elements after `idx` down by one, and
+     * lowering the length by one. this means the operation preserves the order of elements in the
+     * vector, but at the cost of being linear in time with the number of elements in the vector.
+     *
+     * @param idx
+     * @return T
+     */
+    T shiftRemove(usize idx);
 
-    template <typename U>
-    T &shift_insert(usize idx, U &&val);
+    /**
+     * @brief inserts each value in sequence
+     *
+     * @tparam Us
+     * @param idx
+     * @param vals
+     * @return T*
+     */
+    template <typename... Us>
+    T *insert(usize idx, Us &&...vals);
 
-    Option<usize> index_of(const T &value);
+    template <typename... Us>
+    T *shiftInsert(usize idx, Us &&...vals);
+
+    template <typename... Args>
+    T &emplaceInsert(usize idx, Args &&...args);
+
+    template <typename... Args>
+    T &emplaceShiftInsert(usize idx, Args &&...args);
+
+    Option<usize> firstIndexOf(const T &value);
+    Option<usize> lastIndexOf(const T &value);
 
     void clear();
 
-    void dedup_unstable();
+    void dedupUnstable();
     void dedup();
 
     void swap(usize a, usize b);
@@ -96,9 +159,9 @@ struct Vector {
     S &operator<<(S &s);
 
 private:
-    usize next_capacity();
-    void try_grow(usize elements_needed);
-    void set_capacity(usize cap);
+    usize nextCapacity();
+    void ensureCapacity(usize elements_needed);
+    void setCapacity(usize cap);
 
 private:
     Allocator *alloc = nullptr;

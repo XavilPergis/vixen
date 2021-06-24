@@ -119,7 +119,7 @@ void TranslationCache::add_symbol(void *symbol) {
 }
 
 void TranslationCache::translate() {
-    translation_queue.dedup_unstable();
+    translation_queue.dedupUnstable();
     Vector<String> symbols = detail::translate_addrs(alloc, translation_queue);
 
     for (usize i = 0; i < translation_queue.len(); ++i) {
