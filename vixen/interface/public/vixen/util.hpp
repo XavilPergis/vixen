@@ -27,7 +27,7 @@
     classname(classname &&) = default; \
     classname &operator=(classname &&) = default;
 
-#define VIXEN_DEFAULT_MOVE_DELETE_COPY(classname)     \
+#define VIXEN_MOVE_ONLY(classname)                    \
     classname(classname const &) = delete;            \
     classname &operator=(classname const &) = delete; \
     classname(classname &&) = default;                \

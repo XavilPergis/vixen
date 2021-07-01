@@ -109,7 +109,7 @@ struct MapAdapter {
     }
 };
 
-// @note: this is a sink and not an adapter, because sources can only have one downstream sink.
+// note: this is a sink and not an adapter, because sources can only have one downstream sink.
 template <typename... Pipelines>
 struct SplitSink {
     Tuple<Pipelines...> pipelines;

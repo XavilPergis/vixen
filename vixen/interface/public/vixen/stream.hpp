@@ -9,134 +9,191 @@
 
 // dear god I'm so bad at documentation
 
-/// @defgroup vixen_streams Streams
-/// @brief Defines various stream sinks and adapters.
-///
-/// Stream components (the `C` or `Cs` in a lot of template parameters) must define one of two
-/// interfaces, depending on what sort of component they are:
-/// - Adapters, which take an input, and may push some sort of value down the pipeline.
-/// - Sinks, which terminate a pipeline.
-///
-/// A pipeline contains stream components, and complete pipelines will execute all stream components
-/// in order, from first to last.
-///
-/// Any pipeline that does not have a sink component as the last component is *incomplete*.
-/// Incomplete pipelines may be constructed, but any attempts to push values down the pipeline may
-/// not work, most likely resulting in a compile error. Incomplete pipelines are useful for
-/// composition, as they allow larger, more complicated pipelines to be given a single name, and
-/// reused.
-///
-/// To conform to the adapter interface, the adapter type must define these operations:
-/// @code
-/// struct SomeAdapter {
-///     template <typename P, typename... Is>
-///     void push(P &pipeline, Is... items);
-/// };
-/// @endcode
-///
-/// To conform to the sink interface, the sink type must define these operations:
-/// @code
-/// struct SomeSink {
-///     template <typename... Is>
-///     void push(Is... items);
-/// };
-/// @endcode
+/**
+ * @file
+ * @ingroup vixen_streams
+ * @brief The main stream interface, containing the stream concatenation operator, the definition
+ * of `pipeline`, and core stream components.
+ */
 
-/// @file
-/// @ingroup vixen_streams
-/// @brief The main stream interface, containing the stream concatenation operator, the definition
-/// of `pipeline`, and core stream components.
+/**
+ * @defgroup vixen_streams Streams
+ * @brief Defines various stream sinks and adapters
+ *
+ * # Overview
+ * Stream pipelines are an ordered collection of pipeline *components*, starting with any number of
+ * adapters, and ending with one sink. Pipelines are "push-based", in contrast to "pull-based"
+ * iterables in a lot of other languages. Instead of asking the pipeline what the next value it
+ * contains is, or "pulling" from the bottom, you force items through the pipeline by "pushing" them
+ * in the top. You can think of pipelines like a nice recursive onion. Each layer of the onion wraps
+ * a whole complete core, translating from *its* input to the input of the core. In doing so, it
+ * becomes part of the core, which now has the type of the new outer layer. In the very center is a
+ * layer that has no subsequent layers, and ends the pipeline.
+ *
+ * Any pipeline that does not have a sink component as the last component is said to be
+ * *incomplete*. Incomplete pipelines may be constructed, but the behavior of the pipeline when
+ * items are pushed into it is not defined. Incomplete pipelines are useful for composition, as they
+ * allow larger, more complicated pipelines to be given a single name, and reused.
+ *
+ * # Implementing a Component
+ * When defining a pipeline component, two members must be present.
+ * - a templated `Output` typedef, which describes what the component will produce given its
+ * template parameter as an input.
+ * - a templated `push` member function, that describes the behavior of the component. The exact
+ * type that the input parameter takes is a bit flexible, and can be any value that is convertible
+ * from its template parameter.
+ *
+ * For adapters, the first argument is a pipeline constructed from the subsequent components in the
+ * pipeline, to which you should push the output of your component. The second argument is the item
+ * that was input into the component. For sinks, the child pipeline argument is dropped, any only
+ * the pipeline input is recieved.
+ *
+ * Note that `push` is declared to return `void` in either case, so `Output` describes the child
+ * pipeline's input.
+ *
+ * When a pipeline component recieves an input, it is free to do as it likes with all the context it
+ * has, including calling its downstream pipeline multiple times or not at all, or transforming the
+ * input to a different type, or causing side effects. The sky's the limit!
+ *
+ * ## Examples
+ * @code
+ * struct ExampleSink {
+ *     template <typename ComponentInput>
+ *     using Output = void;
+ *
+ *     template <typename T>
+ *     void push(ConvertibleFrom<T> item) { ... }
+ * };
+ * @endcode
+ *
+ * @code
+ * struct ExampleAdapter {
+ *     template <typename ComponentInput>
+ *     using Output = ComponentOutput;
+ *
+ *     template <typename P, typename T>
+ *     void push(P &subsequent, ConvertibleFrom<T> item) {
+ *         subsequent.push(...);
+ *     }
+ * };
+ * @endcode
+ */
 
 namespace vixen::stream {
 
-/// @ingroup vixen_streams
-/// @brief Lifts a conforming stream component and makes it usable with generic stream utilities.
+/**
+ * @ingroup vixen_streams
+ * @brief lifts a conforming stream component and makes it usable with generic stream utilities
+ *
+ * @note lifting a component does not necessarily produce a *complete* pipeline, that is only the
+ * case when a sink component is lifted.
+ *
+ * @param component component to lift into a pipeline
+ * @return a pipeline consisting of only `component`
+ */
 template <typename T, typename C>
 StreamPipeline<T, C> lift_pipeline_component(C &&component) {
     return StreamPipeline<T, C>{mv(component)};
 }
 
-/// @ingroup vixen_streams
-/// @brief Creates an adapter that takes an input `n` and pushes an lvalue reference of `n` to each
-/// child sink.
-///
-/// @example
-/// @code
-/// auto stream_a = make_sink([](auto &input) { VIXEN_DEBUG("A: {}", input); });
-/// auto stream_b = make_sink([](auto &input) { VIXEN_DEBUG("B: {}", input); });
-/// auto combined = broadcast(mv(stream_a), mv(stream_b));
-/// combined.push(123);
-/// // A: 123
-/// // B: 123
-/// @endcode
+/**
+ * @ingroup vixen_streams
+ * @brief creates a sink that pushes each input to all child pipelines
+ *
+ * This sink will call `push` on each of its child pipelines in the order they were specified in
+ * `pipelines`. This component is a sink because adapters do not store their downstream pipelines
+ * themselves, instead recieving them upon the execution of the pipeline. This means that each
+ * component can have exactly zero or one downstream component, but in the case of this component,
+ * we want to have *multiple* downstream. The way we deal with this is by storing all the complete
+ * child pipelines directly in the *component itself*, and by pushing references into the top of
+ * each one.
+ *
+ * @note because this sink dispatches to multiple others, the best it can do is push references
+ * downstream, so be wary of any implicit copy construction that may happen
+ */
 template <typename T, typename... Pipelines>
-inline StreamPipeline<T, detail::SplitSink<Pipelines...>> broadcast(Pipelines &&...pipelines) {
-    return lift_pipeline_component<T>(detail::SplitSink<Pipelines...>{Tuple<Pipelines...>(pipelines...)});
+inline StreamPipeline<T, detail::SplitSink<Pipelines...>> sequence(Pipelines &&...pipelines) {
+    return lift_pipeline_component<T>(
+        detail::SplitSink<Pipelines...>{Tuple<Pipelines...>(pipelines...)});
 }
 
-/// @ingroup vixen_streams
-/// @brief Creates a sink that takes an input `n` and calls `coll.push(n)`.
+template <typename F>
+using FirstArgumentType = typename function_traits<F>::template argument<0>;
+
+template <typename F, usize Idx>
+using FnArgument = typename function_traits<F>::template argument<Idx>;
+
 template <typename Coll>
-inline StreamPipeline<typename collection_types<Coll>::value_type, detail::BackInserterSink<Coll>>
-    back_inserter(Coll &collection) {
+using CollectionType = typename collection_types<Coll>::value_type;
+
+/**
+ * @ingroup vixen_streams
+ * @brief creates an adapter that applies `mapper` to each input
+ *
+ * @param mapper a callable object that takes in a (possibly rvalue) reference to the component
+ * input, and returns an expression with arbitrary type
+ */
+template <typename F>
+inline StreamPipeline<FnArgument<F, 0>, detail::MapAdapter<F>> map(F &&mapper) {
+    return lift_pipeline_component<FnArgument<F, 0>>(detail::MapAdapter<F>{mapper});
+}
+
+/**
+ * @ingroup vixen_streams
+ * @brief creates an adapter that passes through its inputs if the input meets the condition defined
+ * by `predicate`
+ *
+ * @param predicate a callable object that takes in a reference to the component input, and returns
+ * an expression convertible to `bool`
+ */
+template <typename F>
+inline StreamPipeline<FnArgument<F, 0>, detail::FilterAdapter<F>> filter(F &&predicate) {
+    return lift_pipeline_component<FnArgument<F, 0>>(detail::FilterAdapter<F>{predicate});
+}
+
+/**
+ * @ingroup vixen_streams
+ * @brief creates a sink that inserts items into the back of the passed-in collection
+ */
+template <typename Coll>
+inline StreamPipeline<CollectionType<Coll>, detail::BackInserterSink<Coll>> back_inserter(
+    Coll &collection) {
     return lift_pipeline_component<typename collection_types<Coll>::value_type>(
         detail::BackInserterSink<Coll>{std::addressof(collection)});
 }
 
-/// @ingroup vixen_streams
-/// @brief Creates an adapter that takes an input `n` and pushes `n` if `predicate(n)` returns true.
-template <typename F>
-inline StreamPipeline<typename function_traits<F>::template argument<0>, detail::FilterAdapter<F>> filter(
-    F &&predicate) {
-    return lift_pipeline_component<typename function_traits<F>::template argument<0>>(
-        detail::FilterAdapter<F>{predicate});
-}
-
-/// @ingroup vixen_streams
-/// @brief Creates an adapter that takes an input `n` and pushes `mapper(n)`.
-///
-/// @code
-/// usize add_5(usize x) { return x + 5; }
-///
-/// vixen::Vector<usize> output;
-/// auto stream = map(add_5) | back_inserter(output);
-/// stream.push(1);
-/// stream.push(2);
-/// stream.push(3);
-///
-/// // `output` should now contain the values [6, 7, 8]
-/// @endcode
-template <typename F>
-inline StreamPipeline<typename function_traits<F>::template argument<0>, detail::MapAdapter<F>> map(
-    F &&mapper) {
-    return lift_pipeline_component<typename function_traits<F>::template argument<0>>(detail::MapAdapter<F>{mapper});
-}
-
-/// @ingroup vixen_streams
-/// @brief Creates an output iterator that pushes all writes to the passed-in stream.
+/**
+ * @ingroup vixen_streams
+ * @brief wraps a stream into a C++ output iterator
+ *
+ * All writes into the output iterator are pushed into the wrapped pipeline.
+ */
 template <typename T, typename CA, typename... Cs>
 inline detail::OutputIteratorSource<T, CA, Cs...> make_stream_output_iterator(
     StreamPipeline<T, CA, Cs...> &stream) {
     return detail::OutputIteratorSource(stream);
 }
 
-/// @ingroup vixen_streams
-/// @brief Creates a sink that takes an input `n` and calls `func(n)`
+/**
+ * @ingroup vixen_streams
+ * @brief creates a sink that calls `functor` with the input that it recieved
+ */
 template <typename F>
-inline StreamPipeline<typename function_traits<F>::template argument<0>, detail::FunctorSink<F>> make_sink(
-    F &&functor) {
-    return lift_pipeline_component<typename function_traits<F>::template argument<0>>(
+inline StreamPipeline<FnArgument<F, 0>, detail::FunctorSink<F>> make_sink(F &&functor) {
+    return lift_pipeline_component<FnArgument<F, 0>>(
         detail::FunctorSink<F>{std::forward<F>(functor)});
 }
 
-/// @ingroup vixen_streams
-/// @brief Stream concatenation operator.
-///
-/// Creates a new pipeline that contains all of the components from `first`, followed by all the
-/// components from `last`.
+/**
+ * @ingroup vixen_streams
+ * @brief the pipeline concatenation operator
+ *
+ * This operator creates a new pipeline comprised of all the components from `first` followed by all
+ * the components from `last`. This is the main way to compose streams together.
+ */
 template <typename T, typename U, typename... As, typename... Bs>
-inline StreamPipeline<T, As..., Bs...> operator|(
-    StreamPipeline<T, As...> &&first, StreamPipeline<U, Bs...> &&last) {
+inline StreamPipeline<T, As..., Bs...> operator|(StreamPipeline<T, As...> &&first,
+    StreamPipeline<U, Bs...> &&last) {
     return first.append_pipeline(mv(last));
 }
 

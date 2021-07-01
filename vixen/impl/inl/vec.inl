@@ -75,7 +75,7 @@ inline void Vector<T>::push(Us &&...values) {
     static_assert(sizeof...(Us) > 0, "cannot push zero elements to a vector");
 
     ensureCapacity(sizeof...(Us));
-    unpackToArray<T, Us...>(&data[length], values);
+    unpackToArray<T, Us...>(&data[length], std::forward<Us>(values)...);
     length += sizeof...(Us);
 }
 
@@ -154,32 +154,6 @@ inline void Vector<T>::clear() {
     truncate(0);
 }
 
-/**
- * @brief constructs a `T` in-place, calling `cleanup` if the constructor throws
- *
- * @note the try/catch is not compiled if T's constructor does not throw
- *
- * @tparam T the type being constructed
- * @tparam Args the arguments T's constructor is being called with
- * @tparam F
- * @param location the memory location that is being initialized
- * @param args the arguments to T's constructor
- * @param cleanup the cleanup function called if/when T's constructor throws
- */
-template <typename T, typename... Args, typename F>
-constexpr void guarded_construct_in_place(T *location, Args &&...args, F &&cleanup) {
-    if (noexcept(T(std::forward<Args>(args)...))) {
-        util::construct_in_place<T, Args...>(location, std::forward<Args>(args)...);
-    } else {
-        try {
-            util::construct_in_place<T, Args...>(location, std::forward<Args>(args)...);
-        } catch (...) {
-            cleanup();
-            throw;
-        }
-    }
-}
-
 template <typename T>
 template <typename... Us>
 T *Vector<T>::insert(usize idx, Us &&...values) {
@@ -193,7 +167,7 @@ T *Vector<T>::insert(usize idx, Us &&...values) {
         // we don't need to guard exceptions here because we only grow the length *after* we unpack
         // all the new elements, so there's no possibility of accidentally including uninitialized
         // elements
-        unpackToArray(&data[length], std::forward<Args>(values)...);
+        unpackToArray(&data[length], std::forward<Us>(values)...);
         length += sizeof...(Us);
     } else {
         // guard anything that we may have uninitialized at any point, so that if an exception is
@@ -202,11 +176,16 @@ T *Vector<T>::insert(usize idx, Us &&...values) {
         usize prevLength = length;
         length = idx;
 
-        for (usize i = 0; i < sizeof...(Us); ++i) {
-            util::construct_in_place(&data[prevLength + i], mv(data[idx + i]));
+        // this method of insertion does not preserve order, but makes insertion constant time. here
+        // we carve out a chunk of space large enough to fit the new elements by moving all the
+        // elements where the new ones would be to the end of the vector.
+        usize shiftLength = util::min(sizeof...(Us), prevLength - idx);
+        usize destStart = util::max(prevLength, idx + sizeof...(Us));
+        for (usize i = 0; i < shiftLength; ++i) {
+            util::construct_in_place(&data[destStart + i], mv(data[idx + i]));
             data[idx + i].~T();
         }
-        unpackToArray(&data[idx], std::forward<Args>(values)...);
+        unpackToArray(&data[idx], std::forward<Us>(values)...);
 
         length = prevLength + sizeof...(Us);
     }
@@ -227,7 +206,7 @@ T *Vector<T>::shiftInsert(usize idx, Us &&...values) {
         // we don't need to guard exceptions here because we only grow the length *after* we unpack
         // all the new elements, so there's no possibility of accidentally including uninitialized
         // elements
-        unpackToArray(&data[length], std::forward<Args>(values)...);
+        unpackToArray(&data[length], std::forward<Us>(values)...);
         length += sizeof...(Us);
     } else {
         // guard anything that we may have uninitialized at any point, so that if an exception is
@@ -246,7 +225,7 @@ T *Vector<T>::shiftInsert(usize idx, Us &&...values) {
         }
 
         // in-place construction
-        unpackToArray(&data[prevLength], std::forward<Args>(values)...);
+        unpackToArray(&data[prevLength], std::forward<Us>(values)...);
 
         length = prevLength + sizeof...(Us);
     }

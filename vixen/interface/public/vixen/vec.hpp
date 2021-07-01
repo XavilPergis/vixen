@@ -9,16 +9,19 @@
 /// @defgroup vixen_data_structures Data Structures
 
 namespace vixen {
-// Number of elements in the initial allocation of a vector.
+/// Number of elements in the initial allocation of a vector.
 constexpr const usize default_vec_capacity = 8;
 
-/// @ingroup vixen_data_structures
-/// @brief Growable dynamically-allocated array.
-///
-/// @warning Any reference into a vector is only valid until the vector's size changes.
+/**
+ * @brief growable dynamically-allocated array
+ * @warning any reference into a vector is only valid until the vector's size changes
+ *
+ * @tparam T the element type
+ * @ingroup vixen_data_structures
+ */
 template <typename T>
 struct Vector {
-    /// Default construction of a vector results in a vector in the moved-from state.
+    /// default construction of a vector results in a vector in the moved-from state
     Vector() = default;
     Vector(Vector const &) = delete;
     Vector &operator=(Vector const &) = delete;
@@ -105,18 +108,39 @@ struct Vector {
     T shiftRemove(usize idx);
 
     /**
-     * @brief inserts each value in sequence
+     * @brief inserts each value in sequence, starting at index `idx`
+     * @warning this operation does not preserve ordering
      *
-     * @tparam Us
-     * @param idx
-     * @param vals
-     * @return T*
+     * this method inserts elements by copying the elements inside the range of to-be-inserted
+     * elements to the end of the vector, and constructing the new values in-place. this does not
+     * preserve the order of the elements in the vector, but it allows insertion to be done in
+     * constant time.
+     *
+     * @tparam Us the types of the `values` pack
+     * @param idx the index to insert before. and index of 0 means new elements will be placed at
+     * the front of the vector
+     * @param values the values to insert
+     * @return T* a pointer to the start of the inserted sequence
      */
     template <typename... Us>
-    T *insert(usize idx, Us &&...vals);
+    T *insert(usize idx, Us &&...values);
 
+    /**
+     * @brief inserts each value in sequence, starting at index `idx`
+     *
+     * this method inserts elements by shifting all subsequent elements down enough to fit the new
+     * elements, which are constructed in-place. this means the operation preserves the order of
+     * elements in the vector, but at the cost of being linear in time with the number of elements
+     * in the vector.
+     *
+     * @tparam Us the types of the `values` pack
+     * @param idx the index to insert before. and index of 0 means new elements will be placed at
+     * the front of the vector
+     * @param values the values to insert
+     * @return T* a pointer to the start of the inserted sequence
+     */
     template <typename... Us>
-    T *shiftInsert(usize idx, Us &&...vals);
+    T *shiftInsert(usize idx, Us &&...values);
 
     template <typename... Args>
     T &emplaceInsert(usize idx, Args &&...args);

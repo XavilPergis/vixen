@@ -11,10 +11,13 @@
 /// @defgroup vixen_allocator Allocators
 /// @brief Pluggable dynamic memory allocators.
 
-/// @file
-/// @ingroup vixen_allocator
-/// @brief Main allocator file; defines the allocator interface, the global allocator, and various
-/// allocator utilities.
+/**
+ * @brief
+ * @file
+ * @ingroup vixen_allocator
+ * @brief Main allocator file; defines the allocator interface, the global allocator, and various
+ * allocator utilities.
+ */
 
 // These prologs normalize the behavior of allocation and deallocation funtions
 // and can provide extra correctness checks, so that this code is not duplicated
