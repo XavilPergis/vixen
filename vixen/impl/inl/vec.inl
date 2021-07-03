@@ -225,7 +225,7 @@ T *Vector<T>::shiftInsert(usize idx, Us &&...values) {
         }
 
         // in-place construction
-        unpackToArray(&data[prevLength], std::forward<Us>(values)...);
+        unpackToArray(&data[idx], std::forward<Us>(values)...);
 
         length = prevLength + sizeof...(Us);
     }
