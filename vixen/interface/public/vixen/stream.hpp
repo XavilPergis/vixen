@@ -96,6 +96,22 @@ StreamPipeline<T, C> lift_pipeline_component(C &&component) {
     return StreamPipeline<T, C>{mv(component)};
 }
 
+template <typename... Ps>
+struct UnifyPipelines;
+
+template <typename P0, typename P1, typename... Ps>
+struct UnifyPipelines<P0, P1, Ps...> {
+    using Type = typename P0::PipelineInput;
+
+    static_assert(std::is_same_v<Type, typename UnifyPipelines<P1, Ps...>::Type>,
+        "all pipelines in a `sequence` must accept the same input type!");
+};
+
+template <typename P>
+struct UnifyPipelines<P> {
+    using Type = typename P::PipelineInput;
+};
+
 /**
  * @ingroup vixen_streams
  * @brief creates a sink that pushes each input to all child pipelines
@@ -111,9 +127,10 @@ StreamPipeline<T, C> lift_pipeline_component(C &&component) {
  * @note because this sink dispatches to multiple others, the best it can do is push references
  * downstream, so be wary of any implicit copy construction that may happen
  */
-template <typename T, typename... Pipelines>
-inline StreamPipeline<T, detail::SplitSink<Pipelines...>> sequence(Pipelines &&...pipelines) {
-    return lift_pipeline_component<T>(
+template <typename... Pipelines>
+inline StreamPipeline<typename UnifyPipelines<Pipelines...>::Type, detail::SplitSink<Pipelines...>>
+    sequence(Pipelines &&...pipelines) {
+    return lift_pipeline_component<typename UnifyPipelines<Pipelines...>::Type>(
         detail::SplitSink<Pipelines...>{Tuple<Pipelines...>(pipelines...)});
 }
 

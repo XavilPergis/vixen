@@ -42,6 +42,8 @@ String format_string(Allocator *alloc, const T &value) {
 
 AddressInfo translate_symbol(Allocator *alloc, StringView sym, void *reladdr) {
     auto open_paren = sym.index_of('(');
+    auto open_brace = sym.last_index_of('[');
+    auto close_brace = sym.last_index_of(']');
 
     AddressInfo info;
     info.raw_symbol = String(alloc, sym);
@@ -53,11 +55,15 @@ AddressInfo translate_symbol(Allocator *alloc, StringView sym, void *reladdr) {
 
     StringView exepath = sym[range_to(*open_paren)];
 
+    VIXEN_ASSERT(open_brace.isSome() && close_brace.isSome());
+    VIXEN_ASSERT(open_brace.get() < sym.len());
+    StringView addr = sym[range(open_brace.get() + 1, close_brace.get())];
+
     String cmd(alloc);
     cmd.push("addr2line -ifCe "_s);
     cmd.push(exepath);
     cmd.push(" "_s);
-    cmd.push(format_string(alloc, reladdr));
+    cmd.push(addr);
 
     String output = get_command_output(alloc, mv(cmd));
     Vector<String> lines = output.as_slice().split(alloc, "\n"_s);

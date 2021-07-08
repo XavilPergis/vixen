@@ -84,6 +84,15 @@ struct Vector {
 
     /**
      * @brief removes the element at index `idx`
+     * @warning this operation is not guaranteed to preserve ordering
+     *
+     * @param idx the index of the element to remove
+     * @return the removed element
+     */
+    T remove(usize idx);
+
+    /**
+     * @brief removes the element at index `idx`
      * @warning this operation does not preserve ordering
      *
      * this method removes elements by swapping the last element and the element at `idx`, and then
@@ -91,9 +100,9 @@ struct Vector {
      * allows the removal to be constant time.
      *
      * @param idx the index of the element to remove
-     * @return T the removed element
+     * @return the removed element
      */
-    T remove(usize idx);
+    T swapRemove(usize idx);
 
     /**
      * @brief removes the element at index `idx`
@@ -102,8 +111,8 @@ struct Vector {
      * lowering the length by one. this means the operation preserves the order of elements in the
      * vector, but at the cost of being linear in time with the number of elements in the vector.
      *
-     * @param idx
-     * @return T
+     * @param idx the index of the element to remove
+     * @return the removed element
      */
     T shiftRemove(usize idx);
 
@@ -174,6 +183,10 @@ struct Vector {
 
     usize len() const {
         return length;
+    }
+
+    bool isEmpty() const {
+        return length == 0;
     }
 
     operator Slice<const T>() const;

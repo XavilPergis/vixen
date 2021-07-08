@@ -122,11 +122,16 @@ inline void Vector<T>::truncate(usize len) {
 
 template <typename T>
 inline Option<T> Vector<T>::pop() {
-    return length == 0 ? Option<T>() : data[--length];
+    return length == 0 ? Option<T>() : Option<T>(mv(data[--length]));
 }
 
 template <typename T>
 inline T Vector<T>::remove(usize idx) {
+    return swapRemove(idx);
+}
+
+template <typename T>
+inline T Vector<T>::swapRemove(usize idx) {
     VIXEN_DEBUG_ASSERT_EXT(length > idx,
         "tried to remove element {} from a {}-element vector",
         idx,

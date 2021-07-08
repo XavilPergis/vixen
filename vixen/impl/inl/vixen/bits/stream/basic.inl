@@ -17,6 +17,7 @@ struct StreamPipeline<T, CA, CB, Cs...> {
     using ComponentOutput = typename CA::template Output<T>;
     using ChildPipeline = StreamPipeline<ComponentOutput, CB, Cs...>;
     using PipelineOutput = typename ChildPipeline::PipelineOutput;
+    using PipelineInput = T;
 
     CA component;
     ChildPipeline rest;
@@ -37,6 +38,7 @@ struct StreamPipeline<T, CA, CB, Cs...> {
 template <typename T, typename C>
 struct StreamPipeline<T, C> {
     using PipelineOutput = typename C::template Output<T>;
+    using PipelineInput = T;
 
     C component;
 
@@ -117,11 +119,17 @@ struct SplitSink {
     template <typename I>
     using Output = void;
 
-    template <typename... Is>
-    void push(Is... items) {
-        pipelines.each([&](auto &pipeline) {
-            pipeline.push(items...);
-        });
+    template <typename T, usize Index>
+    void push_item_impl(T &value) {
+        get<Index>(pipelines).push(value);
+        if constexpr (sizeof...(Pipelines) > Index + 1) {
+            push_item_impl<T, Index + 1>(value);
+        }
+    }
+
+    template <typename I>
+    void push(I &&item) {
+        push_item_impl<I, 0>(item);
     }
 };
 
