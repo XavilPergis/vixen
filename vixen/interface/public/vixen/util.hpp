@@ -39,7 +39,7 @@
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
-#define _STATIC_INIT_ID() __static_runner_##__COUNTER__
+#define _STATIC_INIT_ID() _vixen_static_runner__##__COUNTER__
 
 #define RUN_AT_STATIC_INIT(...)                                            \
     static auto _STATIC_INIT_ID() = ::vixen::impl::run_at_static_init([] { \
