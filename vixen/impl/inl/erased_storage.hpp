@@ -24,6 +24,14 @@ struct UninitializedStorage {
         return *reinterpret_cast<const T *>(raw);
     }
 
+    constexpr T *data() {
+        return reinterpret_cast<T *>(raw);
+    }
+
+    constexpr T const *data() const {
+        return reinterpret_cast<const T *>(raw);
+    }
+
     alignas(T) u8 raw[sizeof(T)];
 };
 

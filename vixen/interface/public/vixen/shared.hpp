@@ -103,6 +103,11 @@ private:
     SharedRepr<T> *repr = nullptr;
 };
 
+template <typename T, typename... Args>
+Shared<T> makeShared(Allocator *alloc, Args &&...args) {
+    return Shared<T>(alloc, std::forward<Args>(args)...);
+}
+
 } // namespace vixen
 
 #include "shared.inl"
