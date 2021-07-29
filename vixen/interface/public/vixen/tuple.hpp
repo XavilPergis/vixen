@@ -5,6 +5,9 @@
 #include "vixen/typeops.hpp"
 #include "vixen/types.hpp"
 
+#include <type_traits>
+#include <utility>
+
 namespace vixen {
 
 struct tuple_concat_tag {};
@@ -96,13 +99,25 @@ struct Tuple : TupleImpl<0, Ts...> {
         : TupleImpl<0, Ts...>(copy_tag, alloc, static_cast<TupleImpl<0, Ts...> const &>(other)) {}
 
     template <usize I>
-    typename pack_select<I, Ts...>::type &get() {
+    typename pack_select<I, Ts...>::type &get() & {
         return ValueHolder<I, typename pack_select<I, Ts...>::type>::value;
     }
 
     template <usize I>
-    typename pack_select<I, Ts...>::type const &get() const {
+    typename pack_select<I, Ts...>::type const &get() const & {
         return ValueHolder<I, typename pack_select<I, Ts...>::type>::value;
+    }
+
+    template <usize I>
+    typename pack_select<I, Ts...>::type &&get() && {
+        return static_cast<typename pack_select<I, Ts...>::type &&>(
+            ValueHolder<I, typename pack_select<I, Ts...>::type>::value);
+    }
+
+    template <usize I>
+    typename pack_select<I, Ts...>::type const &&get() const && {
+        return static_cast<typename pack_select<I, Ts...>::type const &&>(
+            ValueHolder<I, typename pack_select<I, Ts...>::type>::value);
     }
 
     // template <typename F>
@@ -165,13 +180,13 @@ template <usize Len>
 using make_index_sequence = decltype(make_index_sequence_impl<Len>());
 
 template <typename... Ts>
-Tuple<Ts...> make_tuple(Ts &&...values) {
+Tuple<Ts...> makeTuple(Ts &&...values) {
     return Tuple<Ts...>{std::forward<Ts>(values)...};
 }
 
 // clang-format off
 template <typename... Ts, typename... Us, usize... TIs, usize... UIs>
-Tuple<Ts..., Us...> concat_tuples_seq(Tuple<Ts...> first, Tuple<Us...> last, index_sequence<TIs...>, index_sequence<UIs...>) {
+Tuple<Ts..., Us...> concatTuplesSeq(Tuple<Ts...> first, Tuple<Us...> last, index_sequence<TIs...>, index_sequence<UIs...>) {
     return Tuple<Ts..., Us...>{
         static_cast<Ts&&>(get<TIs>(first))...,
         static_cast<Us&&>(get<UIs>(last))...
@@ -180,11 +195,23 @@ Tuple<Ts..., Us...> concat_tuples_seq(Tuple<Ts...> first, Tuple<Us...> last, ind
 // clang-format on
 
 template <typename... Ts, typename... Us>
-Tuple<Ts..., Us...> concat_tuples(Tuple<Ts...> first, Tuple<Us...> last) {
-    return concat_tuples_seq(first,
+Tuple<Ts..., Us...> concatTuples(Tuple<Ts...> first, Tuple<Us...> last) {
+    return concatTuplesSeq(first,
         last,
         make_index_sequence<sizeof...(Ts)>{},
         make_index_sequence<sizeof...(Us)>{});
 }
 
 } // namespace vixen
+
+namespace std {
+
+template <typename... Ts>
+struct tuple_size<::vixen::Tuple<Ts...>> : integral_constant<usize, sizeof...(Ts)> {};
+
+template <usize I, typename... Ts>
+struct tuple_element<I, ::vixen::Tuple<Ts...>> {
+    using type = typename ::vixen::pack_select<I, Ts...>::type;
+};
+
+} // namespace std
