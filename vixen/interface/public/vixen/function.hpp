@@ -53,7 +53,7 @@ struct TypedRunnable : Runnable {
 
 template <typename F>
 Unique<Runnable> makeRunnable(Allocator *alloc, F &&func) {
-    return makeUnique<TypedRunnable>(alloc, std::forward<F>(func));
+    return makeUnique<TypedRunnable<F>>(alloc, std::forward<F>(func));
 }
 
 } // namespace vixen

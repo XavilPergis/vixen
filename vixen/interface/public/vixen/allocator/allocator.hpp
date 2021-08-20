@@ -250,6 +250,14 @@ T copy_construct_maybe_allocator_aware(Allocator *alloc, const T &original) {
     }
 }
 
+/**
+ * meant to be overloaded by other items, ie, some sort of context that has an allocator of its own,
+ * but may be verbose to write out the full expression to that allocator.
+ */
+constexpr Allocator *getAllocator(Allocator *alloc) {
+    return alloc;
+}
+
 } // namespace vixen
 
 #include "allocator/allocator.inl"

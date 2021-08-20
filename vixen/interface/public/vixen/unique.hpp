@@ -37,7 +37,7 @@ struct Unique {
 
     template <typename U, require<std::is_convertible<U *, T *>> = true>
     Unique &operator=(Unique<U> &&other) {
-        if (this == &other)
+        if (static_cast<void *>(this) == static_cast<void *>(&other))
             return *this;
         if (data) {
             heap::destroy_init(alloc, data);

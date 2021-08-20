@@ -33,6 +33,12 @@
     classname(classname &&) = default;                \
     classname &operator=(classname &&) = default;
 
+#define VIXEN_UNMOVABLE(classname)                    \
+    classname(classname const &) = delete;            \
+    classname &operator=(classname const &) = delete; \
+    classname(classname &&) = default;                \
+    classname &operator=(classname &&) = default;
+
 #define loop while (true)
 #define mv(x) ::vixen::util::move(x)
 
