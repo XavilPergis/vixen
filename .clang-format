@@ -19,11 +19,10 @@ AllowAllParametersOfDeclarationOnNextLine: true
 # Short compound expressions
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: true
-# AllowShortEnumsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
 AllowShortLambdasOnASingleLine: Empty
-AllowShortLoopsOnASingleLine: false
+AllowShortLoopsOnASingleLine: true
 
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakBeforeMultilineStrings: true
@@ -58,6 +57,7 @@ BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeComma
 BreakInheritanceList: BeforeComma
 BreakStringLiterals: false
+BreakBeforeTernaryOperators: true
 ColumnLimit: 100
 # CommentPragmas: ''
 CompactNamespaces: false
@@ -71,20 +71,7 @@ DisableFormat: false
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: true
 # ForEachMacros: []
-IncludeBlocks: Regroup
-IncludeCategories:
-  - Regex:           '^"vixen/.*"'
-    Priority:        1
-    SortPriority:    0
-  - Regex:           '^"(\.|\.\.)/.*"'
-    Priority:        1
-    SortPriority:    0
-  - Regex:           '^<.*>'
-    Priority:        2
-    SortPriority:    0
-  - Regex:           '.*'
-    Priority:        3
-    SortPriority:    0
+IncludeBlocks: Preserve
 # IncludeIsMainRegex: ''
 # IncludeIsMainSourceRegex: ''
 # IndentCaseBlocks: false

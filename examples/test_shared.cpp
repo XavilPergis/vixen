@@ -1,9 +1,11 @@
 #include <vixen/allocator/allocators.hpp>
 #include <vixen/shared.hpp>
 #include <vixen/unique.hpp>
-#include <vixen/vec.hpp>
+#include <vixen/vector.hpp>
 
 void print_weak_status(vixen::Weak<vixen::Vector<i32>> &Weak) {
+    VIXEN_PANIC("AAAAAAAAAA");
+
     if (auto inner = Weak.upgrade()) {
         (*inner)->push(1917);
         VIXEN_INFO("upgrade successful! {}", *inner);
@@ -27,7 +29,7 @@ int main() {
         foo.push(1);
 
         VIXEN_INFO("making bar");
-        vixen::shared<vixen::Vector<i32>> bar(&tmp, mv(foo));
+        vixen::Shared<vixen::Vector<i32>> bar(&tmp, mv(foo));
         VIXEN_INFO("making Weak");
         my_weak = bar.downgrade();
         bar->push(10);
