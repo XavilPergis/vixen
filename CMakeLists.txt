@@ -16,19 +16,17 @@ add_subdirectory(examples)
 
 set(SRC_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(VIXEN_SOURCE_FILES
-    "${SRC_PREFIX}/stacktrace/stacktrace.cpp"
-    "${SRC_PREFIX}/stacktrace/platform.cpp"
-    "${SRC_PREFIX}/allocator.cpp"
-    "${SRC_PREFIX}/arena_alloc.cpp"
-    "${SRC_PREFIX}/assert.cpp"
-    "${SRC_PREFIX}/legacy_adapter.cpp"
-    "${SRC_PREFIX}/linear_alloc.cpp"
-    "${SRC_PREFIX}/log.cpp"
-    "${SRC_PREFIX}/page_alloc.cpp"
-
-    # "${SRC_PREFIX}/profile.cpp"
-    "${SRC_PREFIX}/string.cpp"
-    "${SRC_PREFIX}/system_alloc.cpp"
+    "${SRC_PREFIX}/vixen/stacktrace/stacktrace.cpp"
+    "${SRC_PREFIX}/vixen/stacktrace/platform.cpp"
+    "${SRC_PREFIX}/vixen/allocator.cpp"
+    "${SRC_PREFIX}/vixen/arena_alloc.cpp"
+    "${SRC_PREFIX}/vixen/assert.cpp"
+    "${SRC_PREFIX}/vixen/legacy_adapter.cpp"
+    "${SRC_PREFIX}/vixen/linear_alloc.cpp"
+    "${SRC_PREFIX}/vixen/log.cpp"
+    "${SRC_PREFIX}/vixen/page_alloc.cpp"
+    "${SRC_PREFIX}/vixen/string.cpp"
+    "${SRC_PREFIX}/vixen/system_alloc.cpp"
 )
 
 set(PUB_INCLUDE_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/interface/public/vixen/")
@@ -43,20 +41,16 @@ set(VIXEN_PUBLIC_HEADER_FILES
     "${PUB_INCLUDE_PREFIX}/io/file.hpp"
     "${PUB_INCLUDE_PREFIX}/any.hpp"
     "${PUB_INCLUDE_PREFIX}/assert.hpp"
-    "${PUB_INCLUDE_PREFIX}/color.hpp"
     "${PUB_INCLUDE_PREFIX}/common.hpp"
     "${PUB_INCLUDE_PREFIX}/defer.hpp"
     "${PUB_INCLUDE_PREFIX}/defines.hpp"
     "${PUB_INCLUDE_PREFIX}/function.hpp"
-    "${PUB_INCLUDE_PREFIX}/iterator.hpp"
     "${PUB_INCLUDE_PREFIX}/log.hpp"
     "${PUB_INCLUDE_PREFIX}/option.hpp"
     "${PUB_INCLUDE_PREFIX}/prof.hpp"
     "${PUB_INCLUDE_PREFIX}/result.hpp"
     "${PUB_INCLUDE_PREFIX}/shared.hpp"
     "${PUB_INCLUDE_PREFIX}/slice.hpp"
-
-    # "${PUB_INCLUDE_PREFIX}/stream.hpp"
     "${PUB_INCLUDE_PREFIX}/string.hpp"
     "${PUB_INCLUDE_PREFIX}/traits.hpp"
     "${PUB_INCLUDE_PREFIX}/tuple.hpp"
@@ -86,7 +80,7 @@ target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/inter
 target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/interface/internal")
 
 # for .inl files
-target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/vixen")
 
 target_compile_features(${LIB_NAME} PRIVATE cxx_std_20)
 
