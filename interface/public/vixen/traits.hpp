@@ -79,26 +79,15 @@ template <typename T, typename U>
 concept IsMoveAssignableFrom = requires(T &place, U value) {
     { place = static_cast<U&&>(value) } -> IsSame<T &>;
 };
+
+template <typename To, typename From>
+concept IsConvertibleFrom = std::is_convertible_v<From, To>;
 // clang-format on
 
 // template <typename T, typename H>
 // inline void hash(const T &value, H &hasher) {
 //     hasher.write(value);
 // }
-
-// clang-format off
-template <typename H, typename T>
-concept Hasher = requires(H hasher, T const &value) {
-    {hasher.write(value)};
-    {hasher.finish()} -> IsSame<u64>;
-};
-
-template <typename T, typename H>
-concept Hashable = requires(const T &value, H &hasher) {
-    requires Hasher<H, T>;
-    {hash(value, hasher)};
-};
-// clang-format on
 
 // template <typename C>
 // struct ContainerTraits {};

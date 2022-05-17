@@ -87,19 +87,19 @@ constexpr remove_reference<T> &&move(T &&val) {
 // you go, i guess.
 /// @ingroup vixen_util
 template <typename T>
-constexpr usize addressOf(T *ptr) {
+constexpr usize addressOf(T *ptr) noexcept {
     return reinterpret_cast<usize>(ptr);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T *constructPointer(T *provenance, usize address) {
+constexpr T *constructPointer(T *provenance, usize address) noexcept {
     return reinterpret_cast<T *>(address);
 }
 
 /// @ingroup vixen_util
 template <typename P>
-constexpr P alignPointerUp(P ptr, usize align) {
+constexpr P alignPointerUp(P ptr, usize align) noexcept {
     auto mask = align - 1;
     auto addr = addressOf(ptr);
     auto alignedAddr = (addr + mask) & ~mask;
@@ -108,7 +108,7 @@ constexpr P alignPointerUp(P ptr, usize align) {
 
 /// @ingroup vixen_util
 template <typename P>
-constexpr P alignPointerDown(P ptr, usize align) {
+constexpr P alignPointerDown(P ptr, usize align) noexcept {
     auto mask = align - 1;
     auto addr = addressOf(ptr);
     auto alignedAddr = addr & ~mask;
@@ -117,35 +117,35 @@ constexpr P alignPointerDown(P ptr, usize align) {
 
 /// @ingroup vixen_util
 template <typename P>
-constexpr bool isAligned(P ptr, usize align) {
+constexpr bool isAligned(P ptr, usize align) noexcept {
     auto mask = align - 1;
     return (addressOf(ptr) & mask) == 0;
 }
 
 /// @ingroup vixen_util
-constexpr void *offsetRaw(void *ptr, isize bytes) {
+constexpr void *offsetRaw(void *ptr, isize bytes) noexcept {
     return static_cast<void *>(static_cast<opaque *>(ptr) + bytes);
 }
 
 /// @ingroup vixen_util
-constexpr void const *offsetRaw(void const *ptr, isize bytes) {
+constexpr void const *offsetRaw(void const *ptr, isize bytes) noexcept {
     return static_cast<void const *>(static_cast<opaque const *>(ptr) + bytes);
 }
 
 /// @ingroup vixen_util
-constexpr usize alignUp(usize toAlign, usize alignment) {
+constexpr usize alignUp(usize toAlign, usize alignment) noexcept {
     auto mask = alignment - 1;
     return (toAlign + mask) & ~mask;
 }
 
 /// @ingroup vixen_util
-constexpr usize alignDown(usize toAlign, usize alignment) {
+constexpr usize alignDown(usize toAlign, usize alignment) noexcept {
     auto mask = alignment - 1;
     return toAlign & ~mask;
 }
 
 template <typename T>
-bool doRegionsOverlap(T *a, usize lengthA, T *b, usize lengthB) {
+bool doRegionsOverlap(T *a, usize lengthA, T *b, usize lengthB) noexcept {
     usize loA = addressOf(a);
     usize hiA = loA + lengthA;
     usize loB = addressOf(b);
@@ -349,45 +349,46 @@ inline void arrayMoveUninitialized(T *src, T *dst, usize count) {
 
 /// @ingroup vixen_util
 template <typename T>
-inline void arrayCopyToRaw(T const *src, void *dst, usize elements) {
+inline void arrayCopyToRaw(T const *src, void *dst, usize elements) noexcept {
     static_assert(std::is_trivial_v<T>);
     ::std::memmove(dst, src, sizeof(T) * elements);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-inline void arrayCopyNonoverlappingToRaw(T const *src, void *dst, usize elements) {
+inline void arrayCopyNonoverlappingToRaw(T const *src, void *dst, usize elements) noexcept {
     static_assert(std::is_trivial_v<T>);
     ::std::memcpy(dst, src, sizeof(T) * elements);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-inline void arrayCopyFromRaw(void const *src, T *dst, usize elements) {
+inline void arrayCopyFromRaw(void const *src, T *dst, usize elements) noexcept {
     static_assert(std::is_trivial_v<T>);
     ::std::memmove(dst, src, sizeof(T) * elements);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-inline void arrayCopyNonoverlappingFromRaw(void const *src, T *dst, usize elements) {
+inline void arrayCopyNonoverlappingFromRaw(void const *src, T *dst, usize elements) noexcept {
     static_assert(std::is_trivial_v<T>);
     ::std::memcpy(dst, src, sizeof(T) * elements);
 }
 
 /// @ingroup vixen_util
-inline void arrayCopyRaw(void const *src, void *dst, usize bytes) {
+inline void arrayCopyRaw(void const *src, void *dst, usize bytes) noexcept {
     ::std::memmove(dst, src, bytes);
 }
 
 /// @ingroup vixen_util
-inline void arrayCopyNonoverlappingRaw(void const *src, void *dst, usize bytes) {
+inline void arrayCopyNonoverlappingRaw(void const *src, void *dst, usize bytes) noexcept {
     ::std::memcpy(dst, src, bytes);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr void fill(T const &pattern, T *ptr, usize count) {
+constexpr void fillUninitialized(T const &pattern, T *ptr, usize count) {
+    // not calling memset here cuz its not flexible enough in this case.
     for (usize i = 0; i < count; i++) {
         new (ptr + i) T(pattern);
     }
@@ -417,61 +418,61 @@ constexpr void constructInPlace(T *location, Args &&...args) {
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr bool isPowerOfTwo(T n) {
+constexpr bool isPowerOfTwo(T n) noexcept {
     if (n == T(0)) return false;
     return (n & (n - T(1))) == T(0);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T &readRawAs(void *ptr) {
+constexpr T &readRawAs(void *ptr) noexcept {
     return *static_cast<T *>(ptr);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T const &readRawAs(void const *ptr) {
+constexpr T const &readRawAs(void const *ptr) noexcept {
     return *static_cast<const T *>(ptr);
 }
 
 /// @ingroup vixen_util
-constexpr isize rawptr_difference(void *lo, void *hi) {
+constexpr isize rawptr_difference(void *lo, void *hi) noexcept {
     return reinterpret_cast<isize>(hi) - reinterpret_cast<isize>(lo);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T const &min(T const &a, T const &b) {
+constexpr T const &min(T const &a, T const &b) noexcept {
     return a > b ? b : a;
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T &min(T &a, T &b) {
+constexpr T &min(T &a, T &b) noexcept {
     return a > b ? b : a;
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T const &max(T const &a, T const &b) {
+constexpr T const &max(T const &a, T const &b) noexcept {
     return a > b ? a : b;
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T &max(T &a, T &b) {
+constexpr T &max(T &a, T &b) noexcept {
     return a > b ? a : b;
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T const &clamp(T const &value, T const &lo, T const &hi) {
+constexpr T const &clamp(T const &value, T const &lo, T const &hi) noexcept {
     return value < lo ? lo : (value > hi ? hi : value);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T &clamp(T &value, T &lo, T &hi) {
+constexpr T &clamp(T &value, T &lo, T &hi) noexcept {
     return value < lo ? lo : (value > hi ? hi : value);
 }
 

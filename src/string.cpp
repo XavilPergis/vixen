@@ -4,9 +4,9 @@
 
 namespace vixen {
 namespace utf8 {
-void encode(u32 codepoint, char *buf) {
+void encode(u32 codepoint, char *buf) noexcept {
     // NOTE: This function ensures codepoint is valid.
-    usize len = encoded_len(codepoint);
+    usize len = encodedLength(codepoint);
     switch (len) {
     // U+0000 though U+007F are encoded as single octets with the same value as the codepoint.
     case 1: buf[0] = codepoint; break;
@@ -32,50 +32,39 @@ void encode(u32 codepoint, char *buf) {
     }
 }
 
-static Option<usize> get_seq_length(char octet) {
+Option<u32> decode(View<const char> buf) noexcept {
+    usize len;
     // clang-format off
-    if      ((octet & 0x80) == 0)    { return usize(1);  }
-    else if ((octet & 0xe0) == 0xc0) { return usize(2);  }
-    else if ((octet & 0xf0) == 0xe0) { return usize(3);  }
-    else if ((octet & 0xf8) == 0xf0) { return usize(4);  }
-    else                             { return {}; }
+    if      ((buf[0] & 0x80) == 0)    { len = 1;   }
+    else if ((buf[0] & 0xe0) == 0xc0) { len = 2;   }
+    else if ((buf[0] & 0xf0) == 0xe0) { len = 3;   }
+    else if ((buf[0] & 0xf8) == 0xf0) { len = 4;   }
+    else                              { return {}; }
     // clang-format on
-}
 
-Option<u32> decode(View<const char> buf) {
-    if (buf.len() == 0) {
-        return {};
+    VIXEN_DEBUG_ASSERT(len <= buf.len());
+
+    u32 codepoint = 0;
+
+    switch (len) {
+    case 1: codepoint = buf[0]; break;
+    case 2:
+        codepoint |= (buf[0] & 0x1f) << 6;
+        codepoint |= (buf[1] & 0x3f);
+        break;
+    case 3:
+        codepoint |= (buf[0] & 0x0f) << 12;
+        codepoint |= (buf[1] & 0x3f) << 6;
+        codepoint |= (buf[2] & 0x3f);
+        break;
+    case 4:
+        codepoint |= (buf[0] & 0x05) << 18;
+        codepoint |= (buf[1] & 0x3f) << 12;
+        codepoint |= (buf[2] & 0x3f) << 6;
+        codepoint |= (buf[3] & 0x3f);
+        break;
     }
-
-    if (auto len = get_seq_length(buf[0])) {
-        if (*len > buf.len()) {
-            return {};
-        }
-
-        u32 codepoint = 0;
-
-        switch (*len) {
-        case 1: codepoint = buf[0]; break;
-        case 2:
-            codepoint |= (buf[0] & 0x1f) << 6;
-            codepoint |= (buf[1] & 0x3f);
-            break;
-        case 3:
-            codepoint |= (buf[0] & 0x0f) << 12;
-            codepoint |= (buf[1] & 0x3f) << 6;
-            codepoint |= (buf[2] & 0x3f);
-            break;
-        case 4:
-            codepoint |= (buf[0] & 0x05) << 18;
-            codepoint |= (buf[1] & 0x3f) << 12;
-            codepoint |= (buf[2] & 0x3f) << 6;
-            codepoint |= (buf[3] & 0x3f);
-            break;
-        }
-        return codepoint;
-    }
-
-    return {};
+    return codepoint;
 }
 
 #define MATCH_RANGE(o, s, e)                                                                       \
@@ -86,7 +75,7 @@ Option<u32> decode(View<const char> buf) {
     (static_cast<u8>(data[current]) >= (s) && static_cast<u8>(data[current]) <= (e))
 #define IN_BOUNDS(l) ((current + (l)-1) < data.len())
 
-bool is_valid(View<const char> data) {
+bool isEncodedTextValid(View<const char> data) noexcept {
     usize current = 0;
 
     while (current < data.len()) {

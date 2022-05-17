@@ -16,11 +16,11 @@ template <typename T>
 struct TypeInfoImplInstance : TypeInfoImpl {};
 
 struct TypeInfo {
-    bool operator==(TypeInfo const &other) { return this->mId == other.mId; }
-    bool operator!=(TypeInfo const &other) { return this->mId != other.mId; }
+    bool operator==(TypeInfo const &other) noexcept { return this->mId == other.mId; }
+    bool operator!=(TypeInfo const &other) noexcept { return this->mId != other.mId; }
 
 protected:
-    TypeInfo(TypeInfoImpl *id) : mId(id) {}
+    TypeInfo(TypeInfoImpl *id) noexcept : mId(id) {}
     TypeInfoImpl *mId;
 
     template <typename T>
@@ -36,12 +36,12 @@ template <typename T>
 TypeInfoImplInstance<T> *get_type_id_impl<T>::inst = TypeInfoImplInstance<T>{};
 
 template <typename T>
-constexpr TypeInfo getTypeInfo() {
+constexpr TypeInfo getTypeInfo() noexcept {
     return TypeInfo{*get_type_id_impl<T>::inst};
 }
 
 template <typename T>
-constexpr TypeInfo getTypeInfoOf(T const &value) {
+constexpr TypeInfo getTypeInfoOf(T const &value) noexcept {
     return TypeInfo{*get_type_id_impl<T>::inst};
 }
 
@@ -70,7 +70,7 @@ struct Any {
     Any(Allocator &alloc, T &&value) : Any(TypeKey<T>{}, alloc, std::forward<T>(value)) {}
 
     template <typename T>
-    Option<T> downcast() {
+    Option<T> downcast() noexcept {
         if (typeInfo == getTypeInfo<T>()) {
             return std::move(static_cast<Value<T> &>(*value).value);
         } else {
@@ -79,13 +79,13 @@ struct Any {
     }
 
     template <typename T>
-    T &get() {
+    T &get() noexcept {
         VIXEN_DEBUG_ASSERT(typeInfo == getTypeInfo<T>());
         return static_cast<Value<T> &>(*value).value;
     }
 
     template <typename T>
-    const T &get() const {
+    const T &get() const noexcept {
         VIXEN_DEBUG_ASSERT(typeInfo == getTypeInfo<T>());
         return static_cast<const Value<T> &>(*value).value;
     }
@@ -100,7 +100,7 @@ Any makeAny(Allocator &alloc, Args &&...args) {
 }
 
 struct Blackboard {
-    Blackboard(Allocator &alloc) : alloc(alloc), values(alloc) {}
+    Blackboard(Allocator &alloc) noexcept : alloc(alloc), values(alloc) {}
 
     template <typename T, typename... Args>
     Option<T> insert(Args &&...args) {
@@ -116,14 +116,14 @@ struct Blackboard {
     }
 
     template <typename T>
-    bool has() const {
+    bool has() const noexcept {
         static_assert(std::is_same_v<std::decay_t<T>, T>);
 
         return values.containsKey(getTypeInfo<T>());
     }
 
     template <typename T>
-    T &get() {
+    T &get() noexcept {
         static_assert(std::is_same_v<std::decay_t<T>, T>);
         VIXEN_DEBUG_ASSERT(values.containsKey(getTypeInfo<T>()));
 
@@ -131,7 +131,7 @@ struct Blackboard {
     }
 
     template <typename T>
-    Option<T> remove() {
+    Option<T> remove() noexcept {
         static_assert(std::is_same_v<std::decay_t<T>, T>);
 
         auto old = values.remove(getTypeInfo<T>());
@@ -143,17 +143,17 @@ struct Blackboard {
     }
 
     template <typename T>
-    bool has(TypeKey<T>) const {
+    bool has(TypeKey<T>) const noexcept {
         return this->template has<T>();
     }
 
     template <typename T>
-    T &get(TypeKey<T>) {
+    T &get(TypeKey<T>) noexcept {
         return this->template get<T>();
     }
 
     template <typename T>
-    Option<T> remove(TypeKey<T>) {
+    Option<T> remove(TypeKey<T>) noexcept {
         return this->template remove<T>();
     }
 

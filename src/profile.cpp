@@ -407,8 +407,8 @@
 //     if (info.name.isNone()) {
 //         info.name = String::copyFrom(debugAllocator(), name);
 //     } else {
-//         info.name->clear();
-//         info.name->push(name);
+//         info.name->removeAll();
+//         info.name->insertLast(name);
 //     }
 // }
 

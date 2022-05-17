@@ -27,7 +27,8 @@ struct HashMap;
 /// @ingroup vixen_data_structures
 template <typename K, typename V, typename H, typename C>
 struct HashMapEntry {
-    constexpr HashMapEntry(HashMap<K, V, H, C> *mapIn, usize slot) : mapIn(mapIn), slot(slot) {}
+    constexpr HashMapEntry(HashMap<K, V, H, C> *mapIn, usize slot) noexcept
+        : mapIn(mapIn), slot(slot) {}
 
     constexpr HashMapEntry() = default;
     constexpr HashMapEntry(HashMapEntry const &) = default;
@@ -41,12 +42,12 @@ struct HashMapEntry {
     // itself as it pertains to equality comparisons may change at any point. Note that it IS okay
     // to mutate the key in a way that doesn't affect that though, like updating a cached value
     // that's otherwise transparent.
-    constexpr K const &key() const;
-    constexpr V const &value() const;
-    constexpr V &value();
+    constexpr K const &key() const noexcept;
+    constexpr V const &value() const noexcept;
+    constexpr V &value() noexcept;
 
     /// @brief Removes this entry from the map it's from, and returns the removed key-value pair.
-    constexpr Tuple<K, V> remove();
+    constexpr Tuple<K, V> remove() noexcept;
 };
 
 /// @ingroup vixen_data_structures
@@ -58,7 +59,7 @@ struct HashMap {
     constexpr HashMap() = default;
     VIXEN_MOVE_ONLY(HashMap)
 
-    constexpr explicit HashMap(Allocator &alloc);
+    constexpr explicit HashMap(Allocator &alloc) noexcept;
     HashMap(Allocator &alloc, usize defaultCapacity);
     HashMap(copy_tag_t, Allocator &alloc, const HashMap &other);
     VIXEN_DEFINE_CLONE_METHOD(HashMap)
@@ -68,13 +69,13 @@ struct HashMap {
 
     /// @brief Looks up the value associated with `key` and returns it, or nothing if the entry does
     /// not exist.
-    constexpr Option<V &> get(K const &key);
-    constexpr Option<V const &> get(K const &key) const;
+    constexpr Option<V &> get(K const &key) noexcept;
+    constexpr Option<V const &> get(K const &key) const noexcept;
 
     /// @brief Removes an entry with key `key`. If the entry existed, it is returned.
-    constexpr Option<V> remove(K const &key);
+    constexpr Option<V> remove(K const &key) noexcept;
 
-    constexpr Option<entry_type> entry(K const &key);
+    constexpr Option<entry_type> entry(K const &key) noexcept;
 
     /// @brief Inserts an entry into the map.
     ///
@@ -86,25 +87,26 @@ struct HashMap {
     template <typename OK, typename... Args>
     V &getOrInsert(OK &&key, Args &&...value);
 
-    constexpr bool containsKey(K const &key) const;
+    constexpr bool containsKey(K const &key) const noexcept;
 
     /// @brief Removes all entries from the map.
-    constexpr void clear();
+    constexpr void removeAll();
 
     /// @brief Returns the number of entries in the map.
     // clang-format off
-    constexpr usize len() const { return table.len(); }
+    constexpr usize len() const noexcept { return table.len(); }
+    constexpr usize capacity() const noexcept { return table.capacity(); }
     // clang-format on
 
     /// @brief Unchecked access operators.
-    constexpr V &operator[](K const &key);
-    constexpr V const &operator[](K const &key) const;
+    constexpr V &operator[](K const &key) noexcept;
+    constexpr V const &operator[](K const &key) const noexcept;
 
     // vector<collision<K>> find_collisions(Allocator &alloc) const;
     // hashmap_stats stats() const;
 
-    constexpr iterator begin();
-    constexpr iterator end();
+    constexpr iterator begin() noexcept;
+    constexpr iterator end() noexcept;
 
     HashTable<Tuple<K, V>, Hasher, key_comparator<Cmp, K, V>> table;
 };
@@ -112,12 +114,12 @@ struct HashMap {
 namespace impl {
 
 template <typename K, typename V, typename H, typename C>
-K &getRawKey(HashMap<K, V, H, C> &map, usize slot) {
+K &getRawKey(HashMap<K, V, H, C> &map, usize slot) noexcept {
     return map.table.get(slot).template get<0>();
 }
 
 template <typename K, typename V, typename H, typename C>
-V &getRawValue(HashMap<K, V, H, C> &map, usize slot) {
+V &getRawValue(HashMap<K, V, H, C> &map, usize slot) noexcept {
     return map.table.get(slot).template get<1>();
 }
 

@@ -8,16 +8,15 @@
 
 namespace vixen {
 
+enum class UpgradeResult {
+    UPGRADED,
+    FAILED,
+};
+
 // SAFETY: this struct should only be used behind a pointer that was allocated via the allocator
 // referred to by `alloc`.
 template <typename T>
 struct SharedRepr {
-    std::atomic<usize> strongCount;
-    std::atomic<usize> weakCount;
-
-    Allocator *alloc;
-    T *data;
-
     template <typename... Args>
     SharedRepr(Allocator &alloc, Args &&...args);
 
@@ -25,8 +24,13 @@ struct SharedRepr {
     void releaseStrong();
     void acquireWeak();
     void releaseWeak();
+    UpgradeResult upgradeWeak();
 
-    bool upgradeWeak();
+    std::atomic<usize> strongCount;
+    std::atomic<usize> weakCount;
+
+    Allocator *alloc;
+    T *data;
 };
 
 template <typename T>
@@ -44,25 +48,25 @@ struct Shared {
     Shared(Allocator &alloc, Args &&...args);
 
     Shared() = default;
-    Shared(Shared<T> &&other);
-    Shared<T> &operator=(Shared<T> &&other);
+    Shared(Shared<T> &&other) noexcept;
+    Shared<T> &operator=(Shared<T> &&other) noexcept;
     ~Shared();
 
     // clang-format off
-    const T &operator*() const { return *data; }
-    const T *operator->() const { return data; }
-    T &operator*() { return *data; }
-    T *operator->() { return data; }
+    const T &operator*() const noexcept { return *mData; }
+    const T *operator->() const noexcept { return mData; }
+    T &operator*() noexcept { return *mData; }
+    T *operator->() noexcept { return mData; }
 
-    const T &get() const { return *data; }
-    T &get() { return *data; }
+    const T &get() const { return *mData; }
+    T &get() { return *mData; }
 
-    explicit operator bool() const { return data; }
-    operator const_pointer() const { return data; }
-    operator pointer() { return data; }
+    explicit operator bool() const { return mData; }
+    operator const_pointer() const { return mData; }
+    operator pointer() { return mData; }
     // clang-format on
 
-    void clear();
+    void release();
     Shared<T> copy();
     Weak<T> downgrade();
 
@@ -74,10 +78,10 @@ struct Shared {
 
 private:
     friend class Weak<T>;
-    explicit Shared(SharedRepr<T> *repr) : data(repr->data), repr(repr) {}
+    explicit Shared(SharedRepr<T> *repr) noexcept : mData(repr->data), mRepr(repr) {}
 
-    T *data = nullptr;
-    SharedRepr<T> *repr = nullptr;
+    T *mData = nullptr;
+    SharedRepr<T> *mRepr = nullptr;
 };
 
 /// @ingroup vixen_data_structures
@@ -98,9 +102,9 @@ struct Weak {
 
 private:
     friend class Shared<T>;
-    explicit Weak(SharedRepr<T> *repr) : repr(repr) {}
+    explicit Weak(SharedRepr<T> *repr) noexcept : mRepr(repr) {}
 
-    SharedRepr<T> *repr = nullptr;
+    SharedRepr<T> *mRepr = nullptr;
 };
 
 template <typename T, typename... Args>

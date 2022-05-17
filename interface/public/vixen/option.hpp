@@ -22,7 +22,7 @@ template <typename T>
 struct OptionStorage {
 protected:
     OptionStorage() = default;
-    OptionStorage(bool occupied) : occupied(occupied) {}
+    OptionStorage(bool occupied) noexcept : occupied(occupied) {}
 
     void copyAssign(OptionStorage const &other) {
         if (this->occupied && other.occupied) {
@@ -34,7 +34,7 @@ protected:
         }
     }
 
-    void moveAssign(OptionStorage &&other) {
+    void moveAssign(OptionStorage &&other) noexcept {
         if (this->occupied && other.occupied) {
             this->storage.get() = mv(other.storage.get());
         } else if (this->occupied) {
@@ -44,7 +44,7 @@ protected:
         }
     }
 
-    void destruct() {
+    void destruct() noexcept {
         if (occupied) storage.destruct();
     }
 
@@ -61,8 +61,8 @@ struct OptionBase;
 template <typename T, bool C, bool M>
 struct OptionBase<T, false, C, M> : OptionBase<T, true, false, false> {
     // Default constructor, initializes to unoccupied option.
-    OptionBase() : OptionBase<T, true, false, false>() {}
-    OptionBase(EmptyOptionType) : OptionBase<T, true, false, false>() {}
+    OptionBase() noexcept : OptionBase<T, true, false, false>() {}
+    OptionBase(EmptyOptionType) noexcept : OptionBase<T, true, false, false>() {}
 
     OptionBase(OptionBase const &other) = default;
     OptionBase &operator=(OptionBase const &other) = default;
@@ -75,8 +75,8 @@ struct OptionBase<T, false, C, M> : OptionBase<T, true, false, false> {
 template <typename T>
 struct OptionBase<T, true, true, true> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    OptionBase() : OptionStorage<T>(false) {}
-    OptionBase(EmptyOptionType) : OptionStorage<T>(false) {}
+    OptionBase() noexcept : OptionStorage<T>(false) {}
+    OptionBase(EmptyOptionType) noexcept : OptionStorage<T>(false) {}
 
     OptionBase(OptionBase const &other) = default;
     OptionBase &operator=(OptionBase const &other) = default;
@@ -88,18 +88,18 @@ struct OptionBase<T, true, true, true> : OptionStorage<T> {
 template <typename T>
 struct OptionBase<T, true, true, false> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    OptionBase() : OptionStorage<T>(false) {}
-    OptionBase(EmptyOptionType) : OptionStorage<T>(false) {}
+    OptionBase() noexcept : OptionStorage<T>(false) {}
+    OptionBase(EmptyOptionType) noexcept : OptionStorage<T>(false) {}
 
     OptionBase(OptionBase const &other) = default;
     OptionBase &operator=(OptionBase const &other) = default;
 
-    OptionBase(OptionBase &&other) : OptionStorage<T>(other.occupied) {
+    OptionBase(OptionBase &&other) noexcept : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
             this->storage.constructInPlace(mv(other.storage.get()));
         }
     }
-    OptionBase &operator=(OptionBase &&other) {
+    OptionBase &operator=(OptionBase &&other) noexcept {
         this->moveAssign(mv(other));
         return *this;
     }
@@ -109,8 +109,8 @@ struct OptionBase<T, true, true, false> : OptionStorage<T> {
 template <typename T>
 struct OptionBase<T, true, false, true> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    OptionBase() : OptionStorage<T>(false) {}
-    OptionBase(EmptyOptionType) : OptionStorage<T>(false) {}
+    OptionBase() noexcept : OptionStorage<T>(false) {}
+    OptionBase(EmptyOptionType) noexcept : OptionStorage<T>(false) {}
 
     OptionBase(OptionBase const &other) : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
@@ -129,8 +129,8 @@ struct OptionBase<T, true, false, true> : OptionStorage<T> {
 template <typename T>
 struct OptionBase<T, true, false, false> : OptionStorage<T> {
     // Default constructor, initializes to unoccupied option.
-    OptionBase() : OptionStorage<T>(false) {}
-    OptionBase(EmptyOptionType) : OptionStorage<T>(false) {}
+    OptionBase() noexcept : OptionStorage<T>(false) {}
+    OptionBase(EmptyOptionType) noexcept : OptionStorage<T>(false) {}
 
     OptionBase(OptionBase const &other) : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
@@ -147,12 +147,12 @@ struct OptionBase<T, true, false, false> : OptionStorage<T> {
     // consistency with trivially movable inner types, which wouldn't set the old option to empty,
     // or we'd sacrifice the ability to have trivial move operators entirely for the sake of being
     // consistent. The least bad option is to be consistent and fast!
-    OptionBase(OptionBase &&other) : OptionStorage<T>(other.occupied) {
+    OptionBase(OptionBase &&other) noexcept : OptionStorage<T>(other.occupied) {
         if (other.occupied) {
             this->storage.constructInPlace(mv(other.storage.get()));
         }
     }
-    OptionBase &operator=(OptionBase &&other) {
+    OptionBase &operator=(OptionBase &&other) noexcept {
         this->moveAssign(mv(other));
         return *this;
     }
@@ -191,19 +191,13 @@ struct Option
 
     static_assert(!std::is_same_v<T, EmptyOptionType>);
 
-    // Forwarding constructor/assignment operator from inner type
-    template <typename U>
-    using is_not_self = std::negation<std::is_same<Option<T>, remove_cvref_t<U>>>;
-    template <typename U>
-    using is_not_empty_tag = std::negation<std::is_same<T, remove_cvref_t<U>>>;
-
     using OptionBase<T>::OptionBase;
 
     // Don't declare these for other `option<T>`s
     // clang-format off
     template <typename U>
         requires OptionNormalConstructibleFrom<T, U &&>
-    Option(U &&value) {
+    Option(U &&value) noexcept {
         this->storage.constructInPlace(std::forward<U>(value));
         this->occupied = true;
     }
@@ -427,34 +421,34 @@ concept Comparable = requires(T const &t, U const &u) {
 };
 
 template <typename T, typename U> requires Comparable<T, U>
-bool operator==(const Option<T> &lhs, const Option<U> &rhs) {
+bool operator==(const Option<T> &lhs, const Option<U> &rhs) noexcept {
     return lhs.isSome() ? rhs.isSome() && lhs.get() == rhs.get() : rhs.isNone();
 }
 template <typename T, typename U> requires Comparable<T, U>
-bool operator==(const Option<T> &lhs, const U &rhs) {
+bool operator==(const Option<T> &lhs, const U &rhs) noexcept {
     return lhs.isSome() && lhs.get() == rhs;
 }
 template <typename T, typename U> requires Comparable<T, U>
-bool operator==(const U &lhs, const Option<T> &rhs) {
+bool operator==(const U &lhs, const Option<T> &rhs) noexcept {
     return rhs.isSome() && lhs == rhs.get();
 }
 
 template <typename T, typename U> requires Comparable<T, U>
-bool operator!=(const Option<T> &lhs, const Option<U> &rhs) {
+bool operator!=(const Option<T> &lhs, const Option<U> &rhs) noexcept {
     return !(lhs == rhs);
 }
 template <typename T, typename U> requires Comparable<T, U>
-bool operator!=(const Option<T> &lhs, const U &rhs) {
+bool operator!=(const Option<T> &lhs, const U &rhs) noexcept {
     return !(lhs == rhs);
 }
 template <typename T, typename U> requires Comparable<T, U>
-bool operator!=(const U &lhs, const Option<T> &rhs) {
+bool operator!=(const U &lhs, const Option<T> &rhs) noexcept {
     return !(lhs == rhs);
 }
 // clang-format on
 
 template <typename T, typename H>
-inline void hash(const Option<T> &option, H &hasher) {
+inline void hash(const Option<T> &option, H &hasher) noexcept {
     // TODO: idk what we should hash in the None branch
     if (option) {
         hash(*option, hasher);

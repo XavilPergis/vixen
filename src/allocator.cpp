@@ -125,12 +125,12 @@ void *LayerExecutor::legacyRealloc(usize size, void *ptr) {
 
 void *ClearMemoryLayer::alloc(LayerExecutor &exec, Layout const &layout) {
     void *res = exec.alloc(layout);
-    util::fill(ALLOCATION_PATTERN, static_cast<u8 *>(res), layout.size);
+    util::fillUninitialized(ALLOCATION_PATTERN, static_cast<u8 *>(res), layout.size);
     return res;
 }
 
 void ClearMemoryLayer::dealloc(LayerExecutor &exec, const Layout &layout, void *ptr) {
-    util::fill(DEALLOCATION_PATTERN, static_cast<u8 *>(ptr), layout.size);
+    util::fillUninitialized(DEALLOCATION_PATTERN, static_cast<u8 *>(ptr), layout.size);
     exec.dealloc(layout, ptr);
 }
 
@@ -183,7 +183,7 @@ void *LegacyAllocator::legacyAlloc(usize size) {
     void *ptr = this->internalLegacyAlloc(size);
     // record_legacy_alloc(id, size, ptr);
     // end_transaction(id);
-    util::fill(ALLOCATION_PATTERN, static_cast<u8 *>(ptr), size);
+    util::fillUninitialized(ALLOCATION_PATTERN, static_cast<u8 *>(ptr), size);
     return ptr;
 }
 

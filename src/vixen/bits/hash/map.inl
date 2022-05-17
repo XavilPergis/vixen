@@ -5,7 +5,7 @@
 namespace vixen {
 
 template <typename K, typename V, typename H, typename C>
-constexpr HashMap<K, V, H, C>::HashMap(Allocator &alloc) : table(alloc) {}
+constexpr HashMap<K, V, H, C>::HashMap(Allocator &alloc) noexcept : table(alloc) {}
 
 template <typename K, typename V, typename H, typename C>
 inline HashMap<K, V, H, C>::HashMap(Allocator &alloc, usize default_capacity)
@@ -16,24 +16,24 @@ inline HashMap<K, V, H, C>::HashMap(copy_tag_t, Allocator &alloc, const HashMap 
     : table(other.table.clone(alloc)) {}
 
 template <typename K, typename V, typename H, typename C>
-constexpr Option<V &> HashMap<K, V, H, C>::get(const K &key) {
-    if (auto slotOpt = table.findSlot(make_hash<H>(key), key)) {
+constexpr Option<V &> HashMap<K, V, H, C>::get(const K &key) noexcept {
+    if (auto slotOpt = table.findSlot(makeHash<H>(key), key)) {
         return table.get(*slotOpt).template get<1>();
     }
     return EMPTY_OPTION;
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr Option<V const &> HashMap<K, V, H, C>::get(const K &key) const {
-    if (auto slotOpt = table.findSlot(make_hash<H>(key), key)) {
+constexpr Option<V const &> HashMap<K, V, H, C>::get(const K &key) const noexcept {
+    if (auto slotOpt = table.findSlot(makeHash<H>(key), key)) {
         return table.get(*slotOpt).template get<1>();
     }
     return EMPTY_OPTION;
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr Option<V> HashMap<K, V, H, C>::remove(const K &key) {
-    if (auto slot = table.findSlot(make_hash<H>(key), key)) {
+constexpr Option<V> HashMap<K, V, H, C>::remove(const K &key) noexcept {
+    if (auto slot = table.findSlot(makeHash<H>(key), key)) {
         auto oldEntry = mv(table.get(*slot));
         table.remove(*slot);
         return mv(oldEntry.template get<1>());
@@ -46,7 +46,7 @@ template <typename OK, typename OV>
 inline Option<V> HashMap<K, V, H, C>::insert(OK &&key, OV &&value) {
     table.grow();
 
-    auto hash = make_hash<H>(key);
+    auto hash = makeHash<H>(key);
     auto slot = table.findInsertSlot(hash, key);
 
     Option<V> old;
@@ -63,7 +63,7 @@ inline Option<V> HashMap<K, V, H, C>::insert(OK &&key, OV &&value) {
 template <typename K, typename V, typename H, typename C>
 template <typename OK, typename... Args>
 inline V &HashMap<K, V, H, C>::getOrInsert(OK &&key, Args &&...value) {
-    auto hash = make_hash<H>(key);
+    auto hash = makeHash<H>(key);
     if (auto existingSlot = table.findSlot(hash, key)) {
         return table.get(existingSlot.get()).template get<1>();
     }
@@ -77,35 +77,35 @@ inline V &HashMap<K, V, H, C>::getOrInsert(OK &&key, Args &&...value) {
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr Option<HashMapEntry<K, V, H, C>> HashMap<K, V, H, C>::entry(K const &key) {
-    if (auto slotOpt = table.findSlot(make_hash<H>(key), key)) {
+constexpr Option<HashMapEntry<K, V, H, C>> HashMap<K, V, H, C>::entry(K const &key) noexcept {
+    if (auto slotOpt = table.findSlot(makeHash<H>(key), key)) {
         return HashMapEntry<K, V, H, C>(this, *slotOpt);
     }
     return EMPTY_OPTION;
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr bool HashMap<K, V, H, C>::containsKey(const K &key) const {
-    return (bool)table.findSlot(make_hash<H>(key), key);
+constexpr bool HashMap<K, V, H, C>::containsKey(const K &key) const noexcept {
+    return (bool)table.findSlot(makeHash<H>(key), key);
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr void HashMap<K, V, H, C>::clear() {
+constexpr void HashMap<K, V, H, C>::removeAll() {
     table.clear();
 }
 
 // @TODO/Debugging: When accessing a nonexistent key, print it in the panic info, and fallback if
 // `<<` to a stream on `K` doesn't exist.
 template <typename K, typename V, typename H, typename C>
-constexpr V &HashMap<K, V, H, C>::operator[](K const &key) {
-    auto slot = table.findSlot(make_hash<H>(key), key);
+constexpr V &HashMap<K, V, H, C>::operator[](K const &key) noexcept {
+    auto slot = table.findSlot(makeHash<H>(key), key);
     VIXEN_ASSERT_EXT(slot.isSome(), "Tried to access item that does not exist.");
     return table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr V const &HashMap<K, V, H, C>::operator[](K const &key) const {
-    auto slot = table.findSlot(make_hash<H>(key), key);
+constexpr V const &HashMap<K, V, H, C>::operator[](K const &key) const noexcept {
+    auto slot = table.findSlot(makeHash<H>(key), key);
     VIXEN_ASSERT_EXT(slot.isSome(), "Tried to access item that does not exist.");
     return table.get(*slot).template get<1>();
 }
@@ -177,37 +177,37 @@ struct HashMapEntryForwardIterator {
 };
 
 template <typename K, typename V, typename H, typename C>
-constexpr HashMapEntryForwardIterator<K, V, H, C> HashMap<K, V, H, C>::begin() {
+constexpr HashMapEntryForwardIterator<K, V, H, C> HashMap<K, V, H, C>::begin() noexcept {
     return HashMapEntryForwardIterator<K, V, H, C>(this);
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr HashMapEntryForwardIterator<K, V, H, C> HashMap<K, V, H, C>::end() {
+constexpr HashMapEntryForwardIterator<K, V, H, C> HashMap<K, V, H, C>::end() noexcept {
     HashMapEntryForwardIterator<K, V, H, C> iter(this);
     iter.isAtEnd = true;
     return iter;
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr K const &HashMapEntry<K, V, H, C>::key() const {
+constexpr K const &HashMapEntry<K, V, H, C>::key() const noexcept {
     VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to access key of empty map entry.");
     return mapIn->table.get(*slot).template get<0>();
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr V const &HashMapEntry<K, V, H, C>::value() const {
+constexpr V const &HashMapEntry<K, V, H, C>::value() const noexcept {
     VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to access const value of empty map entry.");
     return mapIn->table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr V &HashMapEntry<K, V, H, C>::value() {
+constexpr V &HashMapEntry<K, V, H, C>::value() noexcept {
     VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to access value of empty map entry.");
     return mapIn->table.get(*slot).template get<1>();
 }
 
 template <typename K, typename V, typename H, typename C>
-constexpr Tuple<K, V> HashMapEntry<K, V, H, C>::remove() {
+constexpr Tuple<K, V> HashMapEntry<K, V, H, C>::remove() noexcept {
     VIXEN_DEBUG_ASSERT_EXT(slot.isSome(), "tried to remove an already empty map entry.");
     auto ret = mv(mapIn->table.get(*slot));
     mapIn->table.remove(*slot);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "traits.hpp"
 #include "vixen/allocator/allocator.hpp"
 
 namespace vixen {
@@ -11,63 +12,61 @@ constexpr uninitialized_tag_t uninitialized_tag{};
 /// @brief Managed pointer that destroys its allocation at the end of its lifetime.
 template <typename T>
 struct Unique {
+    static_assert(std::is_nothrow_destructible_v<T>);
+    static_assert(std::is_nothrow_move_constructible_v<T>);
+    static_assert(std::is_nothrow_move_assignable_v<T>);
+
     Unique() = default;
 
     template <typename... Args>
-    Unique(uninitialized_tag_t, Allocator &alloc)
-        : data(heap::createUninit<T>(alloc)), alloc(&alloc) {}
-
-    template <typename... Args>
     Unique(Allocator &alloc, Args &&...args)
-        : data(heap::createInit<T>(alloc, std::forward<Args>(args)...)), alloc(&alloc) {}
+        : mData(heap::createInit<T>(alloc, std::forward<Args>(args)...)), mAlloc(&alloc) {}
 
-    Unique(copy_tag_t, Allocator &alloc, const Unique &other)
-        : data(heap::createInit<T>(alloc, copyAllocate(alloc, *other.data))), alloc(&alloc) {}
-
-    VIXEN_DEFINE_CLONE_METHOD(Unique);
+    Unique(copy_tag_t, Allocator &alloc, Unique const &other)
+        : mData(heap::createInit<T>(alloc, copyAllocate(alloc, *other.mData))), mAlloc(&alloc) {}
+    VIXEN_DEFINE_CLONE_METHOD(Unique)
 
     Unique(Unique const &other) = delete;
     Unique &operator=(Unique const &other) = delete;
 
-    template <typename U, require<std::is_convertible<U *, T *>> = true>
-    Unique(Unique<U> &&other)
-        : data(util::exchange(other.data, nullptr)), alloc(util::exchange(other.alloc, nullptr)) {}
+    template <typename U>
+    Unique(Unique<U> &&other) noexcept requires IsConvertibleFrom<T *, U *>
+        : mData(util::exchange(other.mData, nullptr))
+        , mAlloc(util::exchange(other.mAlloc, nullptr)) {}
 
-    template <typename U, require<std::is_convertible<U *, T *>> = true>
-    Unique &operator=(Unique<U> &&other) {
+    template <typename U>
+    Unique &operator=(Unique<U> &&other) noexcept requires IsConvertibleFrom<T *, U *> {
         if (static_cast<void *>(this) == static_cast<void *>(&other)) return *this;
-        if (data) {
-            heap::destroyInit(alloc, data);
-        }
-        data = util::exchange(other.data, nullptr);
-        alloc = util::exchange(other.alloc, nullptr);
+
+        if (mData) heap::destroyInit(mAlloc, mData);
+
+        mData = util::exchange(other.mData, nullptr);
+        mAlloc = util::exchange(other.mAlloc, nullptr);
         return *this;
     }
 
     ~Unique() {
-        if (data) {
-            heap::destroyInit(alloc, data);
-        }
+        if (mData) heap::destroyInit(mAlloc, mData);
     }
 
     // clang-format off
-    const T &operator*() const { return *data; }
-    const T *operator->() const { return data; }
-    T &operator*() { return *data; }
-    T *operator->() { return data; }
+    const T &operator*() const noexcept { return *mData; }
+    const T *operator->() const noexcept { return mData; }
+    T &operator*() noexcept { return *mData; }
+    T *operator->() noexcept { return mData; }
 
-    explicit operator bool() const { return data != nullptr; }
-    operator T const *() const { return data; }
-    operator T *() { return data; }
+    explicit operator bool() const noexcept { return mData != nullptr; }
+    operator T const *() const noexcept { return mData; }
+    operator T *() noexcept { return mData; }
 
-    T const &get() const { return *data; }
-    T &get() { return *data; }
+    T const &get() const noexcept { return *mData; }
+    T &get() noexcept { return *mData; }
     // clang-format on
 
-    void clear() {
-        if (data) {
-            heap::destroyInit(alloc, data);
-            data = nullptr;
+    void release() noexcept {
+        if (mData) {
+            heap::destroyInit(mAlloc, mData);
+            mData = nullptr;
         }
     }
 
@@ -78,8 +77,8 @@ struct Unique {
     }
 
 private:
-    T *data = nullptr;
-    Allocator *alloc = nullptr;
+    T *mData = nullptr;
+    Allocator *mAlloc = nullptr;
 
     // this is asinine.
     template <typename U>
@@ -87,18 +86,13 @@ private:
 };
 
 template <typename T, typename H>
-inline void hash(const Unique<T> &unique, H &hasher) {
+inline void hash(const Unique<T> &unique, H &hasher) noexcept {
     hash(unique.get(), hasher);
 }
 
 template <typename T, typename... Args>
 Unique<T> makeUnique(Allocator &alloc, Args &&...args) {
     return Unique<T>(alloc, std::forward<Args>(args)...);
-}
-
-template <typename T>
-Unique<T> makeUniqueUninitialized(Allocator &alloc) {
-    return Unique<T>(uninitialized_tag, alloc);
 }
 
 } // namespace vixen

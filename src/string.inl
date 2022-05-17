@@ -7,9 +7,9 @@
 
 #include <cstring>
 
-#define _VIXEN_UTF8_CODEPOINT_VALID(codepoint)                              \
-    VIXEN_DEBUG_ASSERT_EXT(::vixen::utf8::is_valid_for_encoding(codepoint), \
-        "Codepoint U+{:X} is a not valid for UTF-8 encoding.",              \
+#define _VIXEN_UTF8_CODEPOINT_VALID(codepoint)                           \
+    VIXEN_DEBUG_ASSERT_EXT(::vixen::utf8::isValidForEncoding(codepoint), \
+        "Codepoint U+{:X} is a not valid for UTF-8 encoding.",           \
         codepoint)
 
 namespace vixen {
@@ -22,10 +22,10 @@ namespace vixen {
 #pragma region "String Initialization and Deinitialization"
 // + ----- String Initialization and Deinitialization --------------------------- +
 
-inline String::String(Allocator &alloc) : mData(alloc) {}
+inline String::String(Allocator &alloc) noexcept : mData(alloc) {}
 inline String::String(Allocator &alloc, usize defaultCapacity) : mData(alloc, defaultCapacity) {}
 
-inline String String::empty(Allocator &alloc) {
+inline String String::empty(Allocator &alloc) noexcept {
     return String(alloc);
 }
 
@@ -58,19 +58,19 @@ inline String String::copyFrom(Allocator &alloc, StringView slice) {
 #pragma region "String Mutation"
 // + ----- String Mutation ------------------------------------------------------ +
 
-inline void String::push(u32 codepoint) {
+inline void String::insertLast(u32 codepoint) {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
-    auto encodedLen = utf8::encoded_len(codepoint);
+    auto encodedLen = utf8::encodedLength(codepoint);
     utf8::encode(codepoint, mData.reserveLast(encodedLen));
     mData.unsafeGrowBy(encodedLen);
 }
 
-inline void String::push(StringView slice) {
+inline void String::insertLast(StringView slice) {
     util::arrayCopyNonoverlapping(slice.begin(), mData.reserveLast(slice.len()), slice.len());
     mData.unsafeGrowBy(slice.len());
 }
 
-inline void String::clear() {
+inline void String::removeAll() noexcept {
     mData.removeAll();
 }
 
@@ -80,31 +80,31 @@ inline void String::clear() {
 
 // TODO: code duplication with the methods on `StringView`. I wish there way a way to
 // automatically convert types when using `.` or `->`... Like Rust's Deref trait.
-inline Option<usize> String::indexOf(StringView needle) const {
+inline Option<usize> String::indexOf(StringView needle) const noexcept {
     return asSlice().indexOf(needle);
 }
 
-inline Option<usize> String::lastIndexOf(StringView needle) const {
+inline Option<usize> String::lastIndexOf(StringView needle) const noexcept {
     return asSlice().lastIndexOf(needle);
 }
 
-inline Option<usize> String::indexOf(u32 needle) const {
+inline Option<usize> String::indexOf(u32 needle) const noexcept {
     return asSlice().indexOf(needle);
 }
 
-inline Option<usize> String::lastIndexOf(u32 needle) const {
+inline Option<usize> String::lastIndexOf(u32 needle) const noexcept {
     return asSlice().lastIndexOf(needle);
 }
 
-inline bool String::startsWith(StringView slice) const {
+inline bool String::startsWith(StringView slice) const noexcept {
     return asSlice().startsWith(slice);
 }
 
-inline bool String::startsWith(u32 ch) const {
+inline bool String::startsWith(u32 ch) const noexcept {
     return asSlice().startsWith(ch);
 }
 
-inline bool String::operator==(StringView rhs) const {
+inline bool String::operator==(StringView rhs) const noexcept {
     return asSlice() == rhs;
 }
 
@@ -112,35 +112,35 @@ inline bool String::operator==(StringView rhs) const {
 #pragma region "String Accessors"
 // + ----- String Accessors ----------------------------------------------------- +
 
-inline StringView String::operator[](Range range) const {
+inline StringView String::operator[](Range range) const noexcept {
     return asSlice()[range];
 }
 
-inline StringView String::operator[](RangeFrom range) const {
+inline StringView String::operator[](RangeFrom range) const noexcept {
     return asSlice()[range];
 }
 
-inline StringView String::operator[](RangeTo range) const {
+inline StringView String::operator[](RangeTo range) const noexcept {
     return asSlice()[range];
 }
 
-inline char *String::begin() {
+inline char *String::begin() noexcept {
     return mData.begin();
 }
 
-inline char *String::end() {
+inline char *String::end() noexcept {
     return mData.end();
 }
 
-inline const char *String::begin() const {
+inline const char *String::begin() const noexcept {
     return mData.begin();
 }
 
-inline const char *String::end() const {
+inline const char *String::end() const noexcept {
     return mData.end();
 }
 
-inline usize String::len() const {
+inline usize String::len() const noexcept {
     return mData.len();
 }
 
@@ -148,15 +148,15 @@ inline usize String::len() const {
 #pragma region "String Conversion"
 // + ----- String Conversion ---------------------------------------------------- +
 
-inline StringView String::asSlice() const {
+inline StringView String::asSlice() const noexcept {
     return View<const char>(mData.begin(), mData.len());
 }
 
-inline String::operator View<const char>() const {
+inline String::operator View<const char>() const noexcept {
     return mData;
 }
 
-inline String::operator View<char>() {
+inline String::operator View<char>() noexcept {
     return mData;
 }
 
@@ -218,31 +218,31 @@ inline Vector<char> to_null_terminated(Allocator &alloc, StringView str) {
 #pragma region "string_slice Constructors"
 // + ----- StringView Constructors --------------------------------------------- +
 
-inline StringView::StringView() : raw({}) {}
+inline StringView::StringView() noexcept : raw({}) {}
 inline StringView::StringView(const char *cstr) : raw({cstr, std::strlen(cstr)}) {}
 inline StringView::StringView(const char *str, usize len) : raw({str, len}) {}
 inline StringView::StringView(View<const char> slice) : raw(slice) {}
-inline StringView::StringView(String const &str) : raw({str.begin(), str.len()}) {}
+inline StringView::StringView(String const &str) noexcept : raw({str.begin(), str.len()}) {}
 
 #pragma endregion
 #pragma region "string_slice Algorithms"
 // + ----- StringView Algorithms ----------------------------------------------- +
 
-inline Option<usize> StringView::indexOf(u32 codepoint) const {
+inline Option<usize> StringView::indexOf(u32 codepoint) const noexcept {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     char buf[4];
-    return indexOf(utf8::encode_slice(codepoint, buf));
+    return indexOf(utf8::encodeView(codepoint, buf));
 }
 
-inline Option<usize> StringView::lastIndexOf(u32 codepoint) const {
+inline Option<usize> StringView::lastIndexOf(u32 codepoint) const noexcept {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     char buf[4];
-    return lastIndexOf(utf8::encode_slice(codepoint, buf));
+    return lastIndexOf(utf8::encodeView(codepoint, buf));
 }
 
-inline Option<usize> StringView::indexOf(StringView needle) const {
+inline Option<usize> StringView::indexOf(StringView needle) const noexcept {
     // Can't find something that's bigger than the haystack!
     if (needle.len() > len()) {
         return {};
@@ -268,7 +268,7 @@ nomatch:;
     return {};
 }
 
-inline Option<usize> StringView::lastIndexOf(StringView needle) const {
+inline Option<usize> StringView::lastIndexOf(StringView needle) const noexcept {
     if (needle.len() > len()) {
         return {};
     }
@@ -287,12 +287,12 @@ nomatch:;
     return {};
 }
 
-inline bool StringView::startsWith(u32 codepoint) const {
+inline bool StringView::startsWith(u32 codepoint) const noexcept {
     char buf[4];
-    return startsWith(utf8::encode_slice(codepoint, buf));
+    return startsWith(utf8::encodeView(codepoint, buf));
 }
 
-inline bool StringView::startsWith(StringView needle) const {
+inline bool StringView::startsWith(StringView needle) const noexcept {
     if (needle.len() > len()) {
         return false;
     }
@@ -306,11 +306,11 @@ inline bool StringView::startsWith(StringView needle) const {
 
 inline Vector<String> StringView::split(Allocator &alloc, StringView token) const {
     Vector<String> vec(alloc);
-    split_to(alloc, token, vec);
+    splitTo(alloc, token, vec);
     return vec;
 }
 
-inline void StringView::split_to(Allocator &alloc, StringView token, Vector<String> &out) const {
+inline void StringView::splitTo(Allocator &alloc, StringView token, Vector<String> &out) const {
     String current_run(alloc);
 
     usize i = 0;
@@ -322,7 +322,7 @@ inline void StringView::split_to(Allocator &alloc, StringView token, Vector<Stri
             continue;
         }
 
-        current_run.push(raw[i]);
+        current_run.insertLast(raw[i]);
         ++i;
     }
 }
@@ -331,37 +331,37 @@ inline void StringView::split_to(Allocator &alloc, StringView token, Vector<Stri
 #pragma region "string_slice Accessors"
 // + ----- StringView Accessors ------------------------------------------------ +
 
-inline StringView StringView::operator[](Range r) const {
-    VIXEN_DEBUG_ASSERT_EXT(utf8::is_char_boundary(raw[r.start]),
+inline StringView StringView::operator[](Range r) const noexcept {
+    VIXEN_DEBUG_ASSERT_EXT(utf8::isCharBoundary(raw[r.start]),
         "Tried to slice String, but start index {} was not on a char boundary.",
         r.start);
     return StringView(raw[r]);
 }
 
-inline StringView StringView::operator[](RangeFrom range) const {
-    VIXEN_DEBUG_ASSERT_EXT(utf8::is_char_boundary(raw[range.start]),
+inline StringView StringView::operator[](RangeFrom range) const noexcept {
+    VIXEN_DEBUG_ASSERT_EXT(utf8::isCharBoundary(raw[range.start]),
         "Tried to slice String, but start index {} was not on a char boundary.",
         range.start);
     return StringView(raw[range]);
 }
 
-inline StringView StringView::operator[](RangeTo range) const {
+inline StringView StringView::operator[](RangeTo range) const noexcept {
     return StringView(raw[range]);
 }
 
-inline const char *StringView::begin() const {
+inline const char *StringView::begin() const noexcept {
     return raw.begin();
 }
 
-inline const char *StringView::end() const {
+inline const char *StringView::end() const noexcept {
     return raw.end();
 }
 
-inline usize StringView::len() const {
+inline usize StringView::len() const noexcept {
     return raw.len();
 }
 
-inline bool StringView::operator==(StringView rhs) const {
+inline bool StringView::operator==(StringView rhs) const noexcept {
     return raw == rhs.raw;
 }
 
@@ -385,12 +385,12 @@ inline S &operator<<(S &stream, const StringView &str) {
 // +------------------------------------------------------------------------------+
 
 template <typename H>
-inline void hash(const String &value, H &hasher) {
+inline void hash(const String &value, H &hasher) noexcept {
     hash(value.mData, hasher);
 }
 
 template <typename H>
-void hash(StringView const &value, H &hasher) {
+void hash(StringView const &value, H &hasher) noexcept {
     hash(value.raw, hasher);
 }
 
@@ -400,18 +400,18 @@ void hash(StringView const &value, H &hasher) {
 
 namespace utf8 {
 
-inline bool is_char_boundary(char utf8_char) {
-    return (utf8_char & 0xc0) != 0x80;
+inline bool isCharBoundary(char utf8Char) noexcept {
+    return (utf8Char & 0xc0) != 0x80;
 }
 
-inline StringView encode_slice(u32 codepoint, char *buf) {
+inline StringView encodeView(u32 codepoint, char *buf) noexcept {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     encode(codepoint, buf);
-    return {{buf, encoded_len(codepoint)}};
+    return StringView::fromUtf8({buf, encodedLength(codepoint)});
 }
 
-inline usize encoded_len(u32 codepoint) {
+inline usize encodedLength(u32 codepoint) noexcept {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
 
     // clang-format off
@@ -424,10 +424,10 @@ inline usize encoded_len(u32 codepoint) {
     VIXEN_UNREACHABLE();
 }
 
-inline bool is_valid_for_encoding(u32 codepoint) {
-    const bool in_range = codepoint <= 0x10FFFF;
-    const bool utf16_reserved = codepoint >= 0xD800 && codepoint <= 0xDFFF;
-    return in_range && !utf16_reserved;
+inline bool isValidForEncoding(u32 codepoint) noexcept {
+    const bool inRange = codepoint <= 0x10FFFF;
+    const bool utf16Reserved = codepoint >= 0xD800 && codepoint <= 0xDFFF;
+    return inRange && !utf16Reserved;
 }
 
 } // namespace utf8

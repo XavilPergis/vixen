@@ -5,19 +5,48 @@
 
 namespace vixen {
 
-constexpr usize load_factor_numerator = 7;
-constexpr usize load_factor_denomenator = 10;
-constexpr usize default_hashmap_capacity = 16;
+// keep table under 70% full.
+constexpr usize LOAD_FACTOR_NUMERATOR = 7;
+constexpr usize LOAD_FACTOR_DENOMENATOR = 10;
+constexpr usize DEFAULT_HASHMAP_CAPACITY = 16;
 
 template <typename T>
 struct HashTableCollision {
+    /**
+     * @brief the hash table slot this entry occupies.
+     */
     usize slot;
-    T *current;
-    u64 current_hash;
-    bool collided_with_tombstone;
+
+    /**
+     * @brief a pointer to the entry that was queried.
+     */
+    T *queried;
+
+    /**
+     * @brief the hash of the queried entry.
+     */
+    u64 queriedHash;
+
+    /**
+     * @brief true if there was a collision, but it was with a tombstone sentinil.
+     */
+    bool collidedWithTombstone;
+
+    /**
+     * @brief a pointer to the entry that was collided with. Empty if there was no collision.
+     */
     Option<T *> collided;
-    Option<u64> collided_hash;
-    usize probe_chain_length;
+
+    /**
+     * @brief the hash of the collided entry.
+     *
+     */
+    Option<u64> collidedHash;
+
+    /**
+     * @brief The amount of "hops" that would need to be preformed before an open slot is found.
+     */
+    usize probeChainLength;
 };
 
 struct HashTableStats {
@@ -30,11 +59,11 @@ struct HashTableStats {
 template <typename T>
 struct default_comparator {
     template <typename U>
-    constexpr static bool eq(const T &lhs, const U &rhs) {
+    constexpr static bool eq(const T &lhs, const U &rhs) noexcept {
         return lhs == rhs;
     }
 
-    constexpr static const T &map_entry(const T &entry) { return entry.template get<0>(); }
+    constexpr static const T &map_entry(const T &entry) noexcept { return entry.template get<0>(); }
 };
 
 /// @ingroup vixen_data_structures
@@ -42,32 +71,32 @@ template <typename T, typename Hasher = default_hasher, typename Cmp = default_c
 struct HashTable {
     constexpr HashTable() = default;
 
-    constexpr explicit HashTable(Allocator &alloc) : alloc(&alloc) {}
+    constexpr explicit HashTable(Allocator &alloc) noexcept : alloc(&alloc) {}
     HashTable(Allocator &alloc, usize default_capacity);
     HashTable(copy_tag_t, Allocator &alloc, const HashTable &other);
-    constexpr HashTable(HashTable &&other);
-    constexpr HashTable &operator=(HashTable &&other);
+    constexpr HashTable(HashTable &&other) noexcept;
+    constexpr HashTable &operator=(HashTable &&other) noexcept;
 
     VIXEN_DEFINE_CLONE_METHOD(HashTable)
 
     ~HashTable();
 
     void insert(usize slot, u64 hash, T &&value);
-    constexpr void remove(usize slot);
-    constexpr T &get(usize slot);
-    constexpr const T &get(usize slot) const;
-    constexpr bool isOccupied(usize slot) const;
+    constexpr void remove(usize slot) noexcept;
+    constexpr T &get(usize slot) noexcept;
+    constexpr const T &get(usize slot) const noexcept;
+    constexpr bool isOccupied(usize slot) const noexcept;
 
-    constexpr void clear();
+    constexpr void removeAll() noexcept;
     void grow();
 
     template <typename OT>
-    constexpr usize findInsertSlot(u64 hash, const OT &value) const;
+    constexpr usize findInsertSlot(u64 hash, const OT &value) const noexcept;
     template <typename OT>
-    constexpr Option<usize> findSlot(u64 hash, const OT &value) const;
+    constexpr Option<usize> findSlot(u64 hash, const OT &value) const noexcept;
 
-    constexpr bool doesTableNeedResize() const;
-    constexpr void insertNoResize(usize slot, u64 hash, T &&value);
+    constexpr bool doesTableNeedResize() const noexcept;
+    constexpr void insertNoResize(usize slot, u64 hash, T &&value) noexcept;
 
     /// @brief Returns the number of entries in the table.
     // clang-format off
