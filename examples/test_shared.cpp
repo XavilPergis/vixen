@@ -3,11 +3,12 @@
 #include <vixen/unique.hpp>
 #include <vixen/vector.hpp>
 
-void print_weak_status(vixen::Weak<vixen::Vector<i32>> &Weak) {
-    VIXEN_PANIC("AAAAAAAAAA");
+using vixen::Vector;
+using vixen::Weak;
 
-    if (auto inner = Weak.upgrade()) {
-        (*inner)->push(1917);
+void printWeakStatus(Weak<Vector<i32>> &weak) {
+    if (auto inner = weak.upgrade()) {
+        inner->insertLast(1917);
         VIXEN_INFO("upgrade successful! {}", *inner);
     } else {
         VIXEN_INFO("upgrade failed...");
@@ -15,53 +16,52 @@ void print_weak_status(vixen::Weak<vixen::Vector<i32>> &Weak) {
 }
 
 int main() {
-    vixen::heap::ArenaAllocator tmp(vixen::heap::global_allocator());
+    vixen::heap::ArenaAllocator tmp(vixen::heap::globalAllocator());
 
-    vixen::Weak<vixen::Vector<i32>> my_weak;
+    Weak<Vector<i32>> weakRef;
 
     {
-        VIXEN_INFO("making foo");
-        vixen::Vector<i32> foo(&tmp);
-        foo.push(5);
-        foo.push(4);
-        foo.push(3);
-        foo.push(2);
-        foo.push(1);
+        VIXEN_INFO("making vector");
+        Vector<i32> vec{tmp};
+        vec.insertLast(5);
+        vec.insertLast(4);
+        vec.insertLast(3);
+        vec.insertLast(2);
+        vec.insertLast(1);
 
-        VIXEN_INFO("making bar");
-        vixen::Shared<vixen::Vector<i32>> bar(&tmp, mv(foo));
-        VIXEN_INFO("making Weak");
-        my_weak = bar.downgrade();
-        bar->push(10);
-        bar->push(9);
-        bar->push(8);
-        bar->push(7);
-        bar->push(6);
-        bar->push(1);
-        bar->push(1);
-        bar->push(1);
+        VIXEN_INFO("moving vector into strong ref");
+        vixen::Shared<Vector<i32>> strongRef{tmp, mv(vec)};
 
-        VIXEN_INFO("copying bar");
+        VIXEN_INFO("downgrading strong ref");
+        weakRef = strongRef.downgrade();
+        strongRef->insertLast(10);
+        strongRef->insertLast(9);
+        strongRef->insertLast(8);
+        strongRef->insertLast(7);
+        strongRef->insertLast(6);
+        strongRef->insertLast(1);
+        strongRef->insertLast(1);
+        strongRef->insertLast(1);
+
+        VIXEN_INFO("copying strong ref to inner scope");
         {
-            auto inner = bar.copy();
-            inner->push(12345678);
+            auto inner = strongRef.copy();
+            inner->insertLast(12345678);
         }
 
-        VIXEN_INFO("upgrading Weak inner");
-        print_weak_status(my_weak);
+        VIXEN_INFO("upgrading weak ref");
+        printWeakStatus(weakRef);
 
-        VIXEN_INFO("bar = {}", bar);
-
-        for (usize i = 0; i < bar->len(); ++i) {
-            VIXEN_INFO("{}: {}", i, (*bar)[i]);
+        for (usize i = 0; i < strongRef->len(); ++i) {
+            VIXEN_INFO("{}: {}", i, strongRef.get()[i]);
         }
     }
 
-    VIXEN_INFO("creating second Weak");
-    vixen::Weak<vixen::Vector<i32>> my_weak_2 = my_weak.copy();
+    VIXEN_INFO("creating second weak ref after strong ref destroyed");
+    Weak<Vector<i32>> weakRefCopy = weakRef.copy();
 
-    print_weak_status(my_weak);
-    print_weak_status(my_weak_2);
+    printWeakStatus(weakRef);
+    printWeakStatus(weakRefCopy);
 
     return 0;
 }

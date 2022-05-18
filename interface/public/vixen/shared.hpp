@@ -97,8 +97,29 @@ struct Weak {
     Weak<T> &operator=(Weak<T> &&other);
     ~Weak();
 
+    /**
+     * @brief creates a copy of this weak ref.
+     *
+     * This operation always succeeds, and increases the weak count by 1.
+     */
     Weak<T> copy();
-    Option<Shared<T>> upgrade();
+
+    /**
+     * @brief attempts to upgrade this weak ref to a strong ref.
+     *
+     * This operation may fail, in which case it will produce a null-like strong ref. If it is
+     * successful, the strong count will be increased by 1.
+     *
+     * The intended way to use this is as followed:
+     * @code {.cpp}
+     * if (auto upgraded = weak.upgrade()) {
+     *   upgraded->method();
+     * }
+     * @endcode
+     *
+     * @return Shared<T>
+     */
+    Shared<T> upgrade();
 
 private:
     friend class Shared<T>;

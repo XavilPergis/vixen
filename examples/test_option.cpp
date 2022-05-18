@@ -17,37 +17,37 @@ struct noisy {
 
 int main() {
     {
-        VIXEN_WARN("Default initialization");
-        option<noisy> foo;
-        VIXEN_ASSERT(foo.isNone());
+        VIXEN_WARN("default constructor");
+        Option<noisy> opt;
+        VIXEN_ASSERT(opt.isNone());
         // NOTE: should not print anything here
     }
 
     {
-        VIXEN_WARN("Value move constructor");
-        option<noisy> foo = noisy();
-        VIXEN_ASSERT(foo.isSome() && foo->foo == 1234);
+        VIXEN_WARN("move constructor");
+        Option<noisy> opt = noisy();
+        VIXEN_ASSERT(opt.isSome() && opt->opt == 1234);
     }
 
     {
-        VIXEN_WARN("Value copy constructor");
+        VIXEN_WARN("copy constructor");
         noisy bar;
-        option<noisy> foo = bar;
-        VIXEN_ASSERT(foo.isSome() && foo->foo == bar.foo);
+        Option<noisy> opt = bar;
+        VIXEN_ASSERT(opt.isSome() && opt->opt == bar.opt);
     }
 
     {
-        VIXEN_WARN("Value move assignment operator");
-        option<noisy> foo;
-        foo = noisy();
-        VIXEN_ASSERT(foo.isSome() && foo->foo == 1234);
+        VIXEN_WARN("move assignment operator");
+        Option<noisy> opt;
+        opt = noisy();
+        VIXEN_ASSERT(opt.isSome() && opt->opt == 1234);
     }
 
     {
-        VIXEN_WARN("Value copy assignment operator");
+        VIXEN_WARN("copy assignment operator");
         noisy bar;
-        option<noisy> foo;
-        foo = bar;
-        VIXEN_ASSERT(foo.isSome() && foo->foo == bar.foo);
+        Option<noisy> opt;
+        opt = bar;
+        VIXEN_ASSERT(opt.isSome() && opt->opt == bar.opt);
     }
 }

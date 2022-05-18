@@ -28,70 +28,85 @@ set(VIXEN_SOURCE_FILES
     "${SRC_PREFIX}/vixen/string.cpp"
     "${SRC_PREFIX}/vixen/system_alloc.cpp"
 )
+set(VIXENTEST_SOURCE_FILES
+    "${SRC_PREFIX}/vixentest/test.cpp"
+)
 
-set(PUB_INCLUDE_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/interface/public/vixen/")
+set(PUB_INCLUDE_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/interface/public")
 set(VIXEN_PUBLIC_HEADER_FILES
-    "${PUB_INCLUDE_PREFIX}/allocator/allocator.hpp"
-    "${PUB_INCLUDE_PREFIX}/allocator/allocators.hpp"
-    "${PUB_INCLUDE_PREFIX}/allocator/layout.hpp"
-    "${PUB_INCLUDE_PREFIX}/allocator/pool_allocator.hpp"
-    "${PUB_INCLUDE_PREFIX}/allocator/profile.hpp"
-    "${PUB_INCLUDE_PREFIX}/allocator/stacktrace.hpp"
-    "${PUB_INCLUDE_PREFIX}/io/file_stream.hpp"
-    "${PUB_INCLUDE_PREFIX}/io/file.hpp"
-    "${PUB_INCLUDE_PREFIX}/any.hpp"
-    "${PUB_INCLUDE_PREFIX}/assert.hpp"
-    "${PUB_INCLUDE_PREFIX}/common.hpp"
-    "${PUB_INCLUDE_PREFIX}/defer.hpp"
-    "${PUB_INCLUDE_PREFIX}/defines.hpp"
-    "${PUB_INCLUDE_PREFIX}/function.hpp"
-    "${PUB_INCLUDE_PREFIX}/log.hpp"
-    "${PUB_INCLUDE_PREFIX}/option.hpp"
-    "${PUB_INCLUDE_PREFIX}/prof.hpp"
-    "${PUB_INCLUDE_PREFIX}/result.hpp"
-    "${PUB_INCLUDE_PREFIX}/shared.hpp"
-    "${PUB_INCLUDE_PREFIX}/slice.hpp"
-    "${PUB_INCLUDE_PREFIX}/string.hpp"
-    "${PUB_INCLUDE_PREFIX}/traits.hpp"
-    "${PUB_INCLUDE_PREFIX}/tuple.hpp"
-    "${PUB_INCLUDE_PREFIX}/typeops.hpp"
-    "${PUB_INCLUDE_PREFIX}/types.hpp"
-    "${PUB_INCLUDE_PREFIX}/unique.hpp"
-    "${PUB_INCLUDE_PREFIX}/util.hpp"
-    "${PUB_INCLUDE_PREFIX}/vector.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/allocator/allocator.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/allocator/allocators.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/allocator/layout.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/allocator/pool_allocator.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/allocator/profile.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/allocator/stacktrace.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/io/file_stream.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/io/file.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/any.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/assert.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/common.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/defer.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/defines.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/function.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/log.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/option.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/prof.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/result.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/shared.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/slice.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/string.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/traits.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/tuple.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/typeops.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/types.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/unique.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/util.hpp"
+    "${PUB_INCLUDE_PREFIX}/vixen/vector.hpp"
+)
+set(VIXENTEST_PUBLIC_HEADER_FILES
+    "${PUB_INCLUDE_PREFIX}/vixentest/test.hpp"
 )
 
-set(PRIV_INCLUDE_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/interface/internal/vixen/")
+set(PRIV_INCLUDE_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/interface/internal")
 set(VIXEN_PRIVATE_HEADER_FILES
-    "${PRIV_INCLUDE_PREFIX}/hash/hasher.hpp"
-    "${PRIV_INCLUDE_PREFIX}/hash/map.hpp"
-    "${PRIV_INCLUDE_PREFIX}/hash/set.hpp"
-    "${PRIV_INCLUDE_PREFIX}/hash/table.hpp"
+    "${PRIV_INCLUDE_PREFIX}/vixen/hash/hasher.hpp"
+    "${PRIV_INCLUDE_PREFIX}/vixen/hash/map.hpp"
+    "${PRIV_INCLUDE_PREFIX}/vixen/hash/set.hpp"
+    "${PRIV_INCLUDE_PREFIX}/vixen/hash/table.hpp"
 )
 
-set(LIB_NAME "vixen")
-add_library(${LIB_NAME} STATIC
+add_library(vixen STATIC
     ${VIXEN_SOURCE_FILES}
     ${VIXEN_PUBLIC_HEADER_FILES}
     ${VIXEN_PRIVATE_HEADER_FILES}
 )
 
-target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/interface/public")
-target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/interface/internal")
+add_library(vixentest STATIC
+    ${VIXEN_SOURCE_FILES}
+    ${VIXEN_PUBLIC_HEADER_FILES}
+    ${VIXEN_PRIVATE_HEADER_FILES}
+)
 
-# for .inl files
-target_include_directories(${LIB_NAME} PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/vixen")
+target_include_directories(vixen PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/interface/public")
+target_include_directories(vixen PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/interface/internal")
+target_include_directories(vixen PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/vixen")
 
-target_compile_features(${LIB_NAME} PRIVATE cxx_std_20)
+target_include_directories(vixentest PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/interface/public")
+target_include_directories(vixentest PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/interface/internal")
+target_include_directories(vixentest PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/vixentest")
 
-target_link_libraries(${LIB_NAME} PUBLIC spdlog)
+target_compile_features(vixen PRIVATE cxx_std_20)
+target_compile_features(vixentest PRIVATE cxx_std_20)
+
+target_link_libraries(vixen PUBLIC spdlog)
+target_link_libraries(vixentest PUBLIC vixen)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    target_link_libraries(${LIB_NAME} PRIVATE dl)
+    target_link_libraries(vixen PRIVATE dl)
 endif()
 
-target_compile_options(${LIB_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror)
-target_compile_options(${LIB_NAME} PRIVATE -fmax-errors=3)
+target_compile_options(vixen PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror)
+target_compile_options(vixentest PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror)
 
 # debug/profiling
 option(VIXEN_ENABLE_TRACY "Enable Tracy Integration" OFF)
@@ -105,30 +120,30 @@ if(${VIXEN_ENABLE_TRACY})
     target_include_directories(tracy PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../lib/tracy")
     target_compile_definitions(tracy PUBLIC TRACY_ENABLE)
 
-    target_link_libraries(${LIB_NAME} PUBLIC tracy)
+    target_link_libraries(vixen PUBLIC tracy)
 endif()
 
 option(VIXEN_ENABLE_UBSAN "Enable Undefined Behavior Sanitizer" OFF)
 
 if(${VIXEN_ENABLE_UBSAN})
-    target_compile_options(${LIB_NAME} PRIVATE -fsanitize=undefined)
-    target_link_options(${LIB_NAME} PUBLIC -fsanitize=undefined)
+    target_compile_options(vixen PRIVATE -fsanitize=undefined)
+    target_link_options(vixen PUBLIC -fsanitize=undefined)
 endif()
 
 option(VIXEN_ENABLE_ASAN "Enable Address Sanitizer" OFF)
 
 if(${VIXEN_ENABLE_ASAN})
-    target_compile_options(${LIB_NAME} PRIVATE -fsanitize=address)
-    target_link_options(${LIB_NAME} PUBLIC -fsanitize=address)
+    target_compile_options(vixen PRIVATE -fsanitize=address)
+    target_link_options(vixen PUBLIC -fsanitize=address)
 endif()
 
 # platform definitions
 set(WINDOWS_PLATFORMS "Windows" "CYGWIN_NT-5.1" "MSYS_NT-6.1")
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    target_compile_definitions(${LIB_NAME} PUBLIC VIXEN_PLATFORM_LINUX)
+    target_compile_definitions(vixen PUBLIC VIXEN_PLATFORM_LINUX)
 elseif(${CMAKE_SYSTEM_NAME} IN_LIST WINDOWS_PLATFORMS)
-    target_compile_definitions(${LIB_NAME} PUBLIC VIXEN_PLATFORM_WINDOWS)
+    target_compile_definitions(vixen PUBLIC VIXEN_PLATFORM_WINDOWS)
 endif()
 
 # documentation generation

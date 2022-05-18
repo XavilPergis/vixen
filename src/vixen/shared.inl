@@ -131,7 +131,7 @@ inline Weak<T> Weak<T>::copy() {
 }
 
 template <typename T>
-inline Option<Shared<T>> Weak<T>::upgrade() {
+inline Shared<T> Weak<T>::upgrade() {
     if (mRepr->upgradeWeak() == UpgradeResult::FAILED) return {};
     return Shared{mRepr};
 }
