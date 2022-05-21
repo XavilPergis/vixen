@@ -3,9 +3,9 @@
 #if defined(VIXEN_PLATFORM_LINUX)
 #include <sys/mman.h>
 #elif defined(VIXEN_PLATFORM_WINDOWS)
-#include <memoryapi.h>
 #include <windows.h>
-#include <winnt.h>
+
+#include <memoryapi.h>
 #endif
 
 namespace vixen::heap {

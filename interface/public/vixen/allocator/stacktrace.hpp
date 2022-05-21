@@ -10,53 +10,74 @@
 
 namespace vixen {
 
-template <typename T>
-T clone(Allocator &alloc, const T &value) {
-    return T(copy_tag, alloc, value);
-}
-
-template <typename T>
-Option<T> cloneOption(Allocator &alloc, const Option<T> &value) {
-    Option<T> cloned;
-    if (value.isSome()) {
-        cloned = T(copy_tag, alloc, value.get());
-    }
-    return cloned;
-}
-
 struct SourceLocation {
+    SourceLocation() = default;
     SourceLocation(copy_tag_t, Allocator &alloc, const SourceLocation &other)
         : line(other.line)
         , column(other.column)
-        , resolvedFileName(String::copyFrom(alloc, other.resolvedFileName)) {}
+        , resolvedFilePath(String::copyFrom(alloc, other.resolvedFilePath)) {}
+    VIXEN_DEFINE_CLONE_METHOD(SourceLocation)
 
     usize line = 0;
-    usize column = 0;
-    String resolvedFileName;
+    Option<usize> column{};
+    String resolvedFilePath;
+    Option<String> resolvedBinaryPath;
+};
+
+struct CaptureOptions {
+    /**
+     * @brief if true, frames related to capturing the stacktrace are not included in the trace.
+     */
+    bool skipSelfFrames = true;
+
+    /**
+     * @brief if true, frames before 'main' are omitted.
+     */
+    bool skipBeforeMainFrames = true;
+
+    /**
+     * @brief the number of frames to omit.
+     */
+    usize skipFrames = 0;
+
+    /**
+     * @brief the number of frames to capture, or an empty option for all frames.
+     */
+    Option<usize> captureFrames{};
 };
 
 struct StackTrace {
-    explicit StackTrace(Allocator &alloc) : callStackFrames(alloc) {}
+    explicit StackTrace(Allocator &alloc) : alloc(&alloc), callStackFrames(alloc) {}
 
     StackTrace(copy_tag_t, Allocator &alloc, const StackTrace &other)
-        : callStackFrames(clone(alloc, other.callStackFrames)) {}
+        : callStackFrames(other.callStackFrames.clone(alloc)) {}
+    VIXEN_DEFINE_CLONE_METHOD(StackTrace)
 
-    static StackTrace captureCurrent(Allocator &alloc);
+    static StackTrace captureCurrent(Allocators alloc, CaptureOptions opts = CaptureOptions{});
+    bool resolveSourceLocations();
 
     struct Frame {
-        explicit Frame(void *ip) : instructionPointer(ip) {}
+        explicit Frame(uintptr ip) : instructionPointer(ip) {}
 
         Frame(copy_tag_t, Allocator &alloc, const Frame &other)
             : instructionPointer(other.instructionPointer)
-            , resolvedLocation(cloneOption(alloc, other.resolvedLocation))
-            , resolvedFunctionName(cloneOption(alloc, other.resolvedFunctionName)) {}
+            , resolvedLocation(other.resolvedLocation.clone(alloc))
+            , resolvedFunctionName(other.resolvedFunctionName.clone(alloc)) {}
+        VIXEN_DEFINE_CLONE_METHOD(Frame)
 
-        void *instructionPointer = nullptr;
-        Option<SourceLocation> resolvedLocation;
-        Option<String> resolvedFunctionName;
+        bool omitted = false;
+        uintptr instructionPointer = 0;
+        Option<SourceLocation> resolvedLocation{};
+        Option<String> resolvedFunctionName{};
     };
 
-    Vector<Frame> callStackFrames;
+    Allocator *alloc;
+    /**
+     * @brief the stack backtrace, more recent calls come first.
+     */
+    Vector<Frame> callStackFrames{};
+    bool wereRecentFramesOmitted = false;
+    bool wereOldFramesOmitted = false;
 };
 
 // void printCurrentStackTrace(Allocator &tempAlloc);
@@ -65,30 +86,50 @@ struct StackTrace {
 
 template <typename I>
 void formatFrame(I &oi, const StackTrace::Frame &frame, usize depth) {
-    fmt::format_to(oi, "\x1b[32m{: >2} \x1b[90m❙ ", depth);
-    fmt::format_to(oi, "{:p} \x1b[0m› ", frame.instructionPointer);
+    // fmt::format_to(oi, "\x1b[32m{: >2} \x1b[90m❙ ", depth);
+    fmt::format_to(oi, "\x1b[32m{: >3} \x1b[0m| ", depth);
+    // fmt::format_to(oi, "{:x} \x1b[0m› ", frame.instructionPointer);
+    fmt::format_to(oi, "\x1b[90m{:x} \x1b[0m> ", frame.instructionPointer);
 
     // 0 ❙ 0x7fffffc7a34 › ??? • ???
     // 1 ❙ 0x7fffffc7a34 › /path/to/file.cpp:32:7 • ???
     // 2 ❙ 0x7fffffc7a34 › ??? • foo(int)
     // 3 ❙ 0x7fffffc7a34 › /path/to/file.cpp:32:7 • foo(int)
 
-    if (frame.resolvedLocation) {
-        fmt::format_to(oi,
-            "\x1b[32m{}\x1b[0m:\x1b[1;32m{}\x1b[0m:\x1b[1;32m{}\x1b[0m",
-            frame.resolvedLocation->resolvedFileName,
-            frame.resolvedLocation->line,
-            frame.resolvedLocation->column);
-    } else {
-        fmt::format_to(oi, "\x1b[90m???\x1b[0m");
-    }
-    fmt::format_to(oi, " \x1b[90m•\x1b[0m ");
+    // 0 | 0x7fffffc7a34 > ???
+    // 1 | 0x7fffffc7a34 > ???
+    //     -> /path/to/file.cpp:32:7
+    // 2 | 0x7fffffc7a34 > foo(int)
+    // 3 | 0x7fffffc7a34 > foo(int)
+    //     -> /path/to/file.cpp:32:7
 
     if (frame.resolvedFunctionName) {
-        fmt::format_to(oi, "{}", frame.resolvedFunctionName.get());
+        fmt::format_to(oi, "\x1b[32m{}\x1b[0m", frame.resolvedFunctionName.get());
     } else {
         fmt::format_to(oi, "\x1b[90m???\x1b[0m");
     }
+
+    if (frame.resolvedLocation) {
+        fmt::format_to(oi, "\n      \x1b[1m-\x1b[0m ");
+        fmt::format_to(oi,
+            "{}:\x1b[1;90m{}\x1b[0m",
+            frame.resolvedLocation->resolvedFilePath,
+            frame.resolvedLocation->line);
+
+        if (frame.resolvedLocation->column.isSome()) {
+            fmt::format_to(oi, ":\x1b[1;90m{}\x1b[0m", frame.resolvedLocation->column.get());
+        }
+
+        if (frame.resolvedLocation->resolvedBinaryPath.isSome()) {
+            fmt::format_to(oi, "\n      \x1b[1m-\x1b[0m ");
+            fmt::format_to(oi,
+                "\x1b[90m{}\x1b[0m",
+                frame.resolvedLocation->resolvedBinaryPath.get());
+        }
+    }
+
+    // fmt::format_to(oi, " \x1b[90m•\x1b[0m ");
+    // fmt::format_to(oi, " \x1b[90m\x1b[0m ");
 
     fmt::format_to(oi, "\n");
 }
@@ -96,20 +137,43 @@ void formatFrame(I &oi, const StackTrace::Frame &frame, usize depth) {
 template <typename I>
 void formatStackTrace(I &oi, const StackTrace &trace) {
     usize depth = 1;
-    VIXEN_DEBUG("outer");
-    for (const auto &frame : trace.callStackFrames) {
-        VIXEN_DEBUG("inner");
+
+    usize startIndex = 0;
+    for (usize i = 0; i < trace.callStackFrames.len(); ++i) {
+        auto const &frame = trace.callStackFrames[i];
+        if (frame.resolvedFunctionName.isSome() and frame.resolvedFunctionName.get() == "main") {
+            startIndex = i;
+            depth += i;
+            break;
+        }
+    }
+
+    if (startIndex != 0) {
+        fmt::format_to(oi, "\x1b[32m{: >3} \x1b[0m| \x1b[90m...\x1b[0m\n", depth - 1);
+        // fmt::format_to(oi, "\x1b[90m[more calls]\x1b[0m\n");
+    }
+
+    for (usize i = startIndex; i < trace.callStackFrames.len(); ++i) {
+        auto const &frame = trace.callStackFrames[i];
         formatFrame(oi, frame, depth++);
+    }
+
+    if (trace.wereRecentFramesOmitted) {
+        fmt::format_to(oi, "\x1b[32m{: >3} \x1b[0m| \x1b[90m...\x1b[0m\n", depth);
+        // fmt::format_to(oi, "\x1b[90m[more calls]\x1b[0m\n");
     }
 }
 
 namespace platform {
 
-struct StackTraceCaptureContext {
+struct StackTraceAddrsCaptureContext {
+    bool skipSelfFrames = true;
     usize framesToSkip = 0;
-    usize framesToCapture = 0;
-    void **outFrames = nullptr;
-    usize *outFramesCount = nullptr;
+    Option<usize> maxFramesToCapture{};
+    Allocators allocators{};
+
+    bool outWasCaptureSuccessful = false;
+    StackTrace *out;
 };
 
 struct StackTraceCapabilities {
@@ -118,7 +182,8 @@ struct StackTraceCapabilities {
 };
 
 StackTraceCapabilities getStackTraceCapabilities();
-void captureStackFrames(StackTraceCaptureContext &opts);
+bool captureStackAddrs(StackTrace &outTrace, StackTraceAddrsCaptureContext &opts);
+bool resolveStackAddrs(Allocators alloc, StackTrace &outTrace);
 
 } // namespace platform
 

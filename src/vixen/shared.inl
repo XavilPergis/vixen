@@ -13,7 +13,7 @@ inline SharedRepr<T>::SharedRepr(Allocator &alloc, Args &&...args)
     , data(heap::createInit<T>(alloc, std::forward<Args>(args)...)) {}
 
 template <typename T>
-inline void SharedRepr<T>::acquireStrong() {
+inline void SharedRepr<T>::acquireStrong() noexcept {
     // THIS LOOKS SO WRONG, but i think its fine! because we'll always be holding onto another
     // Shared when this is called, its impossible for the resource to be destroyed by
     // releaseStrong(). If it's the only other shared that's referencing this resource, then
@@ -27,28 +27,28 @@ inline void SharedRepr<T>::acquireStrong() {
 }
 
 template <typename T>
-inline void SharedRepr<T>::releaseStrong() {
+inline void SharedRepr<T>::releaseStrong() noexcept {
     // see acquireStrong() for why this is safe
-    if (strongCount.fetch_sub(1) == 1) heap::destroyInit(alloc, data);
-    if (weakCount.fetch_sub(1) == 1) heap::destroyInit(alloc, this);
+    if (strongCount.fetch_sub(1) == 1) heap::destroyInit(*alloc, data);
+    if (weakCount.fetch_sub(1) == 1) heap::destroyInit(*alloc, this);
 }
 
 template <typename T>
-inline void SharedRepr<T>::acquireWeak() {
+inline void SharedRepr<T>::acquireWeak() noexcept {
     // see acquireStrong() for why this wacky ass code is okay
     weakCount += 1;
 }
 
 template <typename T>
-inline void SharedRepr<T>::releaseWeak() {
+inline void SharedRepr<T>::releaseWeak() noexcept {
     // see acquireStrong() for why this is safe
     if (weakCount.fetch_sub(1) == 1) {
-        heap::destroyInit(alloc, this);
+        heap::destroyInit(*alloc, this);
     }
 }
 
 template <typename T>
-inline UpgradeResult SharedRepr<T>::upgradeWeak() {
+inline UpgradeResult SharedRepr<T>::upgradeWeak() noexcept {
     // ok, we ACTUALLY havew to be careful here, and use a simple CAS loop to update the strong
     // count. We can't just increment it because a thread may observe it to be 1 and destroy the
     // resource just before we update it to be 2 and construct a new strong reference.
@@ -90,7 +90,7 @@ inline Shared<T>::~Shared() {
 }
 
 template <typename T>
-inline void Shared<T>::release() {
+inline void Shared<T>::release() noexcept {
     if (!mRepr) return;
     mRepr->releaseStrong();
     mRepr = nullptr;
@@ -98,22 +98,22 @@ inline void Shared<T>::release() {
 }
 
 template <typename T>
-inline Shared<T> Shared<T>::copy() {
+inline Shared<T> Shared<T>::copy() noexcept {
     mRepr->acquireStrong();
     return Shared{mRepr};
 }
 
 template <typename T>
-inline Weak<T> Shared<T>::downgrade() {
+inline Weak<T> Shared<T>::downgrade() noexcept {
     mRepr->acquireWeak();
     return Weak{mRepr};
 }
 
 template <typename T>
-Weak<T>::Weak(Weak<T> &&other) : mRepr(util::exchange(other.mRepr, nullptr)) {}
+Weak<T>::Weak(Weak<T> &&other) noexcept : mRepr(util::exchange(other.mRepr, nullptr)) {}
 
 template <typename T>
-Weak<T> &Weak<T>::operator=(Weak<T> &&other) {
+Weak<T> &Weak<T>::operator=(Weak<T> &&other) noexcept {
     if (&other == this) return *this;
     mRepr = util::exchange(other.mRepr, nullptr);
     return *this;
@@ -125,13 +125,13 @@ inline Weak<T>::~Weak() {
 }
 
 template <typename T>
-inline Weak<T> Weak<T>::copy() {
+inline Weak<T> Weak<T>::copy() noexcept {
     mRepr->acquireWeak();
     return Weak{mRepr};
 }
 
 template <typename T>
-inline Shared<T> Weak<T>::upgrade() {
+inline Shared<T> Weak<T>::upgrade() noexcept {
     if (mRepr->upgradeWeak() == UpgradeResult::FAILED) return {};
     return Shared{mRepr};
 }

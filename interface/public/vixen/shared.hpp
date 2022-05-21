@@ -20,11 +20,11 @@ struct SharedRepr {
     template <typename... Args>
     SharedRepr(Allocator &alloc, Args &&...args);
 
-    void acquireStrong();
-    void releaseStrong();
-    void acquireWeak();
-    void releaseWeak();
-    UpgradeResult upgradeWeak();
+    void acquireStrong() noexcept;
+    void releaseStrong() noexcept;
+    void acquireWeak() noexcept;
+    void releaseWeak() noexcept;
+    UpgradeResult upgradeWeak() noexcept;
 
     std::atomic<usize> strongCount;
     std::atomic<usize> weakCount;
@@ -61,14 +61,14 @@ struct Shared {
     const T &get() const { return *mData; }
     T &get() { return *mData; }
 
-    explicit operator bool() const { return mData; }
-    operator const_pointer() const { return mData; }
-    operator pointer() { return mData; }
+    explicit operator bool() const noexcept { return mData; }
+    operator const_pointer() const noexcept { return mData; }
+    operator pointer() noexcept { return mData; }
     // clang-format on
 
-    void release();
-    Shared<T> copy();
-    Weak<T> downgrade();
+    void release() noexcept;
+    Shared<T> copy() noexcept;
+    Weak<T> downgrade() noexcept;
 
     template <typename S>
     S &operator<<(S &s) const {
@@ -77,7 +77,7 @@ struct Shared {
     }
 
 private:
-    friend class Weak<T>;
+    friend struct Weak<T>;
     explicit Shared(SharedRepr<T> *repr) noexcept : mData(repr->data), mRepr(repr) {}
 
     T *mData = nullptr;
@@ -93,8 +93,9 @@ struct Weak {
     using const_pointer = const T *;
 
     Weak() = default;
-    Weak(Weak<T> &&other);
-    Weak<T> &operator=(Weak<T> &&other);
+    VIXEN_DELETE_COPY(Weak)
+    Weak(Weak<T> &&other) noexcept;
+    Weak<T> &operator=(Weak<T> &&other) noexcept;
     ~Weak();
 
     /**
@@ -102,7 +103,7 @@ struct Weak {
      *
      * This operation always succeeds, and increases the weak count by 1.
      */
-    Weak<T> copy();
+    Weak<T> copy() noexcept;
 
     /**
      * @brief attempts to upgrade this weak ref to a strong ref.
@@ -119,10 +120,10 @@ struct Weak {
      *
      * @return Shared<T>
      */
-    Shared<T> upgrade();
+    Shared<T> upgrade() noexcept;
 
 private:
-    friend class Shared<T>;
+    friend struct Shared<T>;
     explicit Weak(SharedRepr<T> *repr) noexcept : mRepr(repr) {}
 
     SharedRepr<T> *mRepr = nullptr;

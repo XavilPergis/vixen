@@ -286,12 +286,27 @@ Allocator &debugAllocator();
 
 usize pageSize();
 
+struct Allocators {
+    Allocators() : Allocators(globalAllocator()) {}
+    Allocators(Allocator &alloc) : mPersistent(&alloc), mTemporary(&alloc) {}
+    Allocators(Allocator &persistent, Allocator &temporary)
+        : mPersistent(&persistent), mTemporary(&temporary) {}
+
+    Allocator &persistent() { return *mPersistent; }
+    Allocator &temporary() { return *mTemporary; }
+
+private:
+    Allocator *mPersistent;
+    Allocator *mTemporary;
+};
+
 } // namespace vixen::heap
 
 /// @ingroup vixen_allocator
 /// allocator is such a commonly-used type that it makes sense not to have to refer to it by
 /// `heap::allocator` all the time.
 using Allocator = vixen::heap::Allocator;
+using Allocators = vixen::heap::Allocators;
 
 namespace vixen {
 

@@ -51,18 +51,18 @@ template <typename T> using RemoveCv = RemoveConst<RemoveVolatile<T>>;
 template <typename T> using RemoveCvRef = RemoveReference<RemoveCv<T>>;
 
 template <typename T, typename U>
-concept IsConstructibleFrom = requires(U value) {
-    { T{value} } -> IsSame<T>;
+concept IsConstructibleFrom = requires(U &&value) {
+    { T(std::forward<U>(value)) } -> IsSame<T>;
 };
 
 template <typename T>
 concept IsCopyConstructible = requires(T other) {
-    { T{static_cast<T const &>(other)} } -> IsSame<T>;
+    { T(static_cast<T const &>(other)) } -> IsSame<T>;
 };
 
 template <typename T>
 concept IsMoveConstructible = requires(T other) {
-    { T{static_cast<T &&>(other)} } -> IsSame<T>;
+    { T(static_cast<T &&>(other)) } -> IsSame<T>;
 };
 
 template <typename T>

@@ -60,8 +60,9 @@ VIXEN_FORCE_ENABLE_DEBUG_ASSERT or VIXEN_FORCE_DISBLE_ASSERT.
 // release mode, like bounds checking on index operators. Normal asserts are preferred to these
 // wherever you can put them, though.
 #ifdef _VIXEN_DEBUG_ASSERT_ENABLED
-#define VIXEN_DEBUG_ASSERT_EXT(...) VIXEN_ASSERT_EXT(__VA_ARGS__)
-#define VIXEN_DEBUG_ASSERT(...) VIXEN_ASSERT(__VA_ARGS__)
+#define EXPAND(x) x
+#define VIXEN_DEBUG_ASSERT_EXT(...) EXPAND(VIXEN_ASSERT_EXT(__VA_ARGS__))
+#define VIXEN_DEBUG_ASSERT(...) EXPAND(VIXEN_ASSERT(__VA_ARGS__))
 #else
 #define VIXEN_DEBUG_ASSERT_EXT(...)
 #define VIXEN_DEBUG_ASSERT(...)

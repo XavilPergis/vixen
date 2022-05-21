@@ -43,8 +43,13 @@
 #define loop while (true)
 #define mv(x) ::vixen::util::move(x)
 
+#if defined(__GNUC__)
 #define likely(x) __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
+#else
+#define likely(x) x
+#define unlikely(x) x
+#endif
 
 #define _STATIC_INIT_ID() _vixen_static_runner__##__COUNTER__
 
@@ -387,7 +392,7 @@ inline void arrayCopyNonoverlappingRaw(void const *src, void *dst, usize bytes) 
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr void fillUninitialized(T const &pattern, T *ptr, usize count) {
+inline void fillUninitialized(T const &pattern, T *ptr, usize count) {
     // not calling memset here cuz its not flexible enough in this case.
     for (usize i = 0; i < count; i++) {
         new (ptr + i) T(pattern);
@@ -425,18 +430,18 @@ constexpr bool isPowerOfTwo(T n) noexcept {
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T &readRawAs(void *ptr) noexcept {
+inline T &readRawAs(void *ptr) noexcept {
     return *static_cast<T *>(ptr);
 }
 
 /// @ingroup vixen_util
 template <typename T>
-constexpr T const &readRawAs(void const *ptr) noexcept {
+inline T const &readRawAs(void const *ptr) noexcept {
     return *static_cast<const T *>(ptr);
 }
 
 /// @ingroup vixen_util
-constexpr isize rawptr_difference(void *lo, void *hi) noexcept {
+inline isize rawptr_difference(void *lo, void *hi) noexcept {
     return reinterpret_cast<isize>(hi) - reinterpret_cast<isize>(lo);
 }
 

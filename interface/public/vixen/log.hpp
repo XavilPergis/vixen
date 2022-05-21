@@ -87,8 +87,7 @@ namespace util {
 constexpr const char *strip_file_path(const char *path) {
     const char *file = path;
     while (*path)
-        if (*path++ == '/')
-            file = path;
+        if (*path++ == '/') file = path;
     return file;
 }
 

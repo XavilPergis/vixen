@@ -103,10 +103,9 @@ target_link_libraries(vixentest PUBLIC vixen)
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     target_link_libraries(vixen PRIVATE dl)
+    target_compile_options(vixen PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror)
+    target_compile_options(vixentest PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror)
 endif()
-
-target_compile_options(vixen PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror)
-target_compile_options(vixentest PRIVATE -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -Wno-unused-parameter -Werror)
 
 # debug/profiling
 option(VIXEN_ENABLE_TRACY "Enable Tracy Integration" OFF)
@@ -144,6 +143,12 @@ if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
     target_compile_definitions(vixen PUBLIC VIXEN_PLATFORM_LINUX)
 elseif(${CMAKE_SYSTEM_NAME} IN_LIST WINDOWS_PLATFORMS)
     target_compile_definitions(vixen PUBLIC VIXEN_PLATFORM_WINDOWS)
+
+    # i dont fucking know
+    target_compile_definitions(vixen PUBLIC _AMD64)
+    target_link_libraries(vixen PRIVATE -ldbghelp)
+
+    set_target_properties(vixen PROPERTIES PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 endif()
 
 # documentation generation

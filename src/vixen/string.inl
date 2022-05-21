@@ -48,7 +48,7 @@ inline String String::copyFrom(Allocator &alloc, StringView slice) {
 
     char *reserved = data.reserveLast(slice.len());
     util::arrayCopyNonoverlapping(slice.begin(), reserved, slice.len());
-    data.unsafeGrowBy(slice.len());
+    data.unsafeIncreaseLengthBy(slice.len());
     data.insertLast(char(0));
 
     return String(mv(data));
@@ -62,12 +62,12 @@ inline void String::insertLast(u32 codepoint) {
     _VIXEN_UTF8_CODEPOINT_VALID(codepoint);
     auto encodedLen = utf8::encodedLength(codepoint);
     utf8::encode(codepoint, mData.reserveLast(encodedLen));
-    mData.unsafeGrowBy(encodedLen);
+    mData.unsafeIncreaseLengthBy(encodedLen);
 }
 
 inline void String::insertLast(StringView slice) {
     util::arrayCopyNonoverlapping(slice.begin(), mData.reserveLast(slice.len()), slice.len());
-    mData.unsafeGrowBy(slice.len());
+    mData.unsafeIncreaseLengthBy(slice.len());
 }
 
 inline void String::removeAll() noexcept {
@@ -201,7 +201,7 @@ inline void null_terminate(Vector<char> &data) {
 inline Vector<char> to_null_terminated(Allocator &alloc, StringView str) {
     Vector<char> out(alloc, str.len() + 1);
     util::arrayCopyNonoverlapping(str.begin(), out.reserveLast(str.len()), str.len());
-    out.unsafeGrowBy(str.len());
+    out.unsafeIncreaseLengthBy(str.len());
 
     null_terminate(out);
     return out;
@@ -223,6 +223,18 @@ inline StringView::StringView(const char *cstr) : raw({cstr, std::strlen(cstr)})
 inline StringView::StringView(const char *str, usize len) : raw({str, len}) {}
 inline StringView::StringView(View<const char> slice) : raw(slice) {}
 inline StringView::StringView(String const &str) noexcept : raw({str.begin(), str.len()}) {}
+
+inline StringView StringView::empty() noexcept {
+    return StringView{};
+}
+
+inline StringView StringView::fromUtf8(View<const char> const &data) {
+    return StringView{data};
+}
+
+inline StringView StringView::fromAsciiNullTerminated(char const *cstr) {
+    return StringView{cstr};
+}
 
 #pragma endregion
 #pragma region "string_slice Algorithms"

@@ -12,14 +12,16 @@ LoggerId panic_logger = create_logger("vixen-panic", [](LoggerId id) {
 });
 
 LoggerId panic_stacktrace_logger = create_logger("vixen-panic-stacktrace", [](LoggerId id) {
-    set_logger_format_string(id, "%^=>%$ %v");
+    // set_logger_format_string(id, "%^=>%$ %v");
+    set_logger_format_string(id, "%v");
 });
 
 void defaultPanicHandler() {
-    auto trace = StackTrace::captureCurrent(heap::debugAllocator());
+    auto trace = StackTrace::captureCurrent(heap::debugAllocator(), {.skipFrames = 2});
+    trace.resolveSourceLocations();
 
     VIXEN_ERROR_EXT(panic_stacktrace_logger,
-        "\x1b[1mA critical error has been encountered, and program execution could not continue.\x1b[0m")
+        "\x1b[1mA critical error has been encountered, and program execution could not continue. this is a bug.\x1b[0m")
     VIXEN_ERROR_EXT(panic_stacktrace_logger,
         "\x1b[1mBelow is a trace of the current execution path.\x1b[0m\n")
 

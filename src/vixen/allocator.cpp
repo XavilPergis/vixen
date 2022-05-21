@@ -5,6 +5,8 @@
 #if defined(VIXEN_PLATFORM_LINUX)
 #include <unistd.h>
 #elif defined(VIXEN_PLATFORM_WINDOWS)
+#include <windows.h>
+
 #include <sysinfoapi.h>
 #endif
 
@@ -46,6 +48,21 @@ usize pageSize() {
 // void *allocNextLayer(AllocatorLayer *layer, Allocator &alloc, const Layout &layout) {
 //     return layer ? layer->alloc(alloc, layout) : alloc.internalAlloc(layout);
 // }
+
+AllocatorLayer *&getGlobalLayerHeadReference() {
+    static AllocatorLayer *gLayerHead = nullptr;
+    return gLayerHead;
+}
+
+AllocatorLayer *getGlobalLayerHead() {
+    return getGlobalLayerHeadReference();
+}
+
+void addGlobalLayer(AllocatorLayer *layer) {
+    AllocatorLayer *&head = getGlobalLayerHeadReference();
+    if (head != nullptr) layer->nextLayer = head;
+    head = layer;
+}
 
 LayerExecutor::LayerExecutor(Allocator *allocator)
     : allocator(allocator), currentLayer(allocator->layerHead) {}

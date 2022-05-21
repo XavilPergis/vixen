@@ -9,7 +9,7 @@ template <typename T>
 struct UninitializedStorage {
     template <typename... Args>
     constexpr void constructInPlace(Args &&...args) {
-        util::constructInPlace(reinterpret_cast<T *>(raw), std::forward<Args...>(args)...);
+        new (reinterpret_cast<T *>(raw)) T(std::forward<Args>(args)...);
     }
 
     constexpr void destruct() { get().~T(); }

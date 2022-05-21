@@ -46,7 +46,7 @@ struct Unique {
     }
 
     ~Unique() {
-        if (mData) heap::destroyInit(mAlloc, mData);
+        if (mData) heap::destroyInit(*mAlloc, mData);
     }
 
     // clang-format off
@@ -65,7 +65,7 @@ struct Unique {
 
     void release() noexcept {
         if (mData) {
-            heap::destroyInit(mAlloc, mData);
+            heap::destroyInit(*mAlloc, mData);
             mData = nullptr;
         }
     }

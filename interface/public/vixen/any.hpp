@@ -16,11 +16,11 @@ template <typename T>
 struct TypeInfoImplInstance : TypeInfoImpl {};
 
 struct TypeInfo {
-    bool operator==(TypeInfo const &other) noexcept { return this->mId == other.mId; }
-    bool operator!=(TypeInfo const &other) noexcept { return this->mId != other.mId; }
+    constexpr bool operator==(TypeInfo const &other) noexcept { return this->mId == other.mId; }
+    constexpr bool operator!=(TypeInfo const &other) noexcept { return this->mId != other.mId; }
 
 protected:
-    TypeInfo(TypeInfoImpl *id) noexcept : mId(id) {}
+    constexpr TypeInfo(TypeInfoImpl *id) noexcept : mId(id) {}
     TypeInfoImpl *mId;
 
     template <typename T>

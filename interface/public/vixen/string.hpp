@@ -50,6 +50,16 @@ struct String {
 
     Vector<char> intoCharData() noexcept { return mv(mData); }
 
+    char *reserveLast(usize chars) { return mData.reserveLast(chars); }
+
+    void unsafeGrowBy(usize elements) noexcept { mData.unsafeIncreaseLengthBy(elements); }
+    void decreaseLengthBy(usize elements) noexcept { mData.decreaseLengthBy(elements); }
+    void decreaseLengthTo(usize length) noexcept { mData.decreaseLengthTo(length); }
+    void unsafeSetLengthTo(usize length) noexcept { mData.unsafeSetLengthTo(length); }
+
+    void shrinkToFit(usize capacity) noexcept { mData.shrinkTo(capacity); }
+    void shrinkToFit() noexcept { mData.shrinkToFit(); }
+
     /// Encodes the Unicode codepoint `codepoint` into UTF-8 and appends the encoded bytes onto the
     /// end of the String. `codepoint` MUST be a valid unicode codepoint, as
     /// `utf8::isValidForEncoding` can determine.
@@ -79,6 +89,7 @@ struct String {
     const char *begin() const noexcept;
     const char *end() const noexcept;
     usize len() const noexcept;
+    usize capacity() const noexcept { return mData.capacity(); }
 
     template <typename S>
     friend S &operator<<(S &stream, const String &str);
@@ -87,9 +98,14 @@ private:
     Vector<char> mData;
 };
 
-struct StringOutputIterator
-    : public std::iterator<std::output_iterator_tag, void, void, void, void> {
+struct StringOutputIterator {
     explicit StringOutputIterator(String *output) : output(output) {}
+
+    using iterator_category = std::output_iterator_tag;
+    using value_type = void;
+    using difference_type = void;
+    using pointer = void;
+    using reference = void;
 
     StringOutputIterator &operator=(char value) {
         output->insertLast(value);
@@ -106,7 +122,7 @@ private:
     String *output;
 };
 
-StringOutputIterator String::insertLastIterator() noexcept {
+inline StringOutputIterator String::insertLastIterator() noexcept {
     return StringOutputIterator{this};
 }
 
@@ -121,9 +137,9 @@ struct StringView {
     StringView(const char *str, usize len);
     StringView(View<const char> slice);
 
-    static String empty(Allocator &alloc) noexcept;
-    static String fromUtf8(View<char> const &data);
-    static String fromAsciiNullTerminated(char const *cstr);
+    static StringView empty() noexcept;
+    static StringView fromUtf8(View<const char> const &data);
+    static StringView fromAsciiNullTerminated(char const *cstr);
 
     Option<usize> indexOf(StringView needle) const noexcept;
     Option<usize> indexOf(u32 needle) const noexcept;

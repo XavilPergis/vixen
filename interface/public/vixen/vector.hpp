@@ -55,13 +55,27 @@ struct Vector {
     }
 
     /**
-     * @brief reserves the space for `elements` new elements after the last element in the current
-     * vector, but does not insert them.
+     * @brief reserves at least enough space for `elements` new elements after the last element in
+     * the current vector, but does not insert them.
      *
      * @param elements the number of elements to reserve space for.
      * @return T* a pointer to to the beginning of the newly-allocated elements.
      */
     T *reserveLast(usize additionalElements = 1);
+
+    /**
+     * @brief shrinks the capacity of the vector to the desired length.
+     *
+     * This function may allocate a new buffer while resizing.
+     */
+    void shrinkTo(usize capacity);
+
+    /**
+     * @brief shrinks the capacity of the vector to its length.
+     *
+     * This function may allocate a new buffer while resizing.
+     */
+    void shrinkToFit();
 
     /**
      * @brief increases the length of the vector by `elements`.
@@ -72,7 +86,7 @@ struct Vector {
      *
      * @param elements
      */
-    void unsafeGrowBy(usize elements) noexcept;
+    void unsafeIncreaseLengthBy(usize elements) noexcept;
 
     // growTo - not included, seems like it would not be very useful...
 
@@ -83,9 +97,9 @@ struct Vector {
      *
      * @param elements
      */
-    void shrinkBy(usize elements) noexcept;
+    void decreaseLengthBy(usize elements) noexcept;
 
-    void shrinkByNoDestroy(usize elements) noexcept;
+    void decreaseLengthByNoDestroy(usize elements) noexcept;
 
     /**
      * @brief truncates the vector to `len` elements.
@@ -94,9 +108,9 @@ struct Vector {
      *
      * @param length the new length of the vector
      */
-    void shrinkTo(usize length) noexcept;
+    void decreaseLengthTo(usize length) noexcept;
 
-    void shrinkToNoDestroy(usize length) noexcept;
+    void decreaseLengthToNoDestroy(usize length) noexcept;
 
     /**
      * @brief sets the length of the vector to `len` elements.
@@ -107,9 +121,9 @@ struct Vector {
      *
      * @param length the new length of the vector
      */
-    void unsafeSetLength(usize length) noexcept;
+    void unsafeSetLengthTo(usize length) noexcept;
 
-    void unsafeSetLengthNoDestroy(usize length) noexcept;
+    void unsafeSetLengthToNoDestroy(usize length) noexcept;
 
 #pragma region "Insertion"
 
@@ -230,6 +244,8 @@ struct Vector {
 
 #pragma endregion
 
+    void reverse() noexcept;
+
     VIXEN_NODISCARD bool contains(T const &value) noexcept;
 
     // void sortStable();
@@ -296,9 +312,14 @@ private:
 };
 
 template <typename T>
-struct VectorOutputIterator
-    : public std::iterator<std::output_iterator_tag, void, void, void, void> {
+struct VectorOutputIterator {
     explicit VectorOutputIterator(Vector<T> *output) : output(output) {}
+
+    using iterator_category = std::output_iterator_tag;
+    using value_type = void;
+    using difference_type = void;
+    using pointer = void;
+    using reference = void;
 
     // i hate this
     VectorOutputIterator(VectorOutputIterator const &other) : output(other.output) {}

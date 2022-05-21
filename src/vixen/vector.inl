@@ -56,7 +56,25 @@ inline T *Vector<T>::reserveLast(usize elements) {
 }
 
 template <typename T>
-inline void Vector<T>::unsafeGrowBy(usize elements) noexcept {
+inline void Vector<T>::shrinkTo(usize capacity) {
+    if (capacity < mLength) {
+        for (usize i = capacity; i < mLength; ++i) {
+            mData[i].~T();
+        }
+        mLength = capacity;
+        setCapacity(mLength);
+    } else {
+        setCapacity(capacity);
+    }
+}
+
+template <typename T>
+inline void Vector<T>::shrinkToFit() {
+    setCapacity(mLength);
+}
+
+template <typename T>
+inline void Vector<T>::unsafeIncreaseLengthBy(usize elements) noexcept {
     VIXEN_ASSERT_EXT(mLength + elements <= mCapacity,
         "tried to grow a(n) {}-element long vector by {}, but its capacity is only {}.",
         mLength,
@@ -66,29 +84,29 @@ inline void Vector<T>::unsafeGrowBy(usize elements) noexcept {
 }
 
 template <typename T>
-inline void Vector<T>::shrinkBy(usize elements) noexcept {
+inline void Vector<T>::decreaseLengthBy(usize elements) noexcept {
     VIXEN_ASSERT_EXT(mLength >= elements,
         "tried to shrink a(n) {}-element long vector by {}",
         mLength,
         elements);
 
-    shrinkTo(mLength - elements);
+    decreaseLengthTo(mLength - elements);
 }
 
 template <typename T>
-inline void Vector<T>::shrinkByNoDestroy(usize elements) noexcept {
+inline void Vector<T>::decreaseLengthByNoDestroy(usize elements) noexcept {
     VIXEN_ASSERT_EXT(mLength >= elements,
         "tried to shrink a(n) {}-element long vector by {}",
         mLength,
         elements);
 
-    shrinkToNoDestroy(mLength - elements);
+    decreaseLengthToNoDestroy(mLength - elements);
 }
 
 template <typename T>
-inline void Vector<T>::shrinkTo(usize length) noexcept {
+inline void Vector<T>::decreaseLengthTo(usize length) noexcept {
     auto prevLength = mLength;
-    shrinkToNoDestroy(length);
+    decreaseLengthToNoDestroy(length);
 
     for (usize i = length; i < prevLength; ++i) {
         mData[i].~T();
@@ -96,7 +114,7 @@ inline void Vector<T>::shrinkTo(usize length) noexcept {
 }
 
 template <typename T>
-inline void Vector<T>::shrinkToNoDestroy(usize length) noexcept {
+inline void Vector<T>::decreaseLengthToNoDestroy(usize length) noexcept {
     VIXEN_DEBUG_ASSERT_EXT(length <= mLength,
         "tried to shrink a(n) {}-element long vector to {} element(s), which is greater than the current length",
         mLength,
@@ -106,7 +124,7 @@ inline void Vector<T>::shrinkToNoDestroy(usize length) noexcept {
 }
 
 template <typename T>
-inline void Vector<T>::unsafeSetLength(usize newLength) noexcept {
+inline void Vector<T>::unsafeSetLengthTo(usize newLength) noexcept {
     VIXEN_ASSERT_EXT(newLength < mCapacity,
         "tried to set the length of a vector to {}, but its capacity was {}.",
         newLength,
@@ -114,12 +132,12 @@ inline void Vector<T>::unsafeSetLength(usize newLength) noexcept {
     if (newLength > mLength) {
         mLength = newLength;
     } else if (newLength < mLength) {
-        shrinkTo(newLength);
+        decreaseLengthTo(newLength);
     }
 }
 
 template <typename T>
-inline void Vector<T>::unsafeSetLengthNoDestroy(usize newLength) noexcept {
+inline void Vector<T>::unsafeSetLengthToNoDestroy(usize newLength) noexcept {
     VIXEN_ASSERT_EXT(newLength < mCapacity,
         "tried to set the length of a vector to {}, but its capacity was {}.",
         newLength,
@@ -129,7 +147,7 @@ inline void Vector<T>::unsafeSetLengthNoDestroy(usize newLength) noexcept {
 
 template <typename T, typename U, typename... Us>
 constexpr void constructSequenceAt(T *location, usize &outSuccessfulCount, U &&head, Us &&...tail) {
-    new (location) T{std::forward<U>(head)};
+    new (location) T(std::forward<U>(head));
     outSuccessfulCount += 1;
 
     if constexpr (sizeof...(Us) > 0) {
@@ -391,6 +409,13 @@ inline void Vector<T>::removeAll() noexcept {
         mData[i].~T();
     }
     mLength = 0;
+}
+
+template <typename T>
+inline void Vector<T>::reverse() noexcept {
+    for (usize i = 0; i < mLength / 2; ++i) {
+        swap(i, mLength - i - 1);
+    }
 }
 
 template <typename T>

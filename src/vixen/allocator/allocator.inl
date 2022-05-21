@@ -84,6 +84,10 @@ inline T *createArrayUninit(Allocator &alloc, usize len) {
     return (T *)alloc.alloc(Layout::arrayOf<T>(len));
 }
 
+inline char *createByteArrayUninit(Allocator &alloc, usize bytes) {
+    return (char *)alloc.alloc(Layout::arrayOf<char>(bytes));
+}
+
 template <typename T>
 inline T *createArrayInit(Allocator &alloc, usize len, T const &pattern) {
     T *storage = createArrayUninit<T>(alloc, len);
@@ -113,6 +117,10 @@ inline void destroyInit(Allocator &alloc, T *ptr) {
 template <typename T>
 inline void destroyArrayUninit(Allocator &alloc, T *ptr, usize len) {
     alloc.dealloc(Layout::arrayOf<T>(len), ptr);
+}
+
+inline void destroyByteArrayUninit(Allocator &alloc, char *ptr, usize len) {
+    alloc.dealloc(Layout::arrayOf<char>(len), ptr);
 }
 
 template <typename T>

@@ -6,42 +6,30 @@
 
 namespace vixen {
 
-StackTrace StackTrace::captureCurrent(Allocator &alloc) {
+StackTrace StackTrace::captureCurrent(Allocators alloc, CaptureOptions captureOpts) {
     auto caps = platform::getStackTraceCapabilities();
-
-    // TODO: handle this better
     VIXEN_ASSERT(caps.supportsStackTraceCapture);
 
-    // How much the stack buffer grows on each failed iteration attempt
-    usize traceSizeInitial = 64;
-    usize traceSizeIncrement = 64;
+    StackTrace trace(alloc.persistent());
 
-    Vector<void *> frames(alloc);
-    StackTrace trace(alloc);
-    for (usize requestedFrameCount = traceSizeInitial;; requestedFrameCount += traceSizeIncrement) {
-        usize frameCount = 0;
-        frames.removeAll();
+    platform::StackTraceAddrsCaptureContext opts{};
+    opts.allocators = alloc;
+    opts.skipSelfFrames = captureOpts.skipSelfFrames;
+    opts.framesToSkip = captureOpts.skipFrames + (captureOpts.skipSelfFrames ? 1 : 0);
+    opts.maxFramesToCapture = captureOpts.captureFrames;
 
-        platform::StackTraceCaptureContext opts{};
-        opts.framesToCapture = requestedFrameCount;
-        // FIXME
-        // opts.outFrames = frames.reserve(requestedFrameCount);
-        opts.outFramesCount = &frameCount;
-
-        platform::captureStackFrames(opts);
-
-        // If the buffer wasn't entirely filled by backtrace, then we know there isn't any more
-        // frames.
-        if (frameCount != requestedFrameCount) {
-            frames.shrinkTo(frameCount);
-            for (usize i = 0; i < frames.len(); ++i) {
-                trace.callStackFrames.emplaceLast(frames[i]);
-            }
-            break;
-        }
-    }
+    platform::captureStackAddrs(trace, opts);
+    trace.callStackFrames.reverse();
 
     return trace;
+}
+
+bool StackTrace::resolveSourceLocations() {
+    auto caps = platform::getStackTraceCapabilities();
+    VIXEN_ASSERT(caps.supportsStackTraceResolution);
+
+    platform::resolveStackAddrs(*this->alloc, *this);
+    return true;
 }
 
 } // namespace vixen
